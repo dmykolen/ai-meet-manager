@@ -1,0 +1,33 @@
+[project]
+name = "meeting-transcriber"
+version = "1.0.0"
+description = "Transcription and speaker diarization service for meeting and workplace recordings"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi[standard]>=0.115",
+    "sqlmodel>=0.0.22",
+    "pydantic-settings>=2.6",
+    "faster-whisper>=1.1",
+    "pyannote-audio>=4.0",
+    "agno>=2.9.0",
+    "openai>=3.3.1",
+    "anthropic>=1.0.0",
+]
+
+[project.optional-dependencies]
+# Needed only when MT_DATABASE_URL points at PostgreSQL instead of SQLite.
+postgres = ["psycopg[binary]>=3.2"]
+
+[dependency-groups]
+dev = ["pytest>=8.3", "anyio>=4.6", "ruff>=0.8"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

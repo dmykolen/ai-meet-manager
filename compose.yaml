@@ -1,0 +1,41 @@
+services:
+  api:
+    build: &build
+      context: .
+      args:
+        TORCH_BACKEND: ${TORCH_BACKEND:-cpu}
+    ports: ["8000:8000"]
+    env_file: &env
+      - path: .env
+        required: false
+    volumes: &volumes
+      - ./data:/srv/data          # jobs database and stored recordings
+      - models:/cache/huggingface # downloaded weights, shared across rebuilds
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request as r; r.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      start_period: 60s
+    # For an NVIDIA host: build with TORCH_BACKEND=cu128 and uncomment.
+    # deploy: &gpu
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - {driver: nvidia, count: all, capabilities: [gpu]}
+
+  # Extra transcription capacity: `docker compose --profile scale up --scale worker=3`.
+  # Workers share this database and media volume; point MT_DATABASE_URL at
+  # PostgreSQL to spread them across machines.
+  worker:
+    profiles: [scale]
+    build: *build
+    command: ["python", "-m", "app.run_worker"]
+    environment:
+      MT_ROLE: worker
+    env_file: *env
+    volumes: *volumes
+    restart: unless-stopped
+    # deploy: *gpu
+
+volumes:
+  models:

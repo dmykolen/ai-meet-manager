@@ -1,0 +1,738 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meeting Transcriber</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%234f46e5' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M4 10v4M8 6v12M12 3v18M16 7v10M20 11v2'/%3E%3C/svg%3E">
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"></script>
+<style type="text/tailwindcss">
+  @theme { --color-ink: oklch(0.21 0.03 265); }
+  :root { color-scheme: light dark; }  /* native players and selects follow the theme */
+  @keyframes rise { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+  .rise { animation: rise .45s cubic-bezier(.2,.7,.3,1) both }
+  @keyframes sweep { from { transform: translateX(-100%) } to { transform: translateX(400%) } }
+  .sweep::after { content: ""; @apply absolute inset-y-0 w-1/4 rounded-full bg-indigo-500; animation: sweep 1.3s ease-in-out infinite }
+  @keyframes halo { 0%,100% { box-shadow: 0 0 0 0 rgb(244 63 94 / .5) } 50% { box-shadow: 0 0 0 18px rgb(244 63 94 / 0) } }
+  .halo { animation: halo 1.8s ease-out infinite }
+  .field { @apply rounded-lg border border-slate-200 bg-transparent px-2.5 py-1.5 dark:border-white/15 }
+  .chip { @apply rounded-lg border border-slate-200 px-3 py-1.5 text-sm transition-colors hover:bg-white active:scale-95 disabled:opacity-40 dark:border-white/15 dark:hover:bg-white/10 }
+  .card { @apply rounded-2xl border border-slate-200 bg-white dark:border-white/10 dark:bg-white/5 }
+  .muted { @apply text-xs uppercase tracking-wide text-slate-400 }
+</style>
+</head>
+
+<body class="h-full bg-slate-50 text-ink antialiased dark:bg-slate-950 dark:text-slate-100"
+      x-data="transcriber()" x-init="init()">
+
+<header class="sticky top-0 z-10 border-b border-slate-200/70 bg-white/80 backdrop-blur-md dark:border-white/10 dark:bg-slate-950/80">
+  <div class="mx-auto flex max-w-5xl items-center gap-3 px-5 py-3.5">
+    <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600 text-white shadow-sm shadow-indigo-600/30">
+      <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 11v2"/>
+      </svg>
+    </div>
+    <div class="mr-auto">
+      <h1 class="text-[15px] font-semibold leading-tight">Meeting Transcriber</h1>
+      <p class="text-xs text-slate-500 dark:text-slate-400" x-text="shared ? 'Shared transcript' : 'Recordings, video, live and search'"></p>
+    </div>
+    <template x-if="!shared">
+      <button @click="voices = !voices" type="button" class="chip" :class="voices && 'bg-white dark:bg-white/10'">
+        Voices<span x-show="people.length" class="ml-1.5 text-slate-400" x-text="people.length"></span>
+      </button>
+    </template>
+    <template x-if="health && !shared">
+      <div class="hidden items-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs sm:flex dark:border-white/10">
+        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+        <span class="font-medium uppercase" x-text="health.device"></span>
+        <span class="text-slate-400" x-text="health.whisper_model"></span>
+      </div>
+    </template>
+  </div>
+</header>
+
+<main class="mx-auto max-w-5xl px-5 py-8 sm:py-10">
+
+  <!-- Known voices -->
+  <section x-show="voices" x-transition class="card mb-8 p-5">
+    <h2 class="text-sm font-semibold">Known voices</h2>
+    <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">
+      Upload 15–30 seconds of one person speaking alone, or just correct a speaker's name in a
+      transcript — either way that voice is recognised from then on, and gets sharper with every meeting.
+    </p>
+    <div class="mt-4 flex flex-wrap items-center gap-2">
+      <input x-model="newPerson" placeholder="Name" class="field w-40 text-sm">
+      <label class="chip cursor-pointer" :class="enrolling && 'opacity-50'">
+        <input type="file" accept="audio/*,video/*" class="hidden" @change="enrol($event.target)">
+        <span x-text="enrolling ? 'Listening…' : 'Add a sample'"></span>
+      </label>
+      <template x-for="person in people" :key="person.id">
+        <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 py-1 pl-3 pr-1.5 text-sm dark:bg-white/10">
+          <span x-text="person.name"></span>
+          <span class="text-xs text-slate-400" x-text="person.samples.length"></span>
+          <button @click="forget(person)" type="button" class="rounded-full px-1.5 text-slate-400 transition-colors hover:bg-rose-500 hover:text-white">&times;</button>
+        </span>
+      </template>
+    </div>
+  </section>
+
+  <!-- Tabs -->
+  <nav x-show="!shared" class="mb-6 inline-flex rounded-xl border border-slate-200 bg-white p-1 text-sm dark:border-white/10 dark:bg-white/5">
+    <template x-for="item in [['file','Recording'],['live','Live'],['library','Library'],['ask','Ask']]" :key="item[0]">
+      <button @click="tab = item[0]" type="button" x-text="item[1]"
+              :class="tab === item[0] ? 'bg-indigo-600 text-white shadow-sm' : 'hover:bg-slate-100 dark:hover:bg-white/10'"
+              class="rounded-lg px-4 py-1.5 font-medium transition-all"></button>
+    </template>
+  </nav>
+
+  <!-- Recording -->
+  <section x-show="tab === 'file' && !shared" x-transition.opacity>
+    <label @dragover.prevent="dragging = true" @dragleave.prevent="dragging = false"
+           @drop.prevent="dragging = false; pick($event.dataTransfer.files[0])"
+           :class="dragging ? 'border-indigo-500 bg-indigo-50/60 scale-[1.01] dark:bg-indigo-500/10'
+                            : 'border-slate-300 hover:border-indigo-400 hover:bg-white dark:border-white/15 dark:hover:bg-white/5'"
+           class="flex cursor-pointer flex-col items-center rounded-2xl border-2 border-dashed px-6 py-12 text-center transition-all duration-200">
+      <input type="file" accept="audio/*,video/*" class="hidden" @change="pick($event.target.files[0])">
+      <svg class="mb-3 h-9 w-9 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 16V4m0 0L8 8m4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+      </svg>
+      <p class="font-medium" x-text="file ? file.name : 'Drop a recording or click to browse'"></p>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400"
+         x-text="file ? size(file.size) : 'Audio or video — MP4, MOV, MKV, MP3, M4A, WAV and anything else FFmpeg reads'"></p>
+    </label>
+
+    <div class="mt-6 grid gap-3 sm:grid-cols-3">
+      <template x-for="option in modes" :key="option.id">
+        <button @click="mode = option.id" type="button"
+                :class="mode === option.id ? 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20 dark:bg-indigo-500/15'
+                                           : 'border-slate-200 bg-white hover:border-slate-300 dark:border-white/10 dark:bg-white/5'"
+                class="rounded-xl border p-4 text-left transition-all duration-150 active:scale-[.98]">
+          <div class="flex items-center gap-2">
+            <span :class="mode === option.id ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'"
+                  class="h-2 w-2 rounded-full transition-colors"></span>
+            <span class="text-sm font-semibold" x-text="option.title"></span>
+          </div>
+          <p class="mt-1.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400" x-text="option.hint"></p>
+        </button>
+      </template>
+    </div>
+
+    <div class="card mt-4 flex flex-wrap items-center gap-3 p-4 text-sm">
+      <div x-show="mode !== 'transcribe'" class="flex flex-wrap items-center gap-3">
+        <span class="font-medium">Speakers</span>
+        <select x-model="hint" class="field">
+          <option value="auto">detect automatically</option>
+          <option value="exact">exactly</option>
+          <option value="range">between</option>
+        </select>
+        <input x-show="hint === 'exact'" type="number" min="1" max="30" x-model.number="num" class="field w-20">
+        <template x-if="hint === 'range'">
+          <div class="flex items-center gap-2">
+            <input type="number" min="1" max="30" x-model.number="min" class="field w-20">
+            <span class="text-slate-400">and</span>
+            <input type="number" min="1" max="30" x-model.number="max" class="field w-20">
+          </div>
+        </template>
+      </div>
+      <div x-show="mode !== 'diarize'" class="flex min-w-56 flex-1 items-center gap-3">
+        <span class="font-medium">Vocabulary</span>
+        <input x-model="vocabulary" placeholder="names, products, acronyms" class="field min-w-0 flex-1">
+      </div>
+    </div>
+
+    <button @click="run()" :disabled="!file || busy" type="button"
+            :class="file ? 'bg-indigo-600 shadow-lg shadow-indigo-600/25 hover:bg-indigo-500' : 'bg-slate-300 dark:bg-white/10'"
+            class="mt-6 flex w-full items-center justify-center gap-2.5 rounded-xl px-6 py-3.5 font-semibold text-white transition-all active:scale-[.99] disabled:cursor-not-allowed">
+      <svg x-show="busy" class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+        <circle cx="12" cy="12" r="9" class="opacity-25"/><path d="M21 12a9 9 0 0 0-9-9" stroke-linecap="round"/>
+      </svg>
+      <span x-text="busy ? `${modes.find(m => m.id === mode).title}… ${elapsed}s` : 'Run'"></span>
+    </button>
+
+    <div x-show="busy" x-transition class="mt-3">
+      <div class="relative h-1 overflow-hidden rounded-full bg-indigo-100 dark:bg-indigo-500/20" :class="!progress && 'sweep'">
+        <div class="h-full rounded-full bg-indigo-500 transition-all duration-500" :style="`width:${progress * 100}%`"></div>
+      </div>
+      <p x-show="progress" class="mt-1.5 text-right text-xs text-slate-400" x-text="`${Math.round(progress * 100)}%`"></p>
+    </div>
+  </section>
+
+  <!-- Live -->
+  <section x-show="tab === 'live' && !shared" x-transition.opacity>
+    <div class="card flex flex-col items-center px-6 py-10">
+      <button @click="recording ? stopLive() : startLive()" type="button"
+              :class="recording ? 'bg-rose-500 halo' : 'bg-indigo-600 hover:bg-indigo-500'"
+              class="flex h-20 w-20 items-center justify-center rounded-full text-white transition-all active:scale-95">
+        <svg x-show="!recording" class="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>
+        </svg>
+        <svg x-show="recording" class="h-7 w-7" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+      </button>
+      <p class="mt-4 font-medium" x-text="recording ? `Listening… ${clock(elapsed)}` : 'Start listening'"></p>
+      <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+        Recorded and kept like any other meeting, so it can be replayed, summarised and searched.
+      </p>
+      <div class="mt-5 flex flex-wrap items-center justify-center gap-4 text-sm">
+        <label class="flex items-center gap-2" :class="recording && 'opacity-50'">
+          <input type="checkbox" x-model="identify" :disabled="recording" class="h-4 w-4 rounded border-slate-300 accent-indigo-600">
+          <span>Follow the speakers</span>
+        </label>
+        <input x-model="vocabulary" :disabled="recording" placeholder="vocabulary" class="field w-48">
+      </div>
+    </div>
+
+    <div x-show="stream.length && !job" class="mt-6 space-y-2">
+      <template x-for="(turn, i) in stream" :key="i">
+        <article class="rise card flex gap-3 p-3.5">
+          <span class="w-14 shrink-0 font-mono text-xs text-slate-400" x-text="clock(turn.start)"></span>
+          <div class="min-w-0 flex-1">
+            <span x-show="turn.speaker" class="mr-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400" x-text="turn.speaker"></span>
+            <span x-text="turn.text"></span>
+          </div>
+        </article>
+      </template>
+    </div>
+  </section>
+
+  <!-- Library -->
+  <section x-show="tab === 'library' && !shared" x-transition.opacity>
+    <div class="card flex flex-wrap items-center gap-3 p-4 text-sm">
+      <input x-model="search" @input.debounce.300ms="loadLibrary()" class="field min-w-0 flex-1"
+             placeholder="Filter by file name">
+      <select x-model="onlyStatus" @change="loadLibrary()" class="field">
+        <option value="">any status</option>
+        <option value="completed">completed</option>
+        <option value="running">running</option>
+        <option value="queued">queued</option>
+        <option value="failed">failed</option>
+      </select>
+      <button @click="loadLibrary()" type="button" class="chip">Refresh</button>
+    </div>
+
+    <p class="mt-3 text-xs text-slate-500 dark:text-slate-400">
+      <span x-text="`${library.length} recording${library.length === 1 ? '' : 's'}`"></span>
+      &middot; transcripts, summaries and notes are kept indefinitely
+      <template x-if="health"><span>&middot; <span x-text="health.keep_media_days"></span> days of audio and video for playback</span></template>
+    </p>
+
+    <div x-show="!library.length" class="card mt-4 px-6 py-14 text-center text-sm text-slate-500 dark:text-slate-400">
+      Nothing here yet. Upload a recording or start a live session.
+    </div>
+
+    <div x-show="library.length" class="card mt-4 divide-y divide-slate-200/70 overflow-hidden dark:divide-white/10">
+      <template x-for="item in library" :key="item.id">
+        <button @click="openJob(item.id)" type="button" :disabled="item.status !== 'completed'"
+                :title="item.error || ''"
+                class="flex w-full items-center gap-3 px-4 py-3 text-left text-sm transition-colors hover:bg-slate-50 disabled:cursor-default dark:hover:bg-white/5">
+          <span class="h-1.5 w-1.5 shrink-0 rounded-full"
+                :class="{'bg-emerald-500': item.status === 'completed', 'bg-rose-500': item.status === 'failed', 'bg-amber-400 animate-pulse': !['completed','failed'].includes(item.status)}"></span>
+          <span class="min-w-0 flex-1">
+            <span class="block truncate font-medium" x-text="item.filename"></span>
+            <span class="block text-xs text-slate-400" x-text="when(item)"></span>
+          </span>
+          <span x-show="item.has_video" class="hidden text-xs text-slate-400 sm:inline">video</span>
+          <span x-show="item.live" class="hidden text-xs text-slate-400 sm:inline">live</span>
+          <span x-show="item.result" class="hidden w-16 text-right text-xs text-slate-400 sm:inline"
+                x-text="item.result && clock(item.result.duration)"></span>
+          <span x-show="item.result && item.result.speakers.length" class="hidden w-20 text-right text-xs text-slate-400 sm:inline"
+                x-text="item.result && `${item.result.speakers.length} speakers`"></span>
+          <span class="hidden w-32 text-right text-xs text-slate-400 md:inline" x-text="item.task.replace('_', ' + ')"></span>
+          <span x-show="item.status === 'running'" class="w-10 text-right text-xs text-slate-400"
+                x-text="`${Math.round(item.progress * 100)}%`"></span>
+        </button>
+      </template>
+    </div>
+  </section>
+
+  <!-- Ask -->
+  <section x-show="tab === 'ask' && !shared" x-transition.opacity>
+    <div class="card p-5">
+      <div class="flex flex-wrap gap-2">
+        <input x-model="question" @keydown.enter="ask()" class="field min-w-0 flex-1"
+               placeholder="What did we decide about the migration?">
+        <button @click="ask()" :disabled="asking || question.length < 3" type="button" class="chip"
+                x-text="asking ? 'Thinking…' : 'Ask'"></button>
+        <button @click="answer = ''; lookup()" :disabled="question.length < 3" type="button" class="chip">Find passages</button>
+      </div>
+      <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">
+        Searches every finished meeting. Answers come from the passages below, never from thin air.
+      </p>
+    </div>
+
+    <div x-show="answer" x-transition class="rise mt-4 rounded-2xl border border-indigo-200 bg-indigo-50/50 p-5 leading-relaxed dark:border-indigo-500/25 dark:bg-indigo-500/10">
+      <p x-text="answer"></p>
+    </div>
+
+    <div x-show="hits.length" class="mt-4 space-y-2">
+      <template x-for="(hit, i) in hits" :key="i">
+        <button @click="openJob(hit.job_id, hit.start)" type="button" class="card block w-full p-4 text-left transition-colors hover:border-indigo-300">
+          <div class="flex items-baseline gap-2 text-xs text-slate-400">
+            <span class="font-medium text-slate-500 dark:text-slate-300" x-text="hit.filename"></span>
+            <span x-text="clock(hit.start)"></span>
+            <span x-show="hit.speakers" x-text="hit.speakers"></span>
+          </div>
+          <p class="mt-1 line-clamp-3 text-sm" x-text="hit.text"></p>
+        </button>
+      </template>
+    </div>
+  </section>
+
+  <p x-show="error" x-transition x-text="error"
+     class="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300"></p>
+
+  <!-- Result -->
+  <template x-if="result">
+    <section class="rise mt-10">
+      <template x-if="job && job.media_kept">
+        <div class="mb-6">
+          <video x-show="job.has_video" x-ref="video" controls preload="metadata" class="w-full rounded-xl bg-black"
+                 :src="mediaUrl" @timeupdate="playhead = $event.target.currentTime"></video>
+          <audio x-show="!job.has_video" x-ref="audio" controls preload="none" class="w-full"
+                 :src="mediaUrl" @timeupdate="playhead = $event.target.currentTime"></audio>
+        </div>
+      </template>
+
+      <div class="flex flex-wrap items-end justify-between gap-4">
+        <div class="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+          <template x-for="stat in stats" :key="stat.label">
+            <div>
+              <div class="muted" x-text="stat.label"></div>
+              <div class="font-semibold" x-text="stat.value"></div>
+            </div>
+          </template>
+        </div>
+        <div class="flex flex-wrap gap-2" x-show="!shared">
+          <button x-show="job && spoken" @click="summarise()" :disabled="summarising" type="button" class="chip"
+                  x-text="summarising ? 'Summarising…' : summary ? 'Redo summary' : 'Summarise'"></button>
+          <button x-show="job" @click="share()" type="button" class="chip" x-text="shareLabel"></button>
+          <button @click="copy()" type="button" class="chip" x-text="copied ? 'Copied' : 'Copy'"></button>
+          <button @click="download('txt')" type="button" class="chip">.txt</button>
+          <button @click="download('json')" type="button" class="chip">.json</button>
+        </div>
+      </div>
+
+      <!-- Summary and chapters -->
+      <template x-if="summary">
+        <div class="rise mt-6 space-y-4 rounded-2xl border border-indigo-200 bg-indigo-50/50 p-5 dark:border-indigo-500/25 dark:bg-indigo-500/10">
+          <p class="leading-relaxed" x-text="summary.overview"></p>
+          <div x-show="summary.chapters && summary.chapters.length">
+            <h3 class="muted text-indigo-600 dark:text-indigo-400">Chapters</h3>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <template x-for="(chapter, i) in summary.chapters" :key="i">
+                <button @click="seek(chapter.start)" type="button" :title="chapter.summary"
+                        class="rounded-lg bg-white/70 px-3 py-1.5 text-left text-xs transition-colors hover:bg-white dark:bg-white/10 dark:hover:bg-white/20">
+                  <span class="font-mono text-slate-400" x-text="clock(chapter.start)"></span>
+                  <span class="ml-2 font-medium" x-text="chapter.title"></span>
+                </button>
+              </template>
+            </div>
+          </div>
+          <template x-for="block in summaryBlocks" :key="block.title">
+            <div x-show="block.items.length">
+              <h3 class="muted text-indigo-600 dark:text-indigo-400" x-text="block.title"></h3>
+              <ul class="mt-1.5 space-y-1 text-sm">
+                <template x-for="(item, i) in block.items" :key="i">
+                  <li class="flex gap-2"><span class="text-indigo-400">&bull;</span><span x-text="item"></span></li>
+                </template>
+              </ul>
+            </div>
+          </template>
+        </div>
+      </template>
+
+      <!-- Talk time -->
+      <template x-if="analytics">
+        <div class="mt-6">
+          <div class="mb-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+            <span>Speech <b x-text="clock(analytics.speech_seconds)"></b></span>
+            <span>Silence <b x-text="clock(analytics.silence_seconds)"></b></span>
+            <span x-show="analytics.overlap_seconds">Talking over each other <b x-text="clock(analytics.overlap_seconds)"></b></span>
+          </div>
+          <div class="space-y-1.5">
+            <template x-for="row in analytics.speakers" :key="row.speaker">
+              <div class="flex items-center gap-3 text-xs">
+                <button @click="startRename(row.speaker)" type="button" :disabled="shared"
+                        class="w-24 shrink-0 truncate text-left font-medium transition-colors hover:text-indigo-600 disabled:hover:text-inherit"
+                        :title="shared ? '' : 'Rename this speaker'" x-text="label(row.speaker)"></button>
+                <div class="h-3 flex-1 overflow-hidden rounded bg-slate-200/70 dark:bg-white/10">
+                  <div class="h-full rounded transition-all duration-700" :class="colour(row.speaker)" :style="`width:${row.share * 100}%`"></div>
+                </div>
+                <span class="w-28 shrink-0 text-right text-slate-400"
+                      x-text="`${Math.round(row.share * 100)}% · ${row.turns} turns`"></span>
+              </div>
+            </template>
+          </div>
+          <div x-show="renaming" class="mt-3 flex items-center gap-2 text-sm">
+            <span class="text-slate-400">Rename <b x-text="renaming"></b> to</span>
+            <input x-model="newName" @keydown.enter="rename()" @keydown.escape="renaming = null" placeholder="New name" class="field w-40">
+            <button @click="rename()" type="button" class="chip">Save &amp; remember voice</button>
+          </div>
+        </div>
+      </template>
+
+      <!-- Turns -->
+      <div class="card mt-6 divide-y divide-slate-200/70 overflow-hidden dark:divide-white/10">
+        <template x-for="(turn, i) in result.segments" :key="i">
+          <article @click="seek(turn.start)" :style="`animation-delay:${Math.min(i * 20, 400)}ms`"
+                   :class="playing(turn) ? 'bg-indigo-50 dark:bg-indigo-500/15' : 'hover:bg-slate-50 dark:hover:bg-white/5'"
+                   class="rise flex cursor-pointer gap-4 p-4 transition-colors">
+            <div class="flex w-20 shrink-0 flex-col gap-1 sm:w-24">
+              <span class="font-mono text-xs text-slate-400" x-text="clock(turn.start)"></span>
+              <template x-if="turn.speaker">
+                <span class="inline-flex items-center gap-1.5 text-xs font-semibold">
+                  <span class="h-2 w-2 rounded-full" :class="colour(turn.speaker)"></span>
+                  <span class="truncate" x-text="label(turn.speaker)"></span>
+                </span>
+              </template>
+            </div>
+            <p class="min-w-0 flex-1 leading-relaxed"
+               :class="turn.text ? (unsure(turn) && 'text-slate-500 decoration-amber-400/60 decoration-dotted underline underline-offset-4') : 'text-slate-400 italic'"
+               :title="unsure(turn) ? 'Low confidence — worth checking against the audio' : ''"
+               x-text="turn.text || `speaking until ${clock(turn.end)}`"></p>
+          </article>
+        </template>
+      </div>
+
+      <!-- Notes -->
+      <div x-show="job" class="mt-6">
+        <h3 class="muted mb-2">Notes</h3>
+        <div class="space-y-1.5">
+          <template x-for="note in comments" :key="note.id">
+            <button @click="seek(note.at)" type="button" class="flex w-full gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-white dark:hover:bg-white/5">
+              <span class="font-mono text-xs text-slate-400" x-text="clock(note.at)"></span>
+              <span class="font-semibold" x-text="note.author"></span>
+              <span class="min-w-0 flex-1" x-text="note.text"></span>
+            </button>
+          </template>
+        </div>
+        <div class="mt-2 flex gap-2">
+          <input x-model="note" @keydown.enter="addNote()" class="field min-w-0 flex-1 text-sm"
+                 :placeholder="`Note at ${clock(playhead)}`">
+          <button @click="addNote()" :disabled="!note.trim()" type="button" class="chip">Add</button>
+        </div>
+      </div>
+    </section>
+  </template>
+
+</main>
+
+<script>
+const API = location.protocol === "file:" ? "http://localhost:8000" : "";
+const PALETTE = ["bg-indigo-500", "bg-emerald-500", "bg-amber-500", "bg-sky-500",
+                 "bg-rose-500", "bg-violet-500", "bg-teal-500", "bg-orange-500"];
+const LOW_CONFIDENCE = 0.55;
+
+// Streams microphone audio to the worklet port in ~0.25 s blocks of raw float32.
+const RECORDER = `
+class Recorder extends AudioWorkletProcessor {
+  constructor() { super(); this.block = []; this.size = 0; }
+  process(inputs) {
+    const channel = inputs[0][0];
+    if (!channel) return true;
+    this.block.push(new Float32Array(channel));
+    this.size += channel.length;
+    if (this.size >= 4096) {
+      const out = new Float32Array(this.size);
+      this.block.reduce((at, part) => (out.set(part, at), at + part.length), 0);
+      this.port.postMessage(out, [out.buffer]);
+      this.block = []; this.size = 0;
+    }
+    return true;
+  }
+}
+registerProcessor("recorder", Recorder);`;
+
+function transcriber() {
+  return {
+    modes: [
+      { id: "transcribe", title: "Transcript", hint: "Speech to text with timestamps.", path: "/v1/transcribe" },
+      { id: "diarize", title: "Speakers", hint: "Who spoke when, no transcript.", path: "/v1/diarize" },
+      { id: "transcribe_diarize", title: "Transcript + speakers", hint: "Every turn labelled with its speaker.", path: "/v1/transcribe-diarize" },
+    ],
+    tab: "file", shared: false, file: null, mode: "transcribe_diarize", dragging: false,
+    busy: false, elapsed: 0, progress: 0,
+    hint: "auto", num: 2, min: 2, max: 6, vocabulary: "",
+    job: null, live: null, playhead: 0, summarising: false, shareLabel: "Share",
+    renaming: null, newName: "", comments: [], note: "",
+    question: "", answer: "", hits: [], asking: false,
+    error: "", copied: false, health: null,
+    library: [], search: "", onlyStatus: "",
+    voices: false, people: [], newPerson: "", enrolling: false,
+    recording: false, identify: false, stream: [], socket: null, audio: null,
+
+    get result() { return this.job?.result || this.live; },
+    get summary() { return this.job?.summary; },
+    get analytics() { return this.result?.analytics; },
+    get spoken() { return this.result?.segments?.some(turn => turn.text); },
+    get mediaUrl() { return `${API}/v1/jobs/${this.job.id}/media`; },
+    get player() { return this.$refs.video?.checkVisibility?.() ? this.$refs.video : this.$refs.audio; },
+
+    async init() {
+      const token = new URLSearchParams(location.search).get("share");
+      if (token) return this.openShared(token);
+      this.health = await this.get("/health");
+      this.refresh();
+    },
+    async get(path) {
+      try { return await (await fetch(API + path)).json(); } catch { return null; }
+    },
+    async send(path, options = {}) {
+      const response = await fetch(API + path, options);
+      if (!response.ok) throw new Error((await response.json()).detail || response.statusText);
+      return response.status === 204 ? null : response.json();
+    },
+    async refresh() {
+      this.people = (await this.get("/v1/people")) || [];
+      this.loadLibrary();
+    },
+    async loadLibrary() {
+      const filters = new URLSearchParams({ limit: 200 });
+      if (this.search.trim()) filters.set("q", this.search.trim());
+      if (this.onlyStatus) filters.set("status", this.onlyStatus);
+      this.library = (await this.get(`/v1/jobs?${filters}`)) || [];
+    },
+    when(job) {
+      const at = new Date(job.created_at + "Z");
+      return at.toLocaleDateString(undefined, { day: "numeric", month: "short" }) + ", " +
+             at.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    },
+    fail(problem) { this.error = problem.message || String(problem); },
+    reset() { this.job = this.live = null; this.error = ""; this.comments = []; this.shareLabel = "Share"; },
+
+    // --- recordings ---------------------------------------------------------
+    pick(file) { if (file) { this.file = file; this.reset(); } },
+
+    query() {
+      const parts = [];
+      if (this.vocabulary.trim()) parts.push(`vocabulary=${encodeURIComponent(this.vocabulary.trim())}`);
+      if (this.mode !== "transcribe" && this.hint === "exact") parts.push(`num_speakers=${this.num}`);
+      if (this.mode !== "transcribe" && this.hint === "range") parts.push(`min_speakers=${this.min}&max_speakers=${this.max}`);
+      return parts.length ? "?" + parts.join("&") : "";
+    },
+
+    async run() {
+      this.busy = true; this.progress = 0; this.elapsed = 0; this.reset();
+      const ticker = setInterval(() => this.elapsed++, 1000);
+      try {
+        const body = new FormData();
+        body.append("file", this.file);
+        const path = this.modes.find(m => m.id === this.mode).path;
+        let job = await this.send(path + this.query(), { method: "POST", body });
+        while (!["completed", "failed"].includes(job.status)) {
+          await new Promise(done => setTimeout(done, 1500));
+          job = await this.get(`/v1/jobs/${job.id}`);
+          this.progress = job.progress;
+          this.refresh();
+        }
+        if (job.status === "failed") throw new Error(job.error);
+        this.show(job);
+      } catch (failure) {
+        this.fail(failure);
+      } finally {
+        clearInterval(ticker); this.busy = false; this.refresh();
+      }
+    },
+
+    show(job) { this.job = job; this.live = null; this.loadComments(); },
+    async openJob(id, at = null) {
+      this.show(await this.get(`/v1/jobs/${id}`));
+      this.tab = "file";
+      if (at !== null) this.$nextTick(() => this.seek(at));
+    },
+    async openShared(token) {
+      this.shared = true;
+      try {
+        this.job = await this.send(`/v1/shared/${token}`);
+        this.loadComments();
+      } catch (failure) { this.fail(failure); }
+    },
+
+    async summarise() {
+      this.summarising = true;
+      try {
+        this.job = await this.send(`/v1/jobs/${this.job.id}/summary?refresh=${!!this.summary}`, { method: "POST" });
+      } catch (failure) { this.fail(failure); } finally { this.summarising = false; }
+    },
+
+    get summaryBlocks() {
+      const items = this.summary.action_items || [];
+      return [
+        { title: "Decisions", items: this.summary.decisions || [] },
+        { title: "Action items", items: items.map(a => [a.task, a.owner, a.due].filter(Boolean).join(" — ")) },
+        { title: "Open questions", items: this.summary.open_questions || [] },
+        { title: "Topics", items: this.summary.topics || [] },
+      ];
+    },
+
+    async share() {
+      try {
+        const link = await this.send(`/v1/jobs/${this.job.id}/share`, { method: "POST" });
+        const url = `${location.origin}${location.pathname}?share=${link.token}`;
+        await navigator.clipboard.writeText(url);
+        this.shareLabel = "Link copied";
+        setTimeout(() => (this.shareLabel = "Share"), 2000);
+      } catch (failure) { this.fail(failure); }
+    },
+
+    startRename(speaker) { this.renaming = speaker; this.newName = this.label(speaker); },
+    async rename() {
+      const names = { [this.renaming]: this.newName.trim() };
+      this.renaming = null;
+      if (!names[Object.keys(names)[0]]) return;
+      try {
+        this.job = await this.send(`/v1/jobs/${this.job.id}/speakers`, {
+          method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(names),
+        });
+        this.refresh();
+      } catch (failure) { this.fail(failure); }
+    },
+
+    async loadComments() {
+      this.comments = this.job ? (await this.get(`/v1/jobs/${this.job.id}/comments`)) || [] : [];
+    },
+    async addNote() {
+      const body = JSON.stringify({ job_id: this.job.id, at: this.playhead, author: "me", text: this.note.trim() });
+      try {
+        await this.send(`/v1/jobs/${this.job.id}/comments`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body,
+        });
+        this.note = ""; this.loadComments();
+      } catch (failure) { this.fail(failure); }
+    },
+
+    seek(seconds) {
+      const player = this.player;
+      if (player && this.job?.media_kept) { player.currentTime = seconds; player.play(); }
+    },
+    playing(turn) { return this.playhead > 0 && this.playhead >= turn.start && this.playhead < turn.end; },
+    unsure(turn) { return turn.confidence !== undefined && turn.confidence < LOW_CONFIDENCE; },
+
+    // --- ask ----------------------------------------------------------------
+    async lookup() {
+      this.hits = (await this.get(`/v1/search?q=${encodeURIComponent(this.question)}`)) || [];
+      if (!this.hits.length) this.fail(new Error("Nothing in the transcripts matches that"));
+    },
+    async ask() {
+      if (this.question.trim().length < 3) return;
+      this.asking = true; this.error = ""; this.answer = "";
+      try {
+        const reply = await this.send("/v1/ask", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: this.question }),
+        });
+        this.answer = reply.answer;
+        this.lookup();
+      } catch (failure) { this.fail(failure); } finally { this.asking = false; }
+    },
+
+    // --- live ---------------------------------------------------------------
+    async startLive() {
+      this.reset(); this.stream = []; this.elapsed = 0;
+      try {
+        const microphone = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1 } });
+        this.audio = new AudioContext({ sampleRate: 16000 });
+        await this.audio.audioWorklet.addModule(URL.createObjectURL(new Blob([RECORDER], { type: "text/javascript" })));
+
+        const query = `?identify=${this.identify}&vocabulary=${encodeURIComponent(this.vocabulary.trim())}`;
+        this.socket = new WebSocket((API || location.origin).replace(/^http/, "ws") + "/v1/stream" + query);
+        this.socket.onmessage = event => this.receive(JSON.parse(event.data));
+        this.socket.onerror = () => this.fail(new Error("Lost the connection to the server"));
+
+        const node = new AudioWorkletNode(this.audio, "recorder");
+        node.port.onmessage = event => this.socket.readyState === WebSocket.OPEN && this.socket.send(event.data);
+        const mute = new GainNode(this.audio, { gain: 0 });  // keeps the graph pulling without echo
+        this.audio.createMediaStreamSource(microphone).connect(node).connect(mute).connect(this.audio.destination);
+
+        this.tracks = microphone.getTracks();
+        this.recording = true;
+        this.ticker = setInterval(() => this.elapsed++, 1000);
+      } catch (failure) {
+        this.fail(failure);
+      }
+    },
+
+    receive(message) {
+      if (message.type === "turn") this.stream.push(message);
+      if (message.type === "error") { this.fail(new Error(message.detail)); if (this.recording) this.stopLive(); }
+      if (message.type === "done") this.finishLive(message);
+    },
+
+    stopLive() {
+      this.recording = false;
+      clearInterval(this.ticker);
+      this.tracks?.forEach(track => track.stop());
+      this.audio?.close();
+      if (this.socket?.readyState === WebSocket.OPEN) this.socket.send("stop");
+    },
+
+    async finishLive(message) {
+      this.socket?.close();
+      if (!message.result?.segments?.length) return;
+      this.openJob(message.job_id);
+      this.refresh();
+    },
+
+    // --- known voices -------------------------------------------------------
+    async enrol(input) {
+      const file = input.files[0];
+      if (!file) return;
+      if (!this.newPerson.trim()) { this.fail(new Error("Give the voice a name first")); input.value = ""; return; }
+      this.enrolling = true;
+      try {
+        const body = new FormData();
+        body.append("name", this.newPerson.trim());
+        body.append("file", file);
+        await this.send("/v1/people", { method: "POST", body });
+        this.newPerson = ""; this.error = ""; this.refresh();
+      } catch (failure) { this.fail(failure); } finally { this.enrolling = false; input.value = ""; }
+    },
+    async forget(person) {
+      await fetch(`${API}/v1/people/${person.id}`, { method: "DELETE" });
+      this.refresh();
+    },
+
+    // --- shared -------------------------------------------------------------
+    get stats() {
+      const items = [{ label: "Duration", value: this.clock(this.result.duration) }];
+      if (this.result.language) items.push({ label: "Language", value: this.result.language.toUpperCase() });
+      if (this.result.speakers?.length) items.push({ label: "Speakers", value: this.result.speakers.length });
+      items.push({ label: "Segments", value: this.result.segments.length });
+      const factor = this.job?.metrics?.realtime_factor;
+      if (factor) items.push({ label: "Speed", value: `${factor}× realtime` });
+      return items;
+    },
+
+    get text() {
+      return this.result.segments
+        .map(t => `[${this.clock(t.start)}] ${t.speaker ? this.label(t.speaker) + ": " : ""}${t.text || ""}`.trim())
+        .join("\n");
+    },
+
+    colour(speaker) { return PALETTE[Math.max((this.result.speakers || []).indexOf(speaker), 0) % PALETTE.length]; },
+    label: speaker => speaker.replace("SPEAKER_", "Speaker "),
+    size: bytes => `${(bytes / 1e6).toFixed(1)} MB`,
+    clock(seconds) {
+      const whole = Math.floor(seconds || 0);
+      return `${String(Math.floor(whole / 60)).padStart(2, "0")}:${String(whole % 60).padStart(2, "0")}`;
+    },
+
+    async copy() {
+      await navigator.clipboard.writeText(this.text);
+      this.copied = true;
+      setTimeout(() => (this.copied = false), 1600);
+    },
+    download(format) {
+      const payload = format === "json" ? JSON.stringify(this.result, null, 2) : this.text;
+      const link = Object.assign(document.createElement("a"), {
+        href: URL.createObjectURL(new Blob([payload], { type: "text/plain" })),
+        download: `transcript.${format}`,
+      });
+      link.click();
+      URL.revokeObjectURL(link.href);
+    },
+  };
+}
+</script>
+</body>
+</html>
