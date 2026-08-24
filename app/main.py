@@ -17,14 +17,21 @@ log = logging.getLogger(__name__)
 
 # Loading PyTorch, pyannote and Whisper takes seconds on a warm machine and minutes
 # on a cold one, so it happens in the background while the API is already serving.
-runtime = {"device": "resolving", "models": "not loaded"}
+runtime = {"device": "resolving", "diarization_device": "resolving", "models": "not loaded"}
 
 
 def warm(preload: bool) -> None:
     from app import engines  # deferred so the server binds its port immediately
 
     runtime["device"] = engines.device()
-    log.info("Device: %s (batching %s)", runtime["device"], engines.batching())
+    runtime["diarization_device"] = engines.torch_device()
+    log.info(
+        "Whisper on %s (batching %s, %d threads), pyannote on %s",
+        runtime["device"],
+        engines.batching(),
+        engines.threads(),
+        runtime["diarization_device"],
+    )
     if not preload:
         runtime["models"] = "loaded on first use"
         return
@@ -77,6 +84,7 @@ def health() -> dict:
         "status": "ok",
         "role": settings.role,
         "device": runtime["device"],
+        "diarization_device": runtime["diarization_device"],
         "models": runtime["models"],
         "model_cache": str(model_cache()),
         "whisper_model": settings.whisper_model,
@@ -96,7 +104,11 @@ def ready() -> dict:
     except Exception as exc:
         raise HTTPException(503, f"Models unavailable: {exc}") from exc
     runtime["models"] = "ready"
-    return {"status": "ready", "device": engines.device()}
+    return {
+        "status": "ready",
+        "device": engines.device(),
+        "diarization_device": engines.torch_device(),
+    }
 
 
 app.mount("/", StaticFiles(directory=Path(__file__).parent.parent / "web", html=True))

@@ -25,6 +25,10 @@ class FakeASR:
         language = kwargs.get("language")
         if language is not None and language not in {"en", "uk", "de"}:
             raise ValueError(f"{language!r} is not a valid language code")  # as Whisper does
+        if "batch_size" in kwargs and not kwargs.get("vad_filter"):
+            raise RuntimeError(  # as BatchedInferencePipeline does past 30 seconds
+                "No clip timestamps found. Set 'vad_filter' to True or provide 'clip_timestamps'."
+            )
         FakeASR.calls.append({"word_timestamps": word_timestamps, **kwargs})
         chunks = [
             Chunk(Word(" Hello", 0.0, 0.5), Word(" everyone", 0.5, 1.0)),
@@ -163,9 +167,27 @@ def test_the_configured_vocabulary_is_the_default(client, wav_bytes, monkeypatch
     assert FakeASR.calls[-1]["hotwords"] == "Anthropic"
 
 
-def test_whisper_skips_its_own_vad_because_silence_is_already_gone(client, wav_bytes):
+def test_whisper_skips_its_own_vad_because_silence_is_already_gone(client, wav_bytes, monkeypatch):
+    monkeypatch.setattr(settings, "batch_size", 1)
     submit(client, "/v1/transcribe", wav_bytes)
     assert FakeASR.calls[-1]["vad_filter"] is False
+    assert "batch_size" not in FakeASR.calls[-1]
+
+
+def test_live_decodes_greedily_because_one_utterance_stands_alone(monkeypatch):
+    """Beam search doubles the cost of every phrase and, measured, buys nothing here."""
+    monkeypatch.setattr(pipeline, "live_asr", FakeASR)
+    pipeline.transcribe(np.zeros(SAMPLE_RATE, dtype=np.float32), live=True, language="en")
+    call = FakeASR.calls[-1]
+    assert call["beam_size"] == 1 and call["condition_on_previous_text"] is False
+    assert "batch_size" not in call, "batching is a wash on one short utterance"
+
+
+def test_batched_decoding_keeps_the_vad_the_batching_itself_needs(client, wav_bytes):
+    """Its VAD is the chunker, not a silence trimmer, and it refuses to run without one."""
+    submit(client, "/v1/transcribe", wav_bytes)
+    assert FakeASR.calls[-1]["batch_size"] == settings.batch_size
+    assert FakeASR.calls[-1]["vad_filter"] is True
 
 
 # --- known voices -------------------------------------------------------------

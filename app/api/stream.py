@@ -1,8 +1,10 @@
+import asyncio
 import logging
 from contextlib import suppress
 
 from fastapi import APIRouter, WebSocket
 from sqlmodel import Session
+from starlette.concurrency import run_in_threadpool
 from starlette.websockets import WebSocketDisconnect
 
 from app.media import SAMPLE_RATE
@@ -13,6 +15,15 @@ router = APIRouter(prefix="/v1", tags=["live"])
 log = logging.getLogger(__name__)
 
 
+async def _warm(identify: bool) -> None:
+    """Load the models while the microphone is already recording into the buffer."""
+    from app import engines  # deferred: see app/worker.py
+
+    await run_in_threadpool(engines.live_asr)
+    if identify:
+        await run_in_threadpool(engines.embedder)
+
+
 @router.websocket("/stream")
 async def stream(socket: WebSocket, vocabulary: str | None = None, identify: bool = False) -> None:
     """Live transcription of 16 kHz mono float32 PCM sent as binary frames.
@@ -21,6 +32,10 @@ async def stream(socket: WebSocket, vocabulary: str | None = None, identify: boo
     with the same playback, summary, search and analytics as an uploaded one.
     Send the text `stop` to finish; the closing message carries the whole
     transcript, including the sentence that was still being spoken.
+
+    Loading Whisper takes tens of seconds on a cold process, so it happens while
+    audio is already arriving. Until `warm` is sent the speech piles up in the
+    buffer instead of being dropped, and the first drain catches up on all of it.
     """
     from app.live import LiveSession  # deferred: see app/worker.py
 
@@ -39,14 +54,22 @@ async def stream(socket: WebSocket, vocabulary: str | None = None, identify: boo
         session.commit()
         session.refresh(job)
     live = LiveSession(job, vocabulary, everyone(session) if identify else [])
+    warming = asyncio.create_task(_warm(identify))
 
     await socket.send_json({"type": "ready", "sample_rate": SAMPLE_RATE, "job_id": str(job.id)})
-    failure = None
+    failure, warm = None, False
     try:
         while True:
             message = await socket.receive()
             if chunk := message.get("bytes"):
                 live.add(chunk)
+                if not warming.done():
+                    continue
+                if problem := warming.exception():
+                    raise problem
+                if not warm:
+                    warm = True
+                    await socket.send_json({"type": "warm"})
                 for turn in await live.drain():
                     await socket.send_json({"type": "turn", **turn})
             elif message.get("text") == "stop" or message["type"] == "websocket.disconnect":
@@ -58,6 +81,7 @@ async def stream(socket: WebSocket, vocabulary: str | None = None, identify: boo
         log.exception("Live session failed")
         await _tell(socket, {"type": "error", "detail": failure})
 
+    warming.cancel()
     finished = await live.finish(failure)
     await _tell(socket, {"type": "done", "job_id": str(job.id), "result": finished.result})
 

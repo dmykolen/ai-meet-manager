@@ -5,7 +5,14 @@ import pytest
 from pyannote.core import Annotation, Segment
 
 from app.models import Person
-from app.pipeline import _analytics, _confidence, _hallucinated, _speaker_turns, analytics_of
+from app.pipeline import (
+    SENTENCE_SPAN,
+    _analytics,
+    _confidence,
+    _hallucinated,
+    _turns,
+    analytics_of,
+)
 from app.voices import recognise
 
 
@@ -36,6 +43,54 @@ def same(seconds: float) -> float:
     return seconds
 
 
+# --- sentences ----------------------------------------------------------------
+
+
+def test_a_batched_block_is_split_back_onto_its_pauses():
+    """Batched decoding returns one 30-second block; the reader needs sentences."""
+    block = Chunk(
+        Word(" Ми", 0.0, 0.3),
+        Word(" домовились.", 0.3, 1.0),
+        Word(" Далі", 3.0, 3.4),
+        Word(" міграція.", 3.4, 4.1),  # after a clear pause
+    )
+    turns = _turns([block], same)
+    assert [t["text"] for t in turns] == ["Ми домовились.", "Далі міграція."]
+    assert turns[1]["start"] == 3.0, "the second sentence starts where its first word does"
+
+
+def test_a_pause_in_the_middle_of_a_sentence_is_not_a_break():
+    """Splitting on silence alone orphaned tails like "in the MVP." onto their own row."""
+    block = Chunk(
+        Word(" Це", 0.0, 0.3),
+        Word(" потрапляє", 0.3, 1.0),
+        Word(" в", 1.6, 1.7),
+        Word(" MVP.", 1.7, 2.2),  # half a second of thinking
+    )
+    assert [t["text"] for t in _turns([block], same)] == ["Це потрапляє в MVP."]
+
+
+def test_a_speaker_who_never_pauses_is_still_broken_up():
+    words = [Word(f" сло{i}", i * 0.4, i * 0.4 + 0.35) for i in range(80)]
+    turns = _turns([Chunk(*words)], same)
+    assert len(turns) > 1
+    assert max(t["end"] - t["start"] for t in turns) < SENTENCE_SPAN
+
+
+def test_unbatched_segments_are_left_exactly_as_whisper_split_them():
+    plain = Chunk(text="Одне речення.")
+    plain.words = None
+    plain.start, plain.end = 1.0, 2.5
+    assert _turns([plain], same) == [
+        {"start": 1.0, "end": 2.5, "text": "Одне речення.", "confidence": _confidence(plain)}
+    ]
+
+
+def test_sentence_timestamps_are_mapped_back_onto_the_original_recording():
+    block = Chunk(Word(" Слово", 1.0, 1.4))
+    assert _turns([block], lambda seconds: seconds + 60)[0]["start"] == 61.0
+
+
 # --- turns --------------------------------------------------------------------
 
 
@@ -44,7 +99,7 @@ def test_consecutive_words_of_one_speaker_become_a_single_turn():
         Chunk(Word(" Hello", 0.0, 0.5), Word(" there", 0.5, 1.0)),
         Chunk(Word(" Hi", 2.1, 2.5), Word(" back", 2.5, 3.0)),
     ]
-    assert _speaker_turns(chunks, annotation(), same) == [
+    assert _turns(chunks, same, annotation()) == [
         {
             "start": 0.0,
             "end": 1.0,
@@ -57,19 +112,30 @@ def test_consecutive_words_of_one_speaker_become_a_single_turn():
 
 
 def test_turn_timestamps_are_mapped_back_onto_the_original_recording():
-    turns = _speaker_turns([Chunk(Word(" Hi", 0.0, 1.0))], annotation(), lambda t: t + 30)
+    turns = _turns([Chunk(Word(" Hi", 0.0, 1.0))], lambda t: t + 30, annotation())
     assert (turns[0]["start"], turns[0]["end"]) == (30.0, 31.0)
 
 
 def test_words_outside_any_speech_turn_keep_the_previous_speaker():
     chunk = Chunk(Word(" Hello", 0.1, 0.4), Word(" ok", 9.0, 9.2))
-    turns = _speaker_turns([chunk], annotation(), same)
-    assert [t["speaker"] for t in turns] == ["SPEAKER_00"]
-    assert turns[0]["text"] == "Hello ok"
+    turns = _turns([chunk], same, annotation())
+    assert [t["speaker"] for t in turns] == ["SPEAKER_00", "SPEAKER_00"]
+    assert [t["text"] for t in turns] == ["Hello", "ok"], "nine seconds apart is not one turn"
+
+
+def test_one_speaker_holding_the_floor_is_still_broken_into_rows():
+    """Diarization will hand back three unbroken minutes of one person."""
+    monologue = Annotation()
+    monologue[Segment(0, 60)] = "SPEAKER_00"
+    words = [Word(f" сло{i}", i * 0.4, i * 0.4 + 0.35) for i in range(120)]
+    turns = _turns([Chunk(*words)], same, monologue)
+    assert {t["speaker"] for t in turns} == {"SPEAKER_00"}
+    assert len(turns) > 1, "a speaker change is not the only reason to start a row"
+    assert max(t["end"] - t["start"] for t in turns) < SENTENCE_SPAN
 
 
 def test_no_words_yields_no_turns():
-    assert _speaker_turns([Chunk()], annotation(), same) == []
+    assert _turns([Chunk()], same, annotation()) == []
 
 
 # --- confidence and hallucinations --------------------------------------------

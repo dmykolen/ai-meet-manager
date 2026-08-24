@@ -132,11 +132,45 @@ Connect to `ws://host/v1/stream?identify=false&vocabulary=`, send 16 kHz mono
 float32 PCM as binary frames, and receive one message per finished utterance.
 Send `stop` to close; the final message carries the whole transcript.
 
+| Message | When |
+| --- | --- |
+| `ready` | Immediately, with the `job_id` and the sample rate to send |
+| `warm` | Once the models are loaded and utterances start coming back |
+| `turn` | One finished utterance |
+| `done` | After `stop`, with the whole transcript |
+
+`ready` arrives before the models do. Loading Whisper takes tens of seconds on a
+cold process, so it happens on a task of its own while audio is already being
+recorded and buffered — nothing said during the wait is lost, and the first drain
+catches up on all of it at once. The UI says so rather than looking idle.
+
 The stream is recorded and kept as an ordinary job, so a live meeting ends up
 with the same playback, summary, search and analytics as an uploaded one. With
 `identify=true` each utterance is matched against the voices heard so far, so
 unknown speakers still get stable labels and enrolled ones get their names.
-Whisper has to keep up with the room: on CPU, use a smaller `MT_WHISPER_MODEL`.
+
+Expect a few seconds between saying something and seeing it, and understand where
+they go before trying to remove them. Whisper's encoder runs a 30-second window
+whatever you hand it, so a two-second sentence costs about what a full one does —
+on an M3 Max, ~2.5s per utterance. Add the pause the speaker has to make before the
+utterance counts as finished, and the median lag is ~6s. Live therefore detects the
+language once per session instead of on every phrase, and decodes greedily; both are
+measured, and together they took the median from 8.2s to 6.0s. The backlog is
+transcribed rather than dropped, which is why turns keep arriving after `stop`.
+
+### The web UI
+
+Four tabs, and each one only does its own job. **Upload** and **Live** run a
+recording and end on a result card with a button; neither ever navigates on its
+own. **Library** is where transcripts live: the list opens a recording in place,
+and `← Library` or `Esc` goes back. **Ask** searches every finished meeting, and
+opening a passage lands in the Library view of that recording.
+
+A transcript is read for an hour, so it is built to be read: the transport stays
+pinned while you scroll, the strip beside it shows who spoke when and jumps you
+there on a click, the search box filters turns, `Follow` scrolls the transcript
+along with the audio, and notes live in a drawer that is one click away from
+anywhere instead of below a thousand turns.
 
 ### What is kept
 
@@ -160,10 +194,32 @@ is taken over once `MT_LEASE_SECONDS` passes. To spread across machines, point
 `MT_DATABASE_URL` at PostgreSQL (`uv sync --extra postgres`), share the media
 volume, and run `MT_ROLE=api` alongside several `MT_ROLE=worker` processes.
 
-`MT_BATCH_SIZE` turns on batched decoding, which is a large speed-up on a GPU
-and is ignored on CPU. `/health/ready` loads the models and fails with 503 if
-they cannot be had, so a rollout never sends traffic to a container whose
-weights are missing.
+### Speed
+
+Three settings decide how long a meeting takes. Measured on an M3 Max (12
+performance cores) against a 39-minute Ukrainian recording, `large-v3-turbo`,
+INT8:
+
+| | realtime factor | 39 minutes takes |
+| --- | --- | --- |
+| CTranslate2's own default of 4 threads | 3.2× | 12 min |
+| all cores | 4.4× | 9 min |
+| all cores + `MT_BATCH_SIZE=8` | **7.8×** | **5 min** |
+| the same, with speakers | 6.5× | 6 min |
+
+Whisper runs on CPU there because CTranslate2 has no Apple Silicon backend. pyannote
+does — it is PyTorch — and `MT_DEVICE=auto` sends it to MPS, worth 10.5× realtime
+against 1.8× on the same CPU. `/health` reports both devices.
+
+Threads are taken from the machine and divided by `MT_CONCURRENCY`, so workers
+on one box do not fight each other. `MT_BATCH_SIZE` turns on batched decoding —
+worth roughly 2× on CPU as well as on GPU — at the cost of memory; set it to 1
+on a small box. Batched decoding hands back 30-second blocks instead of
+sentences, so the words it produces are reassembled into sentences on the
+pauses; that costs nothing and is what keeps a transcript readable.
+
+`/health/ready` loads the models and fails with 503 if they cannot be had, so a
+rollout never sends traffic to a container whose weights are missing.
 
 ## Layout
 

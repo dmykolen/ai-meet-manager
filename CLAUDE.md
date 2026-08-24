@@ -72,6 +72,16 @@ These are requirements, not polish:
   Base torch still arrives transitively (`app.media` → faster-whisper → ctranslate2) and
   costs about a second; pyannote, lightning and the LLM SDKs are what actually hurt, and
   those stay deferred. Re-measure with `python -X importtime -c "import app.main"`.
+- **Live latency has a floor, and it has been measured.** Whisper's encoder runs a
+  30-second window whatever you feed it, so every utterance costs the same ~2.5s on CPU
+  no matter how short it was. On an M3 Max the median lag from spoken to shown is ~6s.
+  Two things got it down from ~8s and both are cheap: the language is detected once per
+  session rather than on every phrase (an extra encoder pass, ~1.6s), and live decodes
+  greedily (`beam_size=1`, 1.8x faster and measurably no worse). Three obvious-looking
+  fixes were measured and rejected — a smaller model (loops on long utterances, ends up
+  *slower*), cutting utterances shorter (Whisper hallucinates "Дякую за перегляд!" onto
+  short fragments), and batching for live (a wash on one clip). Do not re-litigate any of
+  them without numbers.
 - **Nothing happens silently.** Startup logs the database, media directory, model cache
   and its size, role and device. Model loading logs what is being fetched and whether it
   came from the cache or was downloaded, with the size and elapsed time.
@@ -82,8 +92,37 @@ These are requirements, not polish:
   on the filesystem for `MT_KEEP_MEDIA_DAYS`.
 - **Silence never reaches the models.** One VAD pass trims it, and timestamps are mapped
   back onto the original recording.
+- **The two models want different hardware.** CTranslate2 speaks CUDA or CPU and nothing
+  else, so `device()` is for Whisper. pyannote is PyTorch and reaches Apple Silicon, so
+  `torch_device()` is for it — measured at 10.5× realtime on MPS against 1.8× on the same
+  CPU, which is the difference between 4 and 22 minutes on a meeting. Anything handing a
+  tensor to the embedding model must move it to the model's device and bring the vector
+  back, which is what `voices.embed` does.
+- **Speed is measured, not assumed.** A 39-minute meeting runs in 5 minutes on an M3 Max
+  without speakers and 6 with them. Two settings got it there and both had been left on a
+  bad default:
+  CTranslate2 takes 4 threads unless told the machine's count, and batched decoding was
+  switched off on CPU on the belief it only pays on a GPU — it is worth 2× on both.
+  Batching also *requires* its own VAD (`vad_filter=True`) and raises past 30 seconds
+  without it, and it returns 30-second blocks rather than sentences, which is why
+  `_turns` rebuilds the rows from word timestamps. That same function serves the diarized
+  path, because a speaker change is not the only reason to end a row either — diarization
+  will otherwise hand back three unbroken minutes of one person. Re-measure before
+  changing any of it; `tests/test_api.py` pins the batching contract and
+  `tests/test_pipeline.py` the row building.
 - **Audio and video are stored on the filesystem**, not in the database or an object
   store. Any container FFmpeg reads is accepted, video included.
+- **A tab does its own job, and nothing navigates on the user's behalf.** Library is
+  where transcripts are read — the list opens one in place and `← Library` or `Esc`
+  goes back. Upload and Live *run* a recording and end on a result card with an
+  `Open transcript` button. The previous UI threw the user from Library to Recording
+  on every click; do not reintroduce a tab switch the user did not ask for.
+- **Every wait is a visible state.** Warming up, listening, N seconds behind, wrapping
+  up, saved. A spinner-free pause is a bug, not a quiet moment.
+- **One palette, no `dark:` variants.** `web/index.html` defines semantic colours as
+  CSS variables twice — light, then under `prefers-color-scheme: dark` — and exposes
+  them through `@theme inline`. Utilities are `bg-surface`, `text-soft`, `border-line`.
+  Adding a `dark:` class means the token is missing; add the token instead.
 
 ## The stack, and why
 

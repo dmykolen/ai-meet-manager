@@ -16,12 +16,16 @@ from pyannote.core import Annotation, Segment
 
 from app import media, voices
 from app.config import settings
-from app.engines import asr, batching, diarizer
+from app.engines import asr, batching, diarizer, live_asr
 from app.media import SAMPLE_RATE, Remap
 from app.models import Options, Person, Task
 
 TRANSCRIPTION_SHARE = 0.7  # of the progress bar when diarization follows
 DIARIZATION_STEPS = 4
+SENTENCE_GAP = 0.3  # a pause this long ends a sentence, if it sounded finished
+SENTENCE_BREAK = 1.0  # this long ends one regardless
+SENTENCE_SPAN = 14.0  # and nothing runs longer than this, pause or not
+SENTENCE_ENDINGS = (".", "?", "!", "…", ":")
 log = logging.getLogger(__name__)
 
 Progress = Callable[[float], None]
@@ -32,17 +36,32 @@ def transcribe(
     vocabulary: str | None = None,
     word_timestamps: bool = False,
     report: Callable[[float], None] | None = None,
+    *,
+    language: str | None = None,
+    live: bool = False,
 ) -> tuple[list, str]:
-    """Whisper over a waveform. `report` receives the seconds transcribed so far."""
+    """Whisper over a waveform. `report` receives the seconds transcribed so far.
+
+    Naming the `language` skips detection, which costs a whole extra encoder pass —
+    measured at ~2s per call, which is most of the latency of a live utterance. `live`
+    picks the model meant for one short utterance at a time, where batching is a wash.
+    """
     options = {
-        "language": settings.language,
+        "language": language or settings.language,
         "hotwords": vocabulary or settings.vocabulary or None,
         "word_timestamps": word_timestamps,
         "vad_filter": not settings.trim_silence,  # already trimmed, unless disabled
     }
-    if batching():
-        options["batch_size"] = settings.batch_size
-    segments, info = asr().transcribe(audio, **options)
+    if live:
+        # Greedy decoding is 1.8x faster on a CPU and, measured against this meeting, no
+        # worse; and one utterance is not a continuation of the last, so conditioning on
+        # the previous text only invites the model to invent a transition.
+        options |= {"beam_size": 1, "condition_on_previous_text": False}
+    elif batching():
+        # The batched pipeline slices the audio on its own VAD and refuses to run without
+        # it. Timestamps come back relative to what it was handed, which `remap` expects.
+        options |= {"batch_size": settings.batch_size, "vad_filter": True}
+    segments, info = (live_asr() if live else asr()).transcribe(audio, **options)
 
     collected = []
     for segment in segments:  # iterating the generator is what runs inference
@@ -94,29 +113,72 @@ def run(
     segments, result["language"] = transcribe(
         audio,
         options.vocabulary,
-        word_timestamps=with_speakers,
+        # Batched decoding is 2x faster and hands back 30-second blocks; the words it
+        # throws in for free are what turns those back into sentences.
+        word_timestamps=with_speakers or batching(),
         report=lambda seconds: report(share * min(seconds / max(heard, 1e-9), 1.0)),
     )
 
     if not with_speakers:
-        result["segments"] = [
-            {
-                "start": round(remap(s.start), 3),
-                "end": round(remap(s.end), 3),
-                "text": s.text.strip(),
-                "confidence": _confidence(s),
-            }
-            for s in segments
-        ]
+        result["segments"] = _turns(segments, remap)
         return result, {}
 
     speech, exclusive, voiceprints = _diarize(
         audio, options, people, lambda done: report(share + (1 - share) * done)
     )
-    result["segments"] = _speaker_turns(segments, exclusive, remap)
+    result["segments"] = _turns(segments, remap, exclusive)
     result["speakers"] = sorted(speech.labels())
     result["analytics"] = _analytics(speech, duration)
     return result, voiceprints
+
+
+def _turns(segments, remap: Remap, speech: Annotation | None = None) -> list[dict]:
+    """Words into rows a person can read.
+
+    A row ends when the speaker changes, when the sentence sounded finished and a pause
+    followed, or when it has simply run on too long. None of those boundaries works
+    alone: batched decoding hands back 30-second blocks, and diarization happily hands
+    back three unbroken minutes of one person holding the floor.
+    """
+    runs: list[list] = []  # start, end, text, confidence, speaker
+    speaker = "SPEAKER_00" if speech is not None else None
+    for chunk in segments:
+        confidence = _confidence(chunk)
+        if not chunk.words:  # unbatched decoding already breaks on sentences
+            runs.append([chunk.start, chunk.end, chunk.text, confidence, speaker])
+            continue
+        for word in chunk.words:
+            if speech is not None:
+                speaker = speech.argmax(Segment(word.start, word.end)) or speaker
+            if runs and runs[-1][4] == speaker and _continues(runs[-1], word):
+                runs[-1][1], runs[-1][2] = word.end, runs[-1][2] + word.word
+            else:
+                runs.append([word.start, word.end, word.word, confidence, speaker])
+    return [
+        {
+            "start": round(remap(start), 3),
+            "end": round(remap(end), 3),
+            **({"speaker": who} if who is not None else {}),
+            "text": text.strip(),
+            "confidence": confidence,
+        }
+        for start, end, text, confidence, who in runs
+        if text.strip()
+    ]
+
+
+def _continues(run: list, word) -> bool:
+    """People pause in the middle of a sentence, so a pause alone is not a break.
+
+    Splitting on silence alone left 12% of the rows as orphaned tails like "in the MVP.";
+    asking that the run also sound finished halves that.
+    """
+    if word.end - run[0] >= SENTENCE_SPAN:
+        return False
+    pause = word.start - run[1]
+    if pause >= SENTENCE_BREAK:
+        return False
+    return pause < SENTENCE_GAP or not run[2].rstrip().endswith(SENTENCE_ENDINGS)
 
 
 def _hallucinated(segment) -> bool:
@@ -185,31 +247,6 @@ def _analytics(speech: Annotation, duration: float) -> dict:
             for label, seconds in chart.items()
         ],
     }
-
-
-def _speaker_turns(segments, speech: Annotation, remap: Remap) -> list[dict]:
-    """Label each word with the speaker talking over it, then merge consecutive words."""
-    turns: list[dict] = []
-    speaker = "SPEAKER_00"
-    for chunk in segments:
-        for word in chunk.words or []:
-            speaker = speech.argmax(Segment(word.start, word.end)) or speaker
-            if turns and turns[-1]["speaker"] == speaker:
-                turns[-1]["end"] = round(remap(word.end), 3)
-                turns[-1]["text"] += word.word
-            else:
-                turns.append(
-                    {
-                        "start": round(remap(word.start), 3),
-                        "end": round(remap(word.end), 3),
-                        "speaker": speaker,
-                        "text": word.word,
-                        "confidence": _confidence(chunk),
-                    }
-                )
-    for turn in turns:
-        turn["text"] = turn["text"].strip()
-    return turns
 
 
 def analytics_of(segments: list[dict], duration: float) -> dict:

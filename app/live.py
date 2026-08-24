@@ -17,7 +17,8 @@ from faster_whisper.vad import VadOptions, get_speech_timestamps
 from sqlmodel import Session
 from starlette.concurrency import run_in_threadpool
 
-from app import pipeline, search
+from app import pipeline, search, worker
+from app.config import settings
 from app.media import SAMPLE_RATE
 from app.models import Job, Person, Status, engine, now
 from app.voices import Roll
@@ -36,6 +37,7 @@ class LiveSession:
     def __init__(self, job: Job, vocabulary: str | None = None, people: Sequence[Person] = ()):
         self.job_id = job.id
         self.vocabulary = vocabulary
+        self.language = settings.language  # detected once, then reused: it costs an encoder pass
         self.roll = Roll(people) if people else None
         self.turns: list[dict] = []
         self.buffer = np.zeros(0, dtype=np.float32)
@@ -82,25 +84,35 @@ class LiveSession:
         duration = self.offset + len(self.buffer) / SAMPLE_RATE
         self.recording.close()
 
+        # Live captions come from a smaller model when one is configured, so the recording
+        # goes back on the queue to be transcribed properly once the room has emptied.
+        again = bool(settings.live_model) and settings.live_model != settings.whisper_model
         with Session(engine) as session:
             job = session.get(Job, self.job_id)
             job.result = self._result(duration)
             job.error = error
-            job.status = Status.failed if error and not self.turns else Status.completed
-            job.progress, job.finished_at = 1.0, now()
+            if error and not self.turns:
+                job.status = Status.failed
+            elif again and self.turns:
+                job.status, job.progress = Status.queued, 0.0
+            else:
+                job.status, job.progress = Status.completed, 1.0
+            job.finished_at = now()
             job.metrics = {"media_seconds": round(duration, 1)}
             session.add(job)
             session.commit()
             search.index(session, job)
             session.refresh(job)
-            return job
+        if job.status is Status.queued:
+            worker.wake()
+        return job
 
     def _result(self, duration: float) -> dict:
         speakers = sorted({turn["speaker"] for turn in self.turns if turn["speaker"]})
         result = {
             "duration": round(duration, 3),
             "speech_duration": round(sum(t["end"] - t["start"] for t in self.turns), 3),
-            "language": None,
+            "language": self.language,
             "speakers": speakers,
             "segments": self.turns,
         }
@@ -124,7 +136,10 @@ class LiveSession:
 
     async def _transcribe(self, audio: np.ndarray, at: int) -> dict | None:
         start = self.offset + at / SAMPLE_RATE
-        segments, _ = await run_in_threadpool(pipeline.transcribe, audio, self.vocabulary)
+        segments, language = await run_in_threadpool(
+            pipeline.transcribe, audio, self.vocabulary, language=self.language, live=True
+        )
+        self.language = self.language or language
         text = " ".join(segment.text.strip() for segment in segments).strip()
         if not text:
             return None

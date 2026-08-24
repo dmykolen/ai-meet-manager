@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # leave it empty for the Hugging Face default (~/.cache/huggingface).
     model_cache: Path | None = None
     whisper_model: str = "large-v3-turbo"
+    live_model: str = ""  # blank means whisper_model; a smaller one cuts live latency
     diarization_model: str = "pyannote/speaker-diarization-community-1"
     # Required for the gated pyannote models: https://huggingface.co/settings/tokens
     hf_token: str | None = None

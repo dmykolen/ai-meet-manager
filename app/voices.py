@@ -29,7 +29,10 @@ def embed(audio: np.ndarray) -> list[float] | None:
     rate = getattr(model, "sample_rate", SAMPLE_RATE)
     if rate != SAMPLE_RATE:
         waveform = torchaudio.functional.resample(waveform, SAMPLE_RATE, rate)
-    vector = np.asarray(model(waveform))[0]
+    if (where := getattr(model, "device", None)) is not None:
+        waveform = waveform.to(where)  # the pipeline may be on a GPU or on Apple Silicon
+    signature = model(waveform)
+    vector = np.asarray(signature.cpu() if hasattr(signature, "cpu") else signature)[0]
     return None if not np.isfinite(vector).all() else vector.tolist()
 
 

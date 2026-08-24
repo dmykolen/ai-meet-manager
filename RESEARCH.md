@@ -58,3 +58,34 @@ than from memory.
 The trade-off accepted: the pyannote weights are gated, so a free Hugging Face
 token is required once. Set `MT_DIARIZATION_MODEL` to swap in any other
 pyannote-compatible pipeline.
+
+## mlx-whisper, measured and not adopted (yet)
+
+Apple's MLX has its own Whisper port, so it was measured on an M3 Max against a
+four-minute slice of a real Ukrainian meeting — the same clip, the same
+`large-v3-turbo` weights, both asked for word timestamps because the speaker
+alignment needs them:
+
+| | realtime | words | characters |
+| --- | --- | --- | --- |
+| faster-whisper, batched, 12 threads | 9.7× | 531 | 2985 |
+| **mlx-whisper** | **23.5×** | 527 | 2990 |
+
+Same amount of text, 2.4× faster. Without word timestamps mlx reaches 42×.
+
+It is not adopted because it would be a second ASR implementation, and the case
+for that is narrower than it first looks:
+
+* MLX is no longer Apple-only — 0.32 ships `manylinux` wheels with CUDA and CPU
+  backends — but those are young, and CTranslate2 is what is actually deployed
+  everywhere. Switching Linux to a backend nobody here has measured would trade a
+  known quantity for a hopeful one.
+* `hotwords` has no equivalent; the closest is `initial_prompt`, which is a
+  weaker way to bias a vocabulary.
+* It wants the weights again in MLX format, so a machine that runs both backends
+  downloads the model twice.
+
+What it would take, if the Mac speed is judged worth it: an optional dependency
+group, backend selection on Apple Silicon, and an adapter turning mlx's segment
+dicts into what `app/pipeline.py` already consumes — its dicts carry `words`,
+`avg_logprob` and `no_speech_prob`, so nothing else in the pipeline would move.

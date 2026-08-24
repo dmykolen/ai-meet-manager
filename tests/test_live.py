@@ -1,8 +1,10 @@
+import threading
+
 import numpy as np
 import pytest
 from sqlmodel import Session
 
-from app import live, pipeline, voices
+from app import engines, live, pipeline, voices
 from app.live import MAX_BUFFER, LiveSession
 from app.media import SAMPLE_RATE
 from app.models import Job, Person, Status, Task, engine, init_db
@@ -32,12 +34,21 @@ class Said:
         self.text = text
 
 
+asked: list[dict] = []
+
+
+def fake_transcribe(audio, vocabulary=None, **options):
+    asked.append(options)
+    return [Said(" hello")], "uk"
+
+
 @pytest.fixture(autouse=True)
 def stub(monkeypatch):
+    asked.clear()
     monkeypatch.setattr(live, "get_speech_timestamps", fake_vad)
-    monkeypatch.setattr(
-        pipeline, "transcribe", lambda audio, vocabulary=None: ([Said(" hello")], "en")
-    )
+    monkeypatch.setattr(pipeline, "transcribe", fake_transcribe)
+    monkeypatch.setattr(engines, "live_asr", lambda: None)  # the stream warms this first
+    monkeypatch.setattr(engines, "embedder", lambda: None)
 
 
 @pytest.fixture
@@ -102,6 +113,39 @@ async def test_enrolled_voices_are_named_in_the_live_stream(session_and_job, mon
 
 
 @pytest.mark.anyio
+async def test_the_language_is_detected_once_and_then_reused(session_and_job):
+    """Detection is a whole extra encoder pass — ~2s of the latency of every utterance."""
+    stream, _ = session_and_job
+    await feed(stream, speech(1.0), silence(0.8))
+    await feed(stream, speech(1.0), silence(0.8))
+
+    assert [call["language"] for call in asked] == [None, "uk"]
+    finished = await stream.finish()
+    assert finished.result["language"] == "uk", "and it is kept with the transcript"
+
+
+@pytest.mark.anyio
+async def test_a_smaller_live_model_sends_the_recording_back_for_a_proper_pass(
+    session_and_job, monkeypatch
+):
+    monkeypatch.setattr(live.settings, "live_model", "small")
+    monkeypatch.setattr(live.settings, "whisper_model", "large-v3-turbo")
+    stream, _ = session_and_job
+    await feed(stream, speech(1.0), silence(0.8))
+    assert (await stream.finish()).status is Status.queued
+
+
+@pytest.mark.anyio
+async def test_one_model_for_both_means_the_live_transcript_is_the_final_one(
+    session_and_job, monkeypatch
+):
+    monkeypatch.setattr(live.settings, "live_model", "")
+    stream, _ = session_and_job
+    await feed(stream, speech(1.0), silence(0.8))
+    assert (await stream.finish()).status is Status.completed
+
+
+@pytest.mark.anyio
 async def test_speakers_are_unnamed_when_nobody_is_enrolled(session_and_job):
     stream, _ = session_and_job
     turns = await feed(stream, speech(1.0), silence(0.8))
@@ -130,22 +174,37 @@ async def test_turns_are_visible_while_the_meeting_is_still_running(session_and_
     await stream.finish()
 
 
-def test_the_websocket_streams_turns_and_closes_with_the_transcript(client, monkeypatch):
-    monkeypatch.setattr(live, "get_speech_timestamps", fake_vad)
-    monkeypatch.setattr(
-        pipeline, "transcribe", lambda audio, vocabulary=None: ([Said(" hello")], "en")
-    )
+def test_the_websocket_streams_turns_and_closes_with_the_transcript(client):
     with client.websocket_connect("/v1/stream") as socket:
         ready = socket.receive_json()
         assert ready["sample_rate"] == SAMPLE_RATE and ready["job_id"]
-        socket.send_bytes(np.concatenate([speech(1.0), silence(0.8)]).tobytes())
+        for _ in range(2):  # the first block may land while the model is still loading
+            socket.send_bytes(np.concatenate([speech(1.0), silence(0.8)]).tobytes())
+        assert socket.receive_json()["type"] == "warm", "the client is told when Whisper is ready"
         assert socket.receive_json()["text"] == "hello"
         socket.send_text("stop")
-        done = socket.receive_json()
+        while (done := socket.receive_json())["type"] != "done":
+            assert done["type"] == "turn", "only queued turns arrive between stop and done"
 
-    assert done["type"] == "done"
     assert done["result"]["segments"][0]["text"] == "hello"
     assert client.get(f"/v1/jobs/{done['job_id']}").json()["live"] is True
+
+
+def test_speech_from_before_the_model_was_warm_is_kept(client, monkeypatch):
+    """Whisper takes tens of seconds to load; what is said meanwhile is buffered, not dropped."""
+    loaded = threading.Event()
+    monkeypatch.setattr(engines, "asr", loaded.wait)
+
+    with client.websocket_connect("/v1/stream") as socket:
+        socket.receive_json()
+        socket.send_bytes(np.concatenate([speech(1.0), silence(0.8)]).tobytes())
+        loaded.set()
+        socket.send_bytes(silence(0.3).tobytes())
+
+        assert socket.receive_json()["type"] == "warm"
+        turn = socket.receive_json()
+        assert turn["text"] == "hello" and turn["start"] == 0.0
+        socket.send_text("stop")
 
 
 @pytest.mark.anyio
