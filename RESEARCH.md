@@ -59,33 +59,37 @@ The trade-off accepted: the pyannote weights are gated, so a free Hugging Face
 token is required once. Set `MT_DIARIZATION_MODEL` to swap in any other
 pyannote-compatible pipeline.
 
-## mlx-whisper, measured and not adopted (yet)
+## Two Whisper backends, chosen by the machine
 
 Apple's MLX has its own Whisper port, so it was measured on an M3 Max against a
 four-minute slice of a real Ukrainian meeting — the same clip, the same
-`large-v3-turbo` weights, both asked for word timestamps because the speaker
+`large-v3-turbo` weights, both asked for word timestamps because speaker
 alignment needs them:
 
 | | realtime | words | characters |
 | --- | --- | --- | --- |
-| faster-whisper, batched, 12 threads | 9.7× | 531 | 2985 |
-| **mlx-whisper** | **23.5×** | 527 | 2990 |
+| faster-whisper, batched, 12 threads | 9.7x | 531 | 2985 |
+| **mlx-whisper** | **23.5x** | 527 | 2990 |
 
-Same amount of text, 2.4× faster. Without word timestamps mlx reaches 42×.
+Same amount of text, 2.4x faster. End to end on the whole 39-minute meeting with
+speakers, it is 2.7 minutes against 6.
 
-It is not adopted because it would be a second ASR implementation, and the case
-for that is narrower than it first looks:
+So both are kept and `engines.backend()` picks one from what the machine has:
 
-* MLX is no longer Apple-only — 0.32 ships `manylinux` wheels with CUDA and CPU
-  backends — but those are young, and CTranslate2 is what is actually deployed
-  everywhere. Switching Linux to a backend nobody here has measured would trade a
-  known quantity for a hopeful one.
-* `hotwords` has no equivalent; the closest is `initial_prompt`, which is a
-  weaker way to bias a vocabulary.
-* It wants the weights again in MLX format, so a machine that runs both backends
-  downloads the model twice.
+* **CUDA -> faster-whisper.** float16 on CTranslate2 is both the fastest thing
+  there and the best proven. MLX never displaces it.
+* **Apple Silicon -> MLX**, if `uv sync --extra mlx` installed it. The dependency
+  marker makes that extra a no-op anywhere else, so one lockfile still serves a
+  Mac laptop and a Linux worker.
+* **Everything else -> faster-whisper.** MLX does ship `manylinux` wheels with
+  CUDA and CPU backends now, but nobody has measured them on a real Linux box,
+  and CTranslate2 is what is deployed there. Measuring is what would change it.
 
-What it would take, if the Mac speed is judged worth it: an optional dependency
-group, backend selection on Apple Silicon, and an adapter turning mlx's segment
-dicts into what `app/pipeline.py` already consumes — its dicts carry `words`,
-`avg_logprob` and `no_speech_prob`, so nothing else in the pipeline would move.
+Nothing else in the pipeline knows which one ran: `engines.Mlx` wears
+faster-whisper's call signature, and MLX's segment dicts already carry `words`,
+`avg_logprob` and `no_speech_prob`. Two differences are real and worth knowing:
+MLX has no `hotwords`, so the vocabulary is passed as `initial_prompt`, which
+biases more weakly; and it wants the weights again in its own layout, which
+mlx-community names by no rule at all, so `MLX_WEIGHTS` writes the map out rather
+than deriving it — a derived name found `whisper-large-v3-turbo-fp16`, which
+exists, is not MLX weights, and fails at load.

@@ -18,6 +18,10 @@ dependencies = [
 [project.optional-dependencies]
 # Needed only when MT_DATABASE_URL points at PostgreSQL instead of SQLite.
 postgres = ["psycopg[binary]>=3.2"]
+# Apple Silicon only, and only worth it there: 23.5x realtime against 9.7x for
+# CTranslate2 on the same clip. The marker keeps `uv sync --extra mlx` a no-op
+# everywhere else, so one lockfile still serves a Mac laptop and a Linux worker.
+mlx = ["mlx-whisper>=0.4; sys_platform == 'darwin' and platform_machine == 'arm64'"]
 
 [dependency-groups]
 dev = ["pytest>=8.3", "anyio>=4.6", "ruff>=0.8"]

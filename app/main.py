@@ -17,19 +17,30 @@ log = logging.getLogger(__name__)
 
 # Loading PyTorch, pyannote and Whisper takes seconds on a warm machine and minutes
 # on a cold one, so it happens in the background while the API is already serving.
-runtime = {"device": "resolving", "diarization_device": "resolving", "models": "not loaded"}
+runtime = {
+    "device": "resolving",
+    "diarization_device": "resolving",
+    "asr_backend": "resolving",
+    "models": "not loaded",
+}
 
 
 def warm(preload: bool) -> None:
     from app import engines  # deferred so the server binds its port immediately
 
-    runtime["device"] = engines.device()
+    runtime["asr_backend"] = engines.backend()
+    runtime["device"] = engines.asr_device()
     runtime["diarization_device"] = engines.torch_device()
+    tuning = (
+        ""
+        if runtime["asr_backend"] == "mlx"
+        else f" (batching {engines.batching()}, {engines.threads()} threads)"
+    )
     log.info(
-        "Whisper on %s (batching %s, %d threads), pyannote on %s",
+        "Whisper: %s on %s%s. pyannote on %s",
+        runtime["asr_backend"],
         runtime["device"],
-        engines.batching(),
-        engines.threads(),
+        tuning,
         runtime["diarization_device"],
     )
     if not preload:
@@ -85,6 +96,7 @@ def health() -> dict:
         "role": settings.role,
         "device": runtime["device"],
         "diarization_device": runtime["diarization_device"],
+        "asr_backend": runtime["asr_backend"],
         "models": runtime["models"],
         "model_cache": str(model_cache()),
         "whisper_model": settings.whisper_model,
@@ -106,7 +118,7 @@ def ready() -> dict:
     runtime["models"] = "ready"
     return {
         "status": "ready",
-        "device": engines.device(),
+        "device": engines.asr_device(),
         "diarization_device": engines.torch_device(),
     }
 

@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     # Where downloaded weights live. Point it at a volume so they survive a rebuild;
     # leave it empty for the Hugging Face default (~/.cache/huggingface).
     model_cache: Path | None = None
+    # Which Whisper implementation runs. "auto" picks per machine, see engines.backend().
+    asr_backend: Literal["auto", "faster-whisper", "mlx"] = "auto"
     whisper_model: str = "large-v3-turbo"
     live_model: str = ""  # blank means whisper_model; a smaller one cuts live latency
     diarization_model: str = "pyannote/speaker-diarization-community-1"

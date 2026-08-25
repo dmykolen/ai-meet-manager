@@ -397,10 +397,13 @@ def test_unknown_job_returns_404(client):
     assert client.get(f"/v1/jobs/{uuid.uuid4()}").status_code == 404
 
 
-def test_health_reports_the_active_device(client):
+def test_health_reports_what_is_actually_doing_the_work(client):
+    """Three separate answers: which Whisper, on what, and where pyannote went."""
     body = client.get("/health").json()
     assert body["status"] == "ok"
-    assert body["device"] in ("cpu", "cuda")
+    assert body["asr_backend"] in ("faster-whisper", "mlx", "resolving")
+    assert body["device"] in ("cpu", "cuda", "metal", "resolving")
+    assert body["diarization_device"] in ("cpu", "cuda", "mps", "resolving")
 
 
 def test_readiness_depends_on_the_models_loading(client, monkeypatch):

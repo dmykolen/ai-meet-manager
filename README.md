@@ -125,6 +125,8 @@ Post 15–30 seconds of one person to `/v1/people`, or simply correct a speaker'
 name on a finished transcript — `PATCH /v1/jobs/{id}/speakers` stores that
 voice too. Every later meeting where the voice is recognised adds another
 sample, so matching gets steadily better instead of depending on one clip.
+[VOICES.md](VOICES.md) explains the mechanism, with diagrams, and what could be
+done better.
 
 ### Live transcription
 
@@ -207,9 +209,17 @@ INT8:
 | all cores + `MT_BATCH_SIZE=8` | **7.8×** | **5 min** |
 | the same, with speakers | 6.5× | 6 min |
 
-Whisper runs on CPU there because CTranslate2 has no Apple Silicon backend. pyannote
-does — it is PyTorch — and `MT_DEVICE=auto` sends it to MPS, worth 10.5× realtime
-against 1.8× on the same CPU. `/health` reports both devices.
+Those are CTranslate2 numbers. On Apple Silicon there is a faster path: install it
+with `uv sync --extra mlx` and the same meeting with speakers takes **2.7 minutes**
+(14.6× realtime) instead of 6, because MLX runs Whisper on the GPU that CTranslate2
+cannot reach. Nothing has to be configured — `engines.backend()` picks per machine,
+CUDA keeps CTranslate2, and the dependency marker makes the extra a no-op off
+Apple Silicon, so one lockfile serves a Mac laptop and a Linux worker. Set
+`MT_ASR_BACKEND` to overrule it.
+
+pyannote is PyTorch and reaches Apple Silicon on its own, so `MT_DEVICE=auto` sends
+it to MPS, worth 10.5× realtime against 1.8× on the same CPU. `/health` reports
+which backend and which two devices are actually doing the work.
 
 Threads are taken from the machine and divided by `MT_CONCURRENCY`, so workers
 on one box do not fight each other. `MT_BATCH_SIZE` turns on batched decoding —

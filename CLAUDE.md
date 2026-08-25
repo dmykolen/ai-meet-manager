@@ -92,6 +92,14 @@ These are requirements, not polish:
   on the filesystem for `MT_KEEP_MEDIA_DAYS`.
 - **Silence never reaches the models.** One VAD pass trims it, and timestamps are mapped
   back onto the original recording.
+- **The machine picks the Whisper, not the config.** `engines.backend()` sends CUDA to
+  CTranslate2 (float16 there is fastest and best proven), Apple Silicon to MLX when the
+  optional extra is installed (14.6x realtime against 6.5x on the whole meeting), and
+  everything else to CTranslate2. MLX has Linux wheels now but nobody has measured them;
+  measuring is what would change that line, not preference. `engines.Mlx` wears
+  faster-whisper's signature so nothing downstream branches, and `MLX_WEIGHTS` writes the
+  repository names out because mlx-community follows no pattern — a derived name found
+  `whisper-large-v3-turbo-fp16`, which exists, is not MLX weights, and fails at load.
 - **The two models want different hardware.** CTranslate2 speaks CUDA or CPU and nothing
   else, so `device()` is for Whisper. pyannote is PyTorch and reaches Apple Silicon, so
   `torch_device()` is for it — measured at 10.5× realtime on MPS against 1.8× on the same
