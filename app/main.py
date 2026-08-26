@@ -31,11 +31,7 @@ def warm(preload: bool) -> None:
     runtime["asr_backend"] = engines.backend()
     runtime["device"] = engines.asr_device()
     runtime["diarization_device"] = engines.torch_device()
-    tuning = (
-        ""
-        if runtime["asr_backend"] == "mlx"
-        else f" (batching {engines.batching()}, {engines.threads()} threads)"
-    )
+    tuning = "" if runtime["asr_backend"] == "mlx" else f" (batching {engines.batching()}, {engines.threads()} threads)"
     log.info(
         "Whisper: %s on %s%s. pyannote on %s",
         runtime["asr_backend"],
@@ -59,7 +55,14 @@ def warm(preload: bool) -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s.%(msecs)03d %(levelname)-5s %(name)-12s %(message)s",
+        datefmt="%H:%M:%S",
+    )
+    # The UI polls while a job runs, so its requests bury everything worth reading.
+    logging.getLogger("uvicorn.access").setLevel(logging.INFO if settings.access_log else logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     init_db()
     log.info("Database %s, media in %s", settings.database_url, settings.media_dir.resolve())
     log.info("Model cache %s", model_cache())

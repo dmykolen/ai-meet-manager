@@ -136,9 +136,7 @@ class LiveSession:
 
     async def _transcribe(self, audio: np.ndarray, at: int) -> dict | None:
         start = self.offset + at / SAMPLE_RATE
-        segments, language = await run_in_threadpool(
-            pipeline.transcribe, audio, self.vocabulary, language=self.language, live=True
-        )
+        segments, language = await run_in_threadpool(pipeline.transcribe, audio, self.vocabulary, language=self.language, live=True)
         self.language = self.language or language
         text = " ".join(segment.text.strip() for segment in segments).strip()
         if not text:

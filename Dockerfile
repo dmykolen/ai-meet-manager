@@ -12,7 +12,7 @@ ENV UV_TORCH_BACKEND=${TORCH_BACKEND} \
 
 WORKDIR /srv
 COPY pyproject.toml uv.lock ./
-RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev --extra postgres
 
 COPY app ./app
 COPY web ./web

@@ -46,11 +46,7 @@ def agent() -> Agent:
 
 def summarise(result: dict) -> dict:
     """Turn a job result into a structured summary."""
-    lines = [
-        f"{turn.get('speaker', 'Speaker')}: {turn['text']}"
-        for turn in result["segments"]
-        if turn.get("text")
-    ]
+    lines = [f"{turn.get('speaker', 'Speaker')}: {turn['text']}" for turn in result["segments"] if turn.get("text")]
     if not lines:
         raise ValueError("This job has no transcript to summarise")
     return agent().run("\n".join(lines)).content.model_dump()

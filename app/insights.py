@@ -89,11 +89,7 @@ def clock(seconds: float) -> str:
 
 def as_text(result: dict) -> str:
     """The transcript as the models and the exports see it."""
-    return "\n".join(
-        f"[{clock(turn['start'])}] {turn.get('speaker', 'Speaker')}: {turn['text']}"
-        for turn in result.get("segments", [])
-        if turn.get("text")
-    )
+    return "\n".join(f"[{clock(turn['start'])}] {turn.get('speaker', 'Speaker')}: {turn['text']}" for turn in result.get("segments", []) if turn.get("text"))
 
 
 def summarise(result: dict) -> tuple[dict, int]:

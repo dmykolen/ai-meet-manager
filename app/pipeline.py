@@ -7,6 +7,7 @@ listener hears while the models never spend time on silence.
 
 import logging
 import math
+import time
 from collections.abc import Callable, Sequence
 
 import numpy as np
@@ -16,7 +17,7 @@ from pyannote.core import Annotation, Segment
 
 from app import media, voices
 from app.config import settings
-from app.engines import asr, batching, diarizer, live_asr
+from app.engines import asr, backend, batching, diarizer, live_asr, torch_device
 from app.media import SAMPLE_RATE, Remap
 from app.models import Options, Person, Task
 
@@ -86,9 +87,11 @@ def run(
     Returns the result and one voice signature per speaker, which lets a later
     correction of the labels teach the roster who that voice belongs to.
     """
+    started = time.monotonic()
     original = media.decode(path)
-    audio, remap = media.speech_only(original)
     duration = len(original) / SAMPLE_RATE
+    log.info("Decoded %.1f min in %.1fs", duration / 60, time.monotonic() - started)
+    audio, remap = media.speech_only(original)
     heard = len(audio) / SAMPLE_RATE
     result: dict = {
         "duration": round(duration, 3),
@@ -100,16 +103,15 @@ def run(
 
     if task is Task.diarize:
         speech, _, voiceprints = _diarize(audio, options, people, report)
-        result["segments"] = [
-            {"start": round(remap(turn.start), 3), "end": round(remap(turn.end), 3), "speaker": who}
-            for turn, _, who in speech.itertracks(yield_label=True)
-        ]
+        result["segments"] = [{"start": round(remap(turn.start), 3), "end": round(remap(turn.end), 3), "speaker": who} for turn, _, who in speech.itertracks(yield_label=True)]
         result["speakers"] = sorted(speech.labels())
         result["analytics"] = _analytics(speech, duration)
         return result, voiceprints
 
     with_speakers = task is Task.transcribe_diarize
     share = TRANSCRIPTION_SHARE if with_speakers else 1.0
+    log.info("Transcribing %.1f min of speech with %s", heard / 60, backend())
+    spoke = time.monotonic()
     segments, result["language"] = transcribe(
         audio,
         options.vocabulary,
@@ -119,17 +121,35 @@ def run(
         report=lambda seconds: report(share * min(seconds / max(heard, 1e-9), 1.0)),
     )
 
+    log.info(
+        "Transcribed in %s, %d segments, language %s",
+        _pace(time.monotonic() - spoke, heard),
+        len(segments),
+        result["language"],
+    )
+
     if not with_speakers:
         result["segments"] = _turns(segments, remap)
         return result, {}
 
-    speech, exclusive, voiceprints = _diarize(
-        audio, options, people, lambda done: report(share + (1 - share) * done)
-    )
+    log.info("Diarizing %.1f min on %s", heard / 60, torch_device())
+    split = time.monotonic()
+    speech, exclusive, voiceprints = _diarize(audio, options, people, lambda done: report(share + (1 - share) * done))
     result["segments"] = _turns(segments, remap, exclusive)
     result["speakers"] = sorted(speech.labels())
     result["analytics"] = _analytics(speech, duration)
+    log.info(
+        "Diarized in %s, %d speakers, %d rows",
+        _pace(time.monotonic() - split, heard),
+        len(result["speakers"]),
+        len(result["segments"]),
+    )
     return result, voiceprints
+
+
+def _pace(took: float, seconds: float) -> str:
+    """Both numbers, because "4 minutes" means nothing without the length of the audio."""
+    return f"{took:.1f}s ({seconds / took:.1f}x realtime)" if took > 0 else f"{took:.1f}s"
 
 
 def _turns(segments, remap: Remap, speech: Annotation | None = None) -> list[dict]:
@@ -183,10 +203,7 @@ def _continues(run: list, word) -> bool:
 
 def _hallucinated(segment) -> bool:
     """Whisper writes plausible sentences over silence; these are the tells."""
-    return (
-        segment.no_speech_prob > settings.drop_no_speech_above
-        and segment.avg_logprob < settings.drop_logprob_below
-    ) or not segment.text.strip()
+    return (segment.no_speech_prob > settings.drop_no_speech_above and segment.avg_logprob < settings.drop_logprob_below) or not segment.text.strip()
 
 
 def _confidence(segment) -> float:
@@ -209,9 +226,7 @@ def _diarize(
         report(min((len(steps) - 1 + within) / DIARIZATION_STEPS, 1.0))
 
     waveform = torch.from_numpy(audio).unsqueeze(0)  # pyannote wants (channel, time)
-    output: DiarizeOutput = diarizer()(
-        {"waveform": waveform, "sample_rate": SAMPLE_RATE}, hook=hook, **options.speakers()
-    )
+    output: DiarizeOutput = diarizer()({"waveform": waveform, "sample_rate": SAMPLE_RATE}, hook=hook, **options.speakers())
     # The exclusive variant drops overlapping speech and is meant for alignment;
     # the plain one keeps the overlaps that make talk-time analytics honest.
     speech, exclusive = output.speaker_diarization, output.exclusive_speaker_diarization

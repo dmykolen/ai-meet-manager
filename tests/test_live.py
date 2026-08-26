@@ -125,9 +125,7 @@ async def test_the_language_is_detected_once_and_then_reused(session_and_job):
 
 
 @pytest.mark.anyio
-async def test_a_smaller_live_model_sends_the_recording_back_for_a_proper_pass(
-    session_and_job, monkeypatch
-):
+async def test_a_smaller_live_model_sends_the_recording_back_for_a_proper_pass(session_and_job, monkeypatch):
     monkeypatch.setattr(live.settings, "live_model", "small")
     monkeypatch.setattr(live.settings, "whisper_model", "large-v3-turbo")
     stream, _ = session_and_job
@@ -136,9 +134,7 @@ async def test_a_smaller_live_model_sends_the_recording_back_for_a_proper_pass(
 
 
 @pytest.mark.anyio
-async def test_one_model_for_both_means_the_live_transcript_is_the_final_one(
-    session_and_job, monkeypatch
-):
+async def test_one_model_for_both_means_the_live_transcript_is_the_final_one(session_and_job, monkeypatch):
     monkeypatch.setattr(live.settings, "live_model", "")
     stream, _ = session_and_job
     await feed(stream, speech(1.0), silence(0.8))

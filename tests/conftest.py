@@ -63,11 +63,7 @@ def encode(name: str, *arguments: str) -> Path:
 
 @pytest.fixture(scope="session")
 def video_bytes() -> bytes:
-    arguments = (
-        "-f lavfi -i testsrc=size=320x240:rate=15:duration=3 "
-        "-f lavfi -i sine=frequency=400:duration=3 "
-        "-c:v libx264 -pix_fmt yuv420p -c:a aac -shortest"
-    )
+    arguments = "-f lavfi -i testsrc=size=320x240:rate=15:duration=3 -f lavfi -i sine=frequency=400:duration=3 -c:v libx264 -pix_fmt yuv420p -c:a aac -shortest"
     return encode("clip.mp4", *arguments.split()).read_bytes()
 
 

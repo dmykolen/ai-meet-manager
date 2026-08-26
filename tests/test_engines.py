@@ -35,6 +35,8 @@ class FakeMlx:
         for absent in ("hotwords", "batch_size", "vad_filter"):
             if absent in options:  # as mlx_whisper does, having no such parameter
                 raise TypeError(f"transcribe() got an unexpected keyword argument {absent!r}")
+        if options.get("beam_size") is not None:  # as mlx_whisper does, even for 1
+            raise NotImplementedError("Beam search decoder is not yet implemented")
         FakeMlx.calls.append({k: v for k, v in options.items() if k != "path_or_hf_repo"})
         return SPOKEN
 
@@ -102,10 +104,14 @@ def test_the_vocabulary_becomes_the_only_thing_mlx_has_for_one(fake_mlx):
 
 def test_options_meant_for_ctranslate2_are_not_forwarded(fake_mlx):
     """MLX chunks on its own and has no batching, and would raise on either word."""
-    engines.Mlx("repo").transcribe(
-        np.zeros(16000, dtype=np.float32), batch_size=8, vad_filter=True, language="uk"
-    )
+    engines.Mlx("repo").transcribe(np.zeros(16000, dtype=np.float32), batch_size=8, vad_filter=True, language="uk")
     assert fake_mlx.calls[-1] == {"language": "uk"}
+
+
+def test_greedy_decoding_is_asked_for_the_way_mlx_understands_it(fake_mlx):
+    """MLX raises on beam_size even when it is 1, and decodes greedily regardless."""
+    engines.Mlx("repo").transcribe(np.zeros(16000, dtype=np.float32), beam_size=1, condition_on_previous_text=False)
+    assert fake_mlx.calls[-1] == {"condition_on_previous_text": False}
 
 
 def test_unset_options_are_left_out_so_mlx_keeps_its_own_defaults(fake_mlx):

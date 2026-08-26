@@ -12,9 +12,9 @@ Working on this code? [CLAUDE.md](CLAUDE.md) records the conventions it is held 
 ## Setup
 
 ```bash
-uv sync                          # add UV_TORCH_BACKEND=auto for matching CPU/CUDA PyTorch wheels
-cp .env.example .env             # then set MT_HF_TOKEN
-uv run fastapi run app/main.py   # or `fastapi dev` while developing
+uv sync && uv run prek install --prepare-hooks # add UV_TORCH_BACKEND=auto for matching CPU/CUDA PyTorch wheels
+cp .env.example .env                           # then set MT_HF_TOKEN
+uv run fastapi run app/main.py                 # or `fastapi dev` while developing
 ```
 
 Or with Docker:

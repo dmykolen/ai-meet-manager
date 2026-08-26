@@ -83,8 +83,18 @@ These are requirements, not polish:
   short fragments), and batching for live (a wash on one clip). Do not re-litigate any of
   them without numbers.
 - **Nothing happens silently.** Startup logs the database, media directory, model cache
-  and its size, role and device. Model loading logs what is being fetched and whether it
-  came from the cache or was downloaded, with the size and elapsed time.
+  and its size, role and both devices. Model loading logs what is being fetched and
+  whether it came from the cache or was downloaded, with the size and elapsed time. Every
+  phase of a job logs its start and its pace — decode, trim, transcribe, diarize, done —
+  because a job that stops needs to say *where* it stopped. Timestamps carry
+  milliseconds. `uvicorn.access` and `httpx` are turned down to WARNING: the UI polls
+  while a job runs and its requests bury everything worth reading. `MT_ACCESS_LOG=true`
+  brings the request log back.
+- **A worker thread must outlive anything one job can do to it.** `run` swallows what a
+  job raises, but the loop around it — claiming, committing the final row — used to be
+  able to kill the thread. With `MT_CONCURRENCY=1` that silently stops the whole queue
+  and leaves the job `running` for ever with nobody to take it over. `_loop` now catches
+  and carries on.
 - **Models are downloaded once.** `MT_MODEL_CACHE` (or `HF_HOME`) must point at
   something persistent; the Docker image keeps it on a named volume.
 - **Everything is kept and browsable.** Transcripts, summaries, analytics and notes live

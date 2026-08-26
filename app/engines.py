@@ -85,17 +85,16 @@ def asr_device() -> str:
 
 def mlx_installed() -> bool:
     """Apple Silicon with the optional extra actually installed (`uv sync --extra mlx`)."""
-    return (
-        platform.system() == "Darwin"
-        and platform.machine() == "arm64"
-        and importlib.util.find_spec("mlx_whisper") is not None
-    )
+    return platform.system() == "Darwin" and platform.machine() == "arm64" and importlib.util.find_spec("mlx_whisper") is not None
 
 
 class Mlx:
     """mlx-whisper wearing faster-whisper's signature, so the pipeline sees one shape."""
 
-    IGNORED = ("batch_size", "vad_filter")  # MLX chunks on its own and does not batch
+    # MLX chunks on its own and does not batch. `beam_size` is not merely unsupported:
+    # it raises NotImplementedError even when set to 1, and MLX decodes greedily anyway,
+    # so dropping it is what honours the caller's intent rather than ignoring it.
+    IGNORED = ("batch_size", "vad_filter", "beam_size")
 
     def __init__(self, repo: str):
         self.repo = repo

@@ -24,10 +24,18 @@ postgres = ["psycopg[binary]>=3.2"]
 mlx = ["mlx-whisper>=0.4; sys_platform == 'darwin' and platform_machine == 'arm64'"]
 
 [dependency-groups]
-dev = ["pytest>=8.3", "anyio>=4.6", "ruff>=0.8"]
+dev = [
+    "pytest>=8.3",
+    "anyio>=4.6",
+    "ruff>=0.8",
+    "prek>=0.4.14",
+]
 
 [tool.ruff]
-line-length = 100
+line-length = 180
+
+[tool.ruff.format]
+preview = true
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RUF"]

@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # workers horizontally; they then need a shared database and media volume.
     role: Literal["all", "api", "worker"] = "all"
     poll_interval: float = 2.0
+    access_log: bool = False  # the UI polls; its requests drown the processing log
     # A job whose worker stopped sending heartbeats for this long is taken over.
     lease_seconds: int = 300
 

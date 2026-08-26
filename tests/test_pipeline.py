@@ -81,9 +81,7 @@ def test_unbatched_segments_are_left_exactly_as_whisper_split_them():
     plain = Chunk(text="Одне речення.")
     plain.words = None
     plain.start, plain.end = 1.0, 2.5
-    assert _turns([plain], same) == [
-        {"start": 1.0, "end": 2.5, "text": "Одне речення.", "confidence": _confidence(plain)}
-    ]
+    assert _turns([plain], same) == [{"start": 1.0, "end": 2.5, "text": "Одне речення.", "confidence": _confidence(plain)}]
 
 
 def test_sentence_timestamps_are_mapped_back_onto_the_original_recording():

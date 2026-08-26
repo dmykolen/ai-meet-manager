@@ -87,7 +87,12 @@ So both are kept and `engines.backend()` picks one from what the machine has:
 
 Nothing else in the pipeline knows which one ran: `engines.Mlx` wears
 faster-whisper's call signature, and MLX's segment dicts already carry `words`,
-`avg_logprob` and `no_speech_prob`. Two differences are real and worth knowing:
+`avg_logprob` and `no_speech_prob`. Three differences are real and worth knowing.
+MLX has no beam search at all — `DecodingTask` raises `NotImplementedError` when
+`beam_size` is set *even to 1*, and since it decodes greedily anyway the adapter
+drops the option rather than forwarding it; live asks for greedy decoding, so on
+Apple Silicon that one line was the difference between live working and every
+utterance failing. And:
 MLX has no `hotwords`, so the vocabulary is passed as `initial_prompt`, which
 biases more weakly; and it wants the weights again in its own layout, which
 mlx-community names by no rule at all, so `MLX_WEIGHTS` writes the map out rather

@@ -38,8 +38,5 @@ async def ask(session: SessionDep, question: Annotated[str, Body(embed=True)]) -
         raise HTTPException(502, f"Could not answer: {exc}") from exc
     return {
         "answer": reply,
-        "sources": [
-            {"job_id": str(job.id), "filename": job.filename, "start": chunk.start}
-            for chunk, job in hits
-        ],
+        "sources": [{"job_id": str(job.id), "filename": job.filename, "start": chunk.start} for chunk, job in hits],
     }

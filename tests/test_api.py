@@ -317,9 +317,7 @@ def test_comments_are_kept_against_their_moment_in_the_recording(client, wav_byt
         json={"at": 12.5, "author": "Dima", "text": "check this number", "job_id": job["id"]},
     )
     comments = client.get(f"/v1/jobs/{job['id']}/comments").json()
-    assert [(c["at"], c["author"], c["text"]) for c in comments] == [
-        (12.5, "Dima", "check this number")
-    ]
+    assert [(c["at"], c["author"], c["text"]) for c in comments] == [(12.5, "Dima", "check this number")]
 
 
 # --- summaries, search and questions ------------------------------------------
@@ -331,9 +329,7 @@ def summary_of(_result):
 
 def test_summary_includes_chapters_and_is_generated_once(client, wav_bytes, monkeypatch):
     runs = []
-    monkeypatch.setattr(
-        insights, "summarise", lambda result: (runs.append(result), summary_of(result))[1]
-    )
+    monkeypatch.setattr(insights, "summarise", lambda result: (runs.append(result), summary_of(result))[1])
     job = submit(client, "/v1/transcribe-diarize", wav_bytes)
 
     summarised = client.post(f"/v1/jobs/{job['id']}/summary").json()

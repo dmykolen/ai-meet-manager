@@ -52,11 +52,21 @@ def wake() -> None:
 
 
 def _loop() -> None:
+    """One worker thread, which must outlive anything a single job can do to it.
+
+    `run` swallows what a job raises, but everything around it — claiming, committing
+    the final row — used to be able to kill the thread outright. With one worker that
+    silently stops the whole queue, and the job it was on stays `running` for ever with
+    nobody left to take it over.
+    """
     while not _stop.is_set():
-        while (job_id := claim()) is not None:
-            run(job_id)
-            if _stop.is_set():
-                return
+        try:
+            while (job_id := claim()) is not None:
+                run(job_id)
+                if _stop.is_set():
+                    return
+        except Exception:
+            log.exception("Worker loop stumbled; carrying on")
         _wake.wait(settings.poll_interval)
         _wake.clear()
 
@@ -110,13 +120,12 @@ def run(job_id: UUID) -> None:
             job.progress, job.heartbeat_at = fraction, now()
             session.commit()
 
+        log.info("Job %s %s — %s", str(job.id)[:8], job.filename, job.task.replace("_", " + "))
         try:
             if job.attempts > settings.max_attempts:
                 raise RuntimeError(job.error or "Given up after too many attempts")
             people = [] if job.task is Task.transcribe else voices.everyone(session)
-            result, voiceprints = pipeline.run(
-                job.media(), job.task, Options(**job.options), people, report
-            )
+            result, voiceprints = pipeline.run(job.media(), job.task, Options(**job.options), people, report)
             job.result, job.voiceprints = result, voiceprints
             job.metrics = _metrics(result, time.monotonic() - started)
             job.status, job.progress = Status.completed, 1.0
@@ -124,8 +133,16 @@ def run(job_id: UUID) -> None:
                 voices.remember(session, name, vector)
             session.commit()
             search.index(session, job)
+            log.info(
+                "Job %s done in %.1fs (%sx realtime), %d rows, %d speakers",
+                str(job.id)[:8],
+                time.monotonic() - started,
+                job.metrics.get("realtime_factor", "?"),
+                len(result["segments"]),
+                len(result["speakers"]),
+            )
         except Exception as exc:
-            log.exception("Job %s failed", job_id)
+            log.exception("Job %s failed after %.1fs", str(job.id)[:8], time.monotonic() - started)
             fatal = isinstance(exc, UnplayableMedia) or job.attempts >= settings.max_attempts
             job.status = Status.failed if fatal else Status.queued
             job.error = str(exc)

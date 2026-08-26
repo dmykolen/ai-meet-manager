@@ -143,20 +143,12 @@ def rename_speakers(
 
 def _relabel(result: dict, names: dict[str, str]) -> dict:
     renamed = {**result}
-    renamed["segments"] = [
-        {**turn, "speaker": names.get(turn["speaker"], turn["speaker"])}
-        if turn.get("speaker")
-        else turn
-        for turn in result.get("segments", [])
-    ]
+    renamed["segments"] = [{**turn, "speaker": names.get(turn["speaker"], turn["speaker"])} if turn.get("speaker") else turn for turn in result.get("segments", [])]
     renamed["speakers"] = sorted({names.get(s, s) for s in result.get("speakers", [])})
     if analytics := result.get("analytics"):
         renamed["analytics"] = {
             **analytics,
-            "speakers": [
-                {**row, "speaker": names.get(row["speaker"], row["speaker"])}
-                for row in analytics.get("speakers", [])
-            ],
+            "speakers": [{**row, "speaker": names.get(row["speaker"], row["speaker"])} for row in analytics.get("speakers", [])],
         }
     return renamed
 
@@ -174,9 +166,7 @@ def _enrol_corrections(session, job: Job, named: set[str]) -> None:
 
 @router.get("/jobs/{job_id}/comments", response_model=list[Comment])
 def list_comments(job_id: uuid.UUID, session: SessionDep) -> list[Comment]:
-    return session.exec(
-        select(Comment).where(col(Comment.job_id) == job_id).order_by(col(Comment.at))
-    ).all()
+    return session.exec(select(Comment).where(col(Comment.job_id) == job_id).order_by(col(Comment.at))).all()
 
 
 @router.post("/jobs/{job_id}/comments", response_model=Comment, status_code=201)
