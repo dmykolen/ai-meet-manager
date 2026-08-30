@@ -1,18 +1,20 @@
 import time
 import uuid
+from datetime import timedelta
 from typing import ClassVar
 
 import numpy as np
 import pytest
 from pyannote.audio.pipelines.speaker_diarization import DiarizeOutput
 from pyannote.core import Annotation, Segment
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 from test_pipeline import DIMA, OLENA, Chunk, Word
 
-from app import engines, insights, pipeline, search, voices, worker
+from app import engines, insights, pipeline, search, worker
 from app.config import settings
 from app.media import SAMPLE_RATE
-from app.models import Job, Person, engine
+from app.models import Chunk as Passage  # the test helper of that name is a whisper segment
+from app.models import Comment, Job, Person, Status, engine, now
 
 
 class FakeASR:
@@ -63,6 +65,7 @@ def stub_models(monkeypatch):
     FakeASR.calls.clear()
     monkeypatch.setattr(pipeline, "asr", FakeASR)
     monkeypatch.setattr(pipeline, "diarizer", lambda: fake_diarizer)
+    monkeypatch.setattr(engines, "diarizer", lambda: fake_diarizer)  # enrolment reaches it directly
     monkeypatch.setattr(engines, "warm_up", lambda: None)
 
 
@@ -193,8 +196,25 @@ def test_batched_decoding_keeps_the_vad_the_batching_itself_needs(client, wav_by
 # --- known voices -------------------------------------------------------------
 
 
-def enrol(client, name, media, monkeypatch, vector=DIMA):
-    monkeypatch.setattr(voices, "embed", lambda _audio: vector)
+def solo(seconds: float = 6.0, vector=DIMA):
+    """A diarizer that hears one person for long enough to enrol them."""
+
+    def diarize(audio, hook=None, **kwargs):
+        speech = Annotation()
+        if seconds:
+            speech[Segment(0, seconds)] = "SPEAKER_00"
+        return DiarizeOutput(
+            speaker_diarization=speech,
+            exclusive_speaker_diarization=speech,
+            # pyannote returns no centroids at all when it heard nobody.
+            speaker_embeddings=np.array([vector] if seconds else [], dtype=np.float32),
+        )
+
+    return diarize
+
+
+def enrol(client, name, media, monkeypatch, heard=None):
+    monkeypatch.setattr(engines, "diarizer", lambda: heard or solo())
     return client.post("/v1/people", data={"name": name}, files={"file": ("s.wav", media)})
 
 
@@ -213,9 +233,9 @@ def test_every_recognised_appearance_adds_another_sample(client, wav_bytes, monk
         assert len(dima.samples) == 3  # the enrolment plus two meetings
 
 
-def test_samples_per_person_are_capped(client, wav_bytes, monkeypatch):
+def test_a_full_roster_keeps_learning_instead_of_freezing(client, wav_bytes, monkeypatch):
     enrol(client, "Dima", wav_bytes, monkeypatch)
-    monkeypatch.setattr(voices, "SAMPLES_PER_PERSON", 2)
+    monkeypatch.setattr(settings, "samples_per_person", 2)
     for _ in range(3):
         submit(client, "/v1/transcribe-diarize", wav_bytes)
     with Session(engine) as session:
@@ -227,8 +247,27 @@ def test_a_name_can_only_be_enrolled_once(client, wav_bytes, monkeypatch):
     assert enrol(client, "Olena", wav_bytes, monkeypatch).status_code == 409
 
 
-def test_a_sample_without_speech_is_rejected(client, wav_bytes, monkeypatch):
-    assert enrol(client, "Nobody", wav_bytes, monkeypatch, vector=None).status_code == 422
+def test_a_sample_with_too_little_speech_in_it_is_rejected(client, wav_bytes, monkeypatch):
+    refused = enrol(client, "Nobody", wav_bytes, monkeypatch, heard=solo(seconds=0))
+    assert refused.status_code == 422
+    assert "0.0s of speech" in refused.json()["detail"]
+
+
+def test_a_sample_shorter_than_the_enrolment_minimum_is_rejected(client, wav_bytes, monkeypatch):
+    assert enrol(client, "Brief", wav_bytes, monkeypatch, heard=solo(seconds=2.0)).status_code == 422
+
+
+def test_a_sample_with_a_second_voice_in_it_is_rejected(client, wav_bytes, monkeypatch):
+    """Two people talking is how a roster learns the wrong face for a voice."""
+    refused = enrol(client, "Pair", wav_bytes, monkeypatch, heard=fake_diarizer)
+    assert refused.status_code == 422
+    assert "more than one voice" in refused.json()["detail"]
+
+
+def test_the_enrolled_signature_is_the_one_diarization_computed(client, wav_bytes, monkeypatch):
+    """The same vector the meetings are matched against, overlap already excluded."""
+    person = enrol(client, "Olena", wav_bytes, monkeypatch, heard=solo(vector=OLENA)).json()
+    assert person["samples"] == [OLENA]
 
 
 # --- corrections --------------------------------------------------------------
@@ -254,6 +293,47 @@ def test_a_correction_can_be_kept_out_of_the_roster(client, wav_bytes):
         params={"remember": False},
     )
     assert client.get("/v1/people").json() == []
+
+
+# --- deleting -----------------------------------------------------------------
+
+
+def test_deleting_a_recording_takes_everything_stored_about_it(client, wav_bytes):
+    job = submit(client, "/v1/transcribe", wav_bytes)
+    client.post(f"/v1/jobs/{job['id']}/comments", json={"at": 1.0, "text": "check this bit"})
+    token = client.post(f"/v1/jobs/{job['id']}/share").json()["token"]
+    recording = settings.media_dir / f"{job['id']}.wav"
+    assert recording.exists()
+
+    assert client.delete(f"/v1/jobs/{job['id']}").status_code == 204
+    assert client.get(f"/v1/jobs/{job['id']}").status_code == 404
+    assert not recording.exists()
+    assert client.get(f"/v1/shared/{token}").status_code == 404
+    with Session(engine) as session:
+        gone = uuid.UUID(job["id"])
+        assert session.exec(select(Passage).where(col(Passage.job_id) == gone)).all() == []
+        assert session.exec(select(Comment).where(col(Comment.job_id) == gone)).all() == []
+
+
+def test_deleting_a_recording_that_is_not_there_is_a_404(client):
+    assert client.delete(f"/v1/jobs/{uuid.uuid4()}").status_code == 404
+
+
+def test_a_recording_being_worked_on_is_refused_until_its_worker_goes_quiet(client, wav_bytes):
+    job = submit(client, "/v1/transcribe", wav_bytes)
+    with Session(engine) as session:
+        row = session.get(Job, uuid.UUID(job["id"]))
+        row.status, row.heartbeat_at = Status.running, now()
+        session.add(row)
+        session.commit()
+    assert client.delete(f"/v1/jobs/{job['id']}").status_code == 409
+
+    with Session(engine) as session:  # the lease expires, as it does for a dead worker
+        row = session.get(Job, uuid.UUID(job["id"]))
+        row.heartbeat_at = now() - timedelta(seconds=settings.lease_seconds + 1)
+        session.add(row)
+        session.commit()
+    assert client.delete(f"/v1/jobs/{job['id']}").status_code == 204
 
 
 # --- recordings ---------------------------------------------------------------

@@ -51,6 +51,14 @@ class Settings(BaseSettings):
     # --- speakers ---
     # Cosine similarity above which two voice samples count as the same person.
     speaker_match_threshold: float = 0.55
+    # Shorter than this there is not enough voice to embed, so a brief live utterance
+    # goes unlabelled rather than badly labelled.
+    voice_min_seconds: float = 1.0
+    # Enrolment is stricter: that sample is compared against every meeting from then
+    # on, and an embedding built from a second or two of speech is noisy.
+    enrol_min_seconds: float = 4.0
+    # Voiceprints kept per person: different microphones, rooms and head colds.
+    samples_per_person: int = 10
 
     # --- summaries, search and sharing ---
     llm_provider: Literal["openai", "anthropic"] = "openai"

@@ -72,6 +72,7 @@
   .field { @apply rounded-lg border border-line bg-surface px-3 py-1.5 text-sm text-ink outline-none transition-colors focus:border-accent }
   .chip  { @apply inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink transition-colors hover:bg-raised active:scale-95 disabled:pointer-events-none disabled:opacity-40 }
   .solid { @apply inline-flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-ink transition-opacity hover:opacity-85 active:scale-[.98] disabled:opacity-40 }
+  .armed { @apply border-live bg-live text-paper hover:bg-live }
   .label { @apply text-[0.6875rem] font-semibold uppercase tracking-[0.09em] text-faint }
   .read  { @apply font-read text-[0.9375rem] leading-[1.65] }
 </style>
@@ -110,6 +111,7 @@
     <p class="mt-1.5 max-w-[70ch] text-sm text-soft">
       Upload 15–30 seconds of one person speaking alone, or just correct a speaker's name in a
       transcript — either way that voice is recognised from then on, and gets sharper with every meeting.
+      A sample with a second voice in it, or with only a few seconds of speech, is refused.
     </p>
     <div class="mt-4 flex flex-wrap items-center gap-2">
       <input x-model="newPerson" placeholder="Name" class="field w-40">
@@ -330,26 +332,32 @@
 
     <div x-show="library.length" class="card mt-4 divide-y divide-line overflow-hidden">
       <template x-for="item in library" :key="item.id">
-        <button @click="openJob(item.id)" type="button" :disabled="item.status !== 'completed'" :title="item.error || ''"
-                class="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-raised disabled:cursor-default">
-          <span class="h-1.5 w-1.5 shrink-0 rounded-full"
-                :class="{'bg-good': item.status === 'completed', 'bg-live': item.status === 'failed', 'bg-warn halo': !['completed','failed'].includes(item.status)}"></span>
-          <span class="min-w-0 flex-1">
-            <span class="block truncate text-sm font-semibold" x-text="item.filename"></span>
-            <span class="mt-0.5 block text-xs text-faint">
-              <span x-text="when(item)"></span>
-              <span x-show="item.live"> · live</span>
-              <span x-show="item.has_video"> · video</span>
-              <span x-show="item.status === 'failed'" class="text-live"> · failed</span>
-              <span x-show="item.status === 'running'" x-text="` · transcribing ${Math.round(item.progress * 100)}%`"></span>
-              <span x-show="item.status === 'queued'"> · queued</span>
+        <div class="flex w-full items-center transition-colors hover:bg-raised">
+          <button @click="openJob(item.id)" type="button" :disabled="item.status !== 'completed'" :title="item.error || ''"
+                  class="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 text-left disabled:cursor-default">
+            <span class="h-1.5 w-1.5 shrink-0 rounded-full"
+                  :class="{'bg-good': item.status === 'completed', 'bg-live': item.status === 'failed', 'bg-warn halo': !['completed','failed'].includes(item.status)}"></span>
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm font-semibold" x-text="item.filename"></span>
+              <span class="mt-0.5 block text-xs text-faint">
+                <span x-text="when(item)"></span>
+                <span x-show="item.live"> · live</span>
+                <span x-show="item.has_video"> · video</span>
+                <span x-show="item.status === 'failed'" class="text-live"> · failed</span>
+                <span x-show="item.status === 'running'" x-text="` · transcribing ${Math.round(item.progress * 100)}%`"></span>
+                <span x-show="item.status === 'queued'"> · queued</span>
+              </span>
             </span>
-          </span>
-          <span x-show="item.result" class="hidden w-14 text-right text-xs text-soft" x-text="item.result && clock(item.result.duration)"></span>
-          <span x-show="item.result && item.result.speakers.length" class="hidden w-20 text-right text-xs text-soft sm:inline"
-                x-text="item.result && `${item.result.speakers.length} speakers`"></span>
-          <span class="hidden w-32 text-right text-xs text-faint md:inline" x-text="item.task.replace('_', ' + ')"></span>
-        </button>
+            <span x-show="item.result" class="hidden w-14 text-right text-xs text-soft" x-text="item.result && clock(item.result.duration)"></span>
+            <span x-show="item.result && item.result.speakers.length" class="hidden w-20 text-right text-xs text-soft sm:inline"
+                  x-text="item.result && `${item.result.speakers.length} speakers`"></span>
+            <span class="hidden w-32 text-right text-xs text-faint md:inline" x-text="item.task.replace('_', ' + ')"></span>
+          </button>
+          <button @click="remove(item)" type="button" :title="`Delete ${item.filename} and its transcript`"
+                  class="mr-2 ml-1 shrink-0 rounded px-2 py-1 text-xs transition-colors hover:bg-live hover:text-paper"
+                  :class="confirming === item.id ? 'armed' : 'text-faint'"
+                  x-text="confirming === item.id ? 'Delete?' : '×'"></button>
+        </div>
       </template>
     </div>
   </section>
@@ -367,6 +375,9 @@
           <button @click="copy()" type="button" class="chip" x-text="copied ? 'Copied' : 'Copy'"></button>
           <button @click="download('txt')" type="button" class="chip">.txt</button>
           <button @click="download('json')" type="button" class="chip">.json</button>
+          <button x-show="!shared" @click="remove(job)" type="button" class="chip transition-colors hover:bg-live hover:text-paper"
+                  :class="confirming === job.id && 'armed'"
+                  x-text="confirming === job.id ? 'Delete for good?' : 'Delete'"></button>
         </div>
       </div>
 
@@ -646,7 +657,7 @@ function app() {
     tab: "upload", shared: false, error: "", health: null,
     file: null, mode: "transcribe_diarize", dragging: false, busy: false, elapsed: 0, progress: 0,
     hint: "auto", num: 2, min: 2, max: 6, vocabulary: "", finished: null,
-    library: [], search: "", onlyStatus: "",
+    library: [], search: "", onlyStatus: "", confirming: null,
     job: null, turns: [], timeline: [], lineup: [], filter: "", shown: 400,
     playhead: 0, sounding: false, speed: 1, follow: true, followed: -1,
     summarising: false, shareLabel: "Share", renaming: null, newName: "",
@@ -796,8 +807,23 @@ function app() {
       window.scrollTo({ top: 0 });
       if (at !== null) this.$nextTick(() => this.seek(at));
     },
+    // Deletion asks twice, in place: the second press is the one that means it.
+    async remove(item) {
+      if (this.confirming !== item.id) {
+        this.confirming = item.id;
+        setTimeout(() => { if (this.confirming === item.id) this.confirming = null; }, 5000);
+        return;
+      }
+      this.confirming = null;
+      try {
+        await this.send(`/v1/jobs/${item.id}`, { method: "DELETE" });
+        if (this.job?.id === item.id) this.closeJob();
+        this.loadLibrary();
+      } catch (failure) { this.fail(failure); }
+    },
     closeJob() {
       this.player?.pause?.();
+      this.confirming = null;
       this.job = null; this.turns = []; this.timeline = []; this.lineup = [];
       this.notes = false; this.comments = [];
     },

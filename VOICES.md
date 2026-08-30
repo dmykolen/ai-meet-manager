@@ -40,13 +40,17 @@ the job as `voiceprints` — no extra computation, they were a by-product.
 
 Two ways, and the second is the one people actually use:
 
-- upload 15–30 seconds of one person in **Voices**;
+- upload 15–30 seconds of one person in **Voices** — the clip is diarized first, and
+  refused if a second voice is in it or if it holds less than `MT_ENROL_MIN_SECONDS`
+  of speech, because a bad sample here mislabels every meeting after it;
 - **rename a speaker in a transcript** — `_enrol_corrections` in
   [app/api/jobs.py](app/api/jobs.py) takes the voiceprint already stored on the job
   and files it under the new name.
 
-A person keeps up to **10 voiceprints** (`SAMPLES_PER_PERSON`) — different
-microphones, different rooms, different head colds.
+A person keeps up to **10 voiceprints** (`MT_SAMPLES_PER_PERSON`) — different
+microphones, different rooms, different head colds. Once that is full the roster does
+not stop learning: the new sample displaces whichever stored one is closest to another,
+since that is the one teaching the least. A tie drops the older of the pair.
 
 ### 3. How the next meeting is matched
 
@@ -100,8 +104,9 @@ assigned to it, so the longer someone talks the more stable their cluster gets.
 | | where | what it does |
 | --- | --- | --- |
 | `MT_SPEAKER_MATCH_THRESHOLD` | 0.55 | below this, no name is given |
-| `SAMPLES_PER_PERSON` | 10 | voiceprints kept per person |
-| `MIN_SAMPLES` | 1 second | shorter clips are not embedded at all |
+| `MT_SAMPLES_PER_PERSON` | 10 | voiceprints kept per person, worst evicted after that |
+| `MT_ENROL_MIN_SECONDS` | 4 seconds | less speech than this cannot be enrolled |
+| `MT_VOICE_MIN_SECONDS` | 1 second | shorter clips are not embedded at all |
 | embedding size | 256 | WeSpeaker ResNet34, 16 kHz |
 
 ## Is this the only way? No — but it is the standard one
@@ -114,11 +119,6 @@ learning at all. Today the problem is *open*: a new voice is compared against
 everyone ever enrolled. Take the invitee list from a calendar — or just let someone
 tick five names before processing — and it becomes a choice among five instead of
 fifty. Accuracy jumps without touching a model.
-
-**Enrol from longer, cleaner speech.** `MIN_SAMPLES` is one second. An embedding
-from one or two seconds is noisy; five or more seconds of clean single-speaker
-audio is far more stable. Segments where people talk over each other should be
-skipped for enrolment entirely.
 
 **Use a centroid as well as the maximum.** Keeping the best of ten samples is
 sensitive to one lucky or unlucky recording. Averaging the samples and using both
@@ -137,9 +137,17 @@ better on difficult audio, at the cost of another model and more compute.
 A "probably Olena (0.58)" state with one-click confirmation would be both more
 honest and a free source of enrolment samples.
 
-## One limitation worth knowing now
+## Where enrolment is strict, and why
 
-`remember()` stops adding samples once a person has ten, and never replaces any.
-After ten meetings a voice **stops learning**, and the earliest samples — possibly
-the worst ones, recorded on a bad headset — stay forever. Evicting the least useful
-sample instead of stopping would fix it in a handful of lines.
+Two of the recommendations above are now the behaviour, because both failures are
+silent and permanent — a bad sample is compared against every meeting from then on:
+
+- **Enrolment runs diarization first** (`signature()` in [app/voices.py](app/voices.py)).
+  More than one voice in the clip, or less than `MT_ENROL_MIN_SECONDS` of speech, and the
+  upload is refused with the reason. The voiceprint returned is pyannote's own speaker
+  centroid — the same vector meetings are matched against, with overlapping speech
+  already excluded by the pipeline (`embedding_exclude_overlap` in the community-1
+  config), rather than a raw embedding of whatever was in the file.
+- **A full roster keeps learning.** `remember()` used to stop at the tenth sample and
+  never replace any, so after ten meetings a voice froze with whatever it was recorded
+  on first. The new sample now displaces the most redundant stored one instead.

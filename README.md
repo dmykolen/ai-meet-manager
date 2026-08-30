@@ -82,6 +82,7 @@ Each upload returns a job immediately; poll it and watch `progress` climb.
 | `WS` | `/v1/stream` | Live transcription; recorded and kept as a job |
 | `GET` | `/v1/jobs?q=&status=` · `/v1/jobs/{id}` | Browse past jobs, or fetch one |
 | `GET` | `/v1/jobs/{id}/media` | The stored recording, audio or video |
+| `DELETE` | `/v1/jobs/{id}` | Forget a recording: transcript, notes, links, media |
 | `POST` | `/v1/jobs/{id}/summary` | Overview, chapters, decisions, action items |
 | `PATCH` | `/v1/jobs/{id}/speakers` | Correct speaker names, and learn those voices |
 | `POST` | `/v1/jobs/{id}/share` | A read-only link, valid for `MT_SHARE_DAYS` |
@@ -123,8 +124,11 @@ curl -s -X POST localhost:8000/v1/ask -H 'content-type: application/json' \
 
 Post 15–30 seconds of one person to `/v1/people`, or simply correct a speaker's
 name on a finished transcript — `PATCH /v1/jobs/{id}/speakers` stores that
-voice too. Every later meeting where the voice is recognised adds another
-sample, so matching gets steadily better instead of depending on one clip.
+voice too. An uploaded sample is diarized before it is accepted: a second voice in
+the clip, or less than `MT_ENROL_MIN_SECONDS` of speech, is refused with the reason,
+because that one sample is compared against every meeting from then on. Every later
+meeting where the voice is recognised adds another sample, and once `MT_SAMPLES_PER_PERSON`
+are stored the most redundant one makes way, so a new headset is still learnt.
 [VOICES.md](VOICES.md) explains the mechanism, with diagrams, and what could be
 done better.
 
@@ -180,6 +184,9 @@ Transcripts, summaries, speaker analytics and notes stay in the database
 indefinitely and are browsable in the Library tab, which filters by file name and
 status. Recordings are larger, so they are kept for `MT_KEEP_MEDIA_DAYS` and then
 deleted &mdash; the transcript outlives the audio. Set it to 0 to keep no media at all.
+Deleting a recording is deliberate and complete: the &times; in the Library, or
+`DELETE /v1/jobs/{id}`, takes the transcript, notes, share links, search passages and
+the media file with it. A job a worker is still reporting on is refused until it ends.
 
 ### Search
 

@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from pyannote.core import Annotation, Segment
 
+from app.config import settings
 from app.models import Person
 from app.pipeline import (
     SENTENCE_SPAN,
@@ -13,7 +14,7 @@ from app.pipeline import (
     _turns,
     analytics_of,
 )
-from app.voices import recognise
+from app.voices import _kept, recognise
 
 
 class Word:
@@ -222,3 +223,23 @@ def test_any_of_a_persons_samples_can_match():
 @pytest.mark.parametrize("vectors,known", [([], True), ([DIMA], False)])
 def test_recognition_is_skipped_without_voices_or_people(vectors, known):
     assert recognise(np.array(vectors), people() if known else []) == {}
+
+
+# --- keeping a roster useful --------------------------------------------------
+
+
+def test_a_roster_with_room_left_keeps_every_sample():
+    assert _kept([DIMA, OLENA]) == [DIMA, OLENA]
+
+
+def test_a_full_roster_drops_the_stale_twin_rather_than_the_new_sample(monkeypatch):
+    """Stopping at the tenth froze the roster; the redundant sample is the one to lose."""
+    monkeypatch.setattr(settings, "samples_per_person", 2)
+    older, newer = DIMA, [0.99, 0.01, 0.0]
+    assert _kept([older, OLENA, newer]) == [OLENA, newer]
+
+
+def test_a_full_roster_still_takes_in_a_voice_it_has_not_heard_before(monkeypatch):
+    """A new headset is exactly what the tenth meeting has to be able to teach."""
+    monkeypatch.setattr(settings, "samples_per_person", 2)
+    assert _kept([DIMA, [0.99, 0.01, 0.0], OLENA])[-1] == OLENA

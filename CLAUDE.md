@@ -181,6 +181,7 @@ web/index.html    the entire UI
 ```bash
 uv sync                          # UV_TORCH_BACKEND=auto picks the CPU/CUDA wheels
 uv run fastapi run app/main.py
+uv run fastapi run app/main.py --port 8009   # when 8000 is taken by something else
 uv run pytest                    # models are stubbed; no weights downloaded
 uv run ruff check . && uv run ruff format .
 docker compose up --build
@@ -191,7 +192,7 @@ docker compose up --build
 From the two backlogs the owner reviewed. Everything else on those lists is built.
 
 Highest value first: authentication and rate limiting (the API is wide open); export to
-SRT/VTT/DOCX; deleting a job and a retention policy for transcripts; per-request
+SRT/VTT/DOCX; a retention policy for transcripts; per-request
 translation and language; word-level timestamps in the payload; webhooks or SSE instead
 of polling; multi-channel recordings (one track per participant); chunked parallel
 processing for long files; denoising for bad rooms; metrics and a WER/DER eval harness;

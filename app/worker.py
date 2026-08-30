@@ -114,6 +114,8 @@ def run(job_id: UUID) -> None:
     started = time.monotonic()
     with Session(engine) as session:
         job = session.get(Job, job_id)
+        if job is None:
+            return  # deleted in the moment between the claim and this fetch
 
         def report(fraction: float) -> None:  # monotonic, and doubles as the heartbeat
             fraction = round(min(max(fraction, job.progress), 1.0), 2)

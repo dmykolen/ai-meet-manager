@@ -10,14 +10,12 @@ from app.config import settings
 from app.media import SAMPLE_RATE
 from app.models import Person
 
-MIN_SAMPLES = SAMPLE_RATE  # a second of speech is the least worth embedding
-SAMPLES_PER_PERSON = 10  # enough to cover different microphones and moods
 log = logging.getLogger(__name__)
 
 
 def embed(audio: np.ndarray) -> list[float] | None:
     """One voice signature for a clip of a single person speaking."""
-    if len(audio) < MIN_SAMPLES:
+    if len(audio) < settings.voice_min_seconds * SAMPLE_RATE:
         return None
     import torch  # deferred: pulls in the whole ML stack, which the API never needs
     import torchaudio
@@ -31,9 +29,33 @@ def embed(audio: np.ndarray) -> list[float] | None:
         waveform = torchaudio.functional.resample(waveform, SAMPLE_RATE, rate)
     if (where := getattr(model, "device", None)) is not None:
         waveform = waveform.to(where)  # the pipeline may be on a GPU or on Apple Silicon
-    signature = model(waveform)
-    vector = np.asarray(signature.cpu() if hasattr(signature, "cpu") else signature)[0]
+    heard = model(waveform)
+    vector = np.asarray(heard.cpu() if hasattr(heard, "cpu") else heard)[0]
     return None if not np.isfinite(vector).all() else vector.tolist()
+
+
+def signature(audio: np.ndarray) -> list[float]:
+    """The voiceprint to file under a person's name, or a ValueError saying why not.
+
+    Enrolment is the one place worth being strict, because this sample is compared
+    against every meeting from now on. Diarization answers both questions that matter
+    — how much speech is really in the clip, and whether a second person is in it —
+    and hands back the embedding it computed on the way, with overlapping speech
+    already left out of it (`embedding_exclude_overlap` in the community-1 config).
+    """
+    import torch  # deferred: pulls in the whole ML stack, which the API never needs
+
+    from app.engines import diarizer
+
+    waveform = torch.from_numpy(audio).unsqueeze(0)  # pyannote wants (channel, time)
+    output = diarizer()({"waveform": waveform, "sample_rate": SAMPLE_RATE})
+    speech = output.speaker_diarization
+    if len(speech.labels()) > 1:
+        raise ValueError("There is more than one voice in that sample. Enrol one person speaking alone.")
+    seconds = speech.get_timeline().support().duration()
+    if seconds < settings.enrol_min_seconds:
+        raise ValueError(f"Only {seconds:.1f}s of speech in that sample; {settings.enrol_min_seconds:.0f}s or more is needed.")
+    return np.asarray(output.speaker_embeddings[0]).tolist()
 
 
 def recognise(vectors: Sequence[Sequence[float]], people: Sequence[Person]) -> dict[int, str]:
@@ -102,9 +124,25 @@ def remember(session: Session, name: str, vector: list[float], enrol: bool = Fal
     if person is None:
         if enrol:
             session.add(Person(name=name, samples=[vector]))
-    elif len(person.samples) < SAMPLES_PER_PERSON:
-        person.samples = [*person.samples, vector]
+    else:
+        person.samples = _kept([*person.samples, vector])
         session.add(person)
+
+
+def _kept(samples: list[list[float]]) -> list[list[float]]:
+    """Make room for one more voiceprint by dropping the one that teaches the least.
+
+    Stopping at the tenth froze the roster: someone who changed headset was never
+    learnt again, and whatever they recorded on their first day stayed for ever. The
+    sample nearest another one is the redundant one, and a tie drops the older of the
+    pair, so a fresh sample always displaces the stale twin rather than the other way.
+    """
+    if len(samples) <= settings.samples_per_person:
+        return samples
+    unit = _unit(np.array(samples))
+    twins = unit @ unit.T
+    np.fill_diagonal(twins, -1.0)
+    return [sample for index, sample in enumerate(samples) if index != int(twins.max(axis=1).argmax())]
 
 
 def everyone(session: Session) -> list[Person]:

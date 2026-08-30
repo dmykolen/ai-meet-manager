@@ -1,15 +1,17 @@
 import uuid
+from datetime import timedelta
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Body, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
-from sqlmodel import col, select
+from sqlmodel import col, delete, select
 from starlette.concurrency import run_in_threadpool
 
 from app import insights, media, search, voices, worker
 from app.api.deps import OptionsDep, SessionDep, job_or_404, save_upload
-from app.models import Comment, Job, Options, Share, Status, Task, now
+from app.config import settings
+from app.models import Chunk, Comment, Job, Options, Share, Status, Task, now
 
 router = APIRouter(prefix="/v1", tags=["jobs"])
 
@@ -81,6 +83,24 @@ def list_jobs(
 @router.get("/jobs/{job_id}", response_model=Job)
 def get_job(job_id: uuid.UUID, session: SessionDep) -> Job:
     return job_or_404(job_id, session)
+
+
+@router.delete("/jobs/{job_id}", status_code=204)
+def delete_job(job_id: uuid.UUID, session: SessionDep) -> None:
+    """Forget a recording: its transcript, notes, links, search passages and media file.
+
+    A job a worker is still reporting on is refused, because deleting the row out from
+    under it only means the worker writes it back. One whose worker stopped reporting
+    is fair game, on the same lease the queue itself uses to take such a job over.
+    """
+    job = job_or_404(job_id, session)
+    if job.status is Status.running and job.heartbeat_at and job.heartbeat_at > now() - timedelta(seconds=settings.lease_seconds):
+        raise HTTPException(409, "That recording is being processed right now. Delete it once the job has finished.")
+    job.media().unlink(missing_ok=True)
+    for table in (Chunk, Comment, Share):
+        session.exec(delete(table).where(col(table.job_id) == job_id))
+    session.delete(job)
+    session.commit()
 
 
 @router.get("/jobs/{job_id}/media")
