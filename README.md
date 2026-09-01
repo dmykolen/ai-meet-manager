@@ -7,7 +7,101 @@ FastAPI + [faster-whisper](https://github.com/SYSTRAN/faster-whisper) +
 [Agno](https://github.com/agno-agi/agno), on GPU or CPU from the same code.
 [RESEARCH.md](RESEARCH.md) explains how the stack was chosen.
 
-Working on this code? [CLAUDE.md](CLAUDE.md) records the conventions it is held to.
+It comes in two halves, and both start themselves when you log in:
+
+- **the app** — transcribes, finds who spoke, summarises, and serves the web UI
+- **the listener** — sits in the menu bar, hears meetings happening, and hands
+  them to the app. You never press record.
+
+Working on this code? [CLAUDE.md](CLAUDE.md) records the conventions it is held
+to, and [ROADMAP.md](ROADMAP.md) what is worth building next and why.
+
+## Start here
+
+```bash
+make install
+```
+
+That is the whole installation. It sets both halves to start at login, starts
+them now, and prints where to look. macOS will ask for the **microphone** and for
+**system audio recording** — grant both to `mtd.app`, or the other participants
+will not be recorded.
+
+Then just have a meeting. When it is over, the transcript is in the Library.
+
+```bash
+make open      # the web UI
+make status    # is everything running?
+make logs      # follow both logs
+make uninstall # stop both; transcripts and recordings are kept
+```
+
+In the menu bar, **○** means listening, **● REC** means recording. Clicking it
+gives you *Open transcripts*, *Record now* for a meeting the listener cannot hear
+(everyone in one room, nothing on the speakers), and *Pause listening*.
+
+### If you are going to rebuild it
+
+```bash
+make cert     # once, before the first install
+```
+
+An ad-hoc signature contains a hash of the binary, and macOS ties the microphone
+permission to that hash — so every rebuild is a different application, and it
+asks again. `make cert` creates a local self-signed code-signing certificate in
+your keychain, which is a *stable* identity: sign with it and the permission
+survives every rebuild afterwards. No Apple Developer account, no sudo, and the
+key never leaves the machine. Grant the permission once more after the first
+signed install, and that is the last time.
+
+## How it fits together
+
+```mermaid
+flowchart TB
+    subgraph ROOM["What happens in the room"]
+        MIC["Your microphone<br/>you, and anyone beside you"]
+        SPK["Your speakers<br/>everyone on the call"]
+    end
+
+    subgraph MAC["Your Mac - both start themselves at login"]
+        direction TB
+        subgraph LISTENER["mtd - the listener - menu bar"]
+            EARS["Hears both, always<br/>keeps the last 10 min in memory"]
+            JUDGE{"Is this a<br/>conversation?"}
+            FILE["Writes a stereo file<br/>starting 5 min in the past"]
+        end
+
+        subgraph APP["Meeting Transcriber - the app you already had"]
+            QUEUE["Job queue"]
+            BRAIN["Whisper + pyannote<br/>who said what, when"]
+            EXTRA["Summary, action items,<br/>search, Ask"]
+            DB[("Transcripts<br/>kept for ever")]
+        end
+    end
+
+    WEB["Your browser<br/>Library - Upload - Live - Ask"]
+
+    MIC --> EARS
+    SPK --> EARS
+    EARS --> JUDGE
+    JUDGE -->|"nobody else talking<br/>= a note"| FILE
+    JUDGE -->|"another voice<br/>= a meeting"| FILE
+    JUDGE -->|"just noise"| EARS
+    FILE -->|"POST over loopback"| QUEUE
+    QUEUE --> BRAIN --> EXTRA --> DB
+    DB --> WEB
+    WEB -->|"you can still<br/>upload or record by hand"| QUEUE
+```
+
+The listener never transcribes anything itself — it only decides *when* to
+record and hands the file over. Everything you already used keeps working
+exactly as before: Upload, Live, Library, Voices, search and Ask do not know it
+exists, and turning it off changes nothing about them.
+
+The two channels are the trick. Your microphone alone would capture only you on
+a call with headphones; the system audio is where everyone else is. Keeping them
+apart is also how the listener tells a meeting from you thinking aloud — a voice
+on the system channel means somebody is talking to you.
 
 ## Setup
 
@@ -253,7 +347,34 @@ app/search.py     the passage index
 app/worker.py     the database-backed job queue
 app/api/          the HTTP and WebSocket endpoints
 web/index.html    the entire UI
+daemon/           the always-on listener; a separate Go binary, see DAEMON.md
 ```
+
+## The always-on listener
+
+A meeting only gets transcribed if somebody remembered to start it. `daemon/` is
+a small background program that removes that "if": it listens all the time,
+works out on its own when a meeting is happening, and posts the recording to
+this server through the same endpoints the web UI uses. It keeps the last ten
+minutes in memory, so a recording begins **five minutes before** anything
+noticed — forgetting to press record stops mattering.
+
+It captures the microphone and the system audio as the two channels of one file,
+which is both why the other participants are recorded at all and how it tells a
+meeting from you thinking aloud: speech on the system channel means somebody is
+talking to you.
+
+```bash
+cd daemon
+make install     # builds, signs, installs to ~/Applications, starts at login
+make probe       # eight seconds of level meter on both channels
+make uninstall
+```
+
+It is opt-in and entirely separate: nothing in `app/` or `web/` knows it exists,
+and not running it leaves this server behaving exactly as it does without it.
+The design, the measurements and what the implementation turned up are in
+[DAEMON.md](DAEMON.md).
 
 ## Development
 
@@ -261,4 +382,6 @@ web/index.html    the entire UI
 uv run pytest       # the suite stubs the models, so no weights are downloaded
 uv run ruff check .
 uv run ruff format .
+
+cd daemon && make test   # the daemon has its own suite and its own gate
 ```

@@ -1,0 +1,239 @@
+package session
+
+import "time"
+
+// Kind is what a recording turned out to be.
+type Kind string
+
+const (
+	// Meeting is somebody else talking to you: there was speech on the system
+	// channel. It gets diarized.
+	Meeting Kind = "meeting"
+
+	// Note is you talking with nobody on the other end — thinking aloud, or
+	// dictating. Worth keeping, not worth diarizing.
+	Note Kind = "note"
+)
+
+// Endpoint for the server, per kind. Both already exist and are what the web UI
+// posts to, so the daemon adds no endpoint of its own.
+func (k Kind) Endpoint() string {
+	if k == Meeting {
+		return "/v1/transcribe-diarize"
+	}
+	return "/v1/transcribe"
+}
+
+// Defaults. Every one is a guess that a week of real use will correct, which is
+// why they are in one place, and why Tuning lets the config move them without a
+// rebuild.
+const (
+	StartSpeech = 20 * time.Second // this much speech...
+	StartWindow = 60 * time.Second // ...within this window starts a recording
+
+	// A blip of system audio is a notification chime, not a conversation.
+	MeetingAudio = 3 * time.Second
+
+	QuietMeeting = 3 * time.Minute // silence that ends a meeting
+	QuietNote    = 60 * time.Second
+
+	RollAfter = time.Hour     // files are cut here, without a gap
+	HardCap   = 3 * time.Hour // and a session cannot outlive this
+)
+
+// Tuning is the thresholds a person may want to move. Anything zero falls back
+// to the default above, so a config naming one setting does not silently reset
+// the rest.
+type Tuning struct {
+	StartSpeech  time.Duration
+	StartWindow  time.Duration
+	MeetingAudio time.Duration
+	QuietMeeting time.Duration
+	QuietNote    time.Duration
+}
+
+func (t Tuning) withDefaults() Tuning {
+	for _, f := range []struct {
+		at  *time.Duration
+		def time.Duration
+	}{
+		{&t.StartSpeech, StartSpeech},
+		{&t.StartWindow, StartWindow},
+		{&t.MeetingAudio, MeetingAudio},
+		{&t.QuietMeeting, QuietMeeting},
+		{&t.QuietNote, QuietNote},
+	} {
+		if *f.at <= 0 {
+			*f.at = f.def
+		}
+	}
+	return t
+}
+
+// Transition is what changed on this frame.
+type Transition int
+
+const (
+	Continue Transition = iota
+	Started             // open a file, replay the ring into it
+	Rolled              // close this file and open the next; still recording
+	Ended               // close the file; the session is over
+)
+
+// Detector decides when a recording starts, what kind it is, and when it ends.
+//
+// Once the system channel is being captured the whole classifier collapses to
+// one question — is anybody else talking? — which is why there is no process
+// enumeration, no window-title scraping and no calendar anywhere in this
+// package.
+//
+// It counts frames rather than reading a clock, so the same input always gives
+// the same answer and the tests never have to sleep.
+type Detector struct {
+	tuning    Tuning
+	forced    bool // somebody pressed Record now
+	stopping  bool // ...and has now pressed Stop
+	recording bool
+	kind      Kind
+	held      int // frames in the current file
+	total     int // frames since the session began
+	quiet     int // consecutive silent frames
+
+	window   []state // the rolling StartWindow
+	at       int
+	speaking int // frames of the window with speech on either channel
+	others   int // frames of the window with speech on the system channel
+}
+
+type state struct{ any, sys bool }
+
+// NewDetector uses the defaults; NewTunedDetector takes them from the config.
+func NewDetector() *Detector { return NewTunedDetector(Tuning{}) }
+
+func NewTunedDetector(tuning Tuning) *Detector {
+	t := tuning.withDefaults()
+	return &Detector{tuning: t, window: make([]state, frames(t.StartWindow))}
+}
+
+// Feed advances the machine by one frame. mic and sys are whether the VAD heard
+// speech on each channel.
+func (d *Detector) Feed(mic, sys bool) Transition {
+	d.remember(state{any: mic || sys, sys: sys})
+
+	if !d.recording {
+		if !d.forced && d.speaking < frames(d.tuning.StartSpeech) {
+			return Continue
+		}
+		d.recording, d.held, d.total, d.quiet = true, 0, 0, 0
+		// The window decides, not this frame. Checking only the frame that
+		// crossed the threshold would file a meeting as a note whenever its
+		// first twenty seconds were you saying hello.
+		d.kind = Note
+		if d.others >= frames(d.tuning.MeetingAudio) {
+			d.kind = Meeting
+		}
+		if d.forced {
+			// Somebody in the room, and nothing coming out of the speakers:
+			// pressing the button is the only evidence there is, and it says
+			// this is a conversation worth speakers.
+			d.kind = Meeting
+		}
+		return Started
+	}
+
+	d.held++
+	d.total++
+	// A note that acquires a second voice was a meeting all along.
+	if sys && d.kind == Note {
+		d.kind = Meeting
+	}
+	if mic || sys {
+		d.quiet = 0
+	} else {
+		d.quiet++
+	}
+
+	switch {
+	case d.stopping:
+		// Every transition comes out of Feed, including the ones a person asks
+		// for, so that the recorder has exactly one place to close a file.
+		d.stopping, d.recording = false, false
+		d.clearWindow()
+		return Ended
+	// A forced recording ignores silence: somebody pressed the button, and the
+	// pauses in an in-person meeting are none of the detector's business.
+	case !d.forced && d.quiet >= frames(d.quietEnough()), d.total >= frames(HardCap):
+		d.recording = false
+		d.clearWindow()
+		return Ended
+	case d.held >= frames(RollAfter):
+		// Rolling rather than stopping: an hour-long file is a bounded loss if
+		// something goes wrong, but making the meeting earn its twenty seconds
+		// of speech again would punch a hole in it every hour.
+		d.held = 0
+		return Rolled
+	}
+	return Continue
+}
+
+func (d *Detector) quietEnough() time.Duration {
+	if d.kind == Meeting {
+		return d.tuning.QuietMeeting
+	}
+	return d.tuning.QuietNote
+}
+
+// Recording reports whether audio is being kept right now, and as what.
+func (d *Detector) Recording() (bool, Kind) { return d.recording, d.kind }
+
+// Force starts a recording on the next frame and keeps it running until it is
+// released. It exists for the meeting the detector cannot see: everybody in one
+// room, nothing playing through the speakers, and long thoughtful silences.
+//
+// It only ever sets a flag. The recording still starts and stops inside Feed, on
+// the goroutine that owns this detector.
+func (d *Detector) Force(on bool) {
+	if !on && d.recording && d.forced {
+		d.stopping = true
+	}
+	d.forced = on
+}
+
+// Forced reports whether the current recording was asked for by a person.
+func (d *Detector) Forced() bool { return d.forced }
+
+// Held is how long the current file has been running, Elapsed the whole
+// session, and Quiet how long it has heard nothing — which is what the tray
+// shows as "wrapping up".
+func (d *Detector) Held() time.Duration    { return time.Duration(d.held) * frameDuration }
+func (d *Detector) Elapsed() time.Duration { return time.Duration(d.total) * frameDuration }
+func (d *Detector) Quiet() time.Duration   { return time.Duration(d.quiet) * frameDuration }
+
+func frames(d time.Duration) int { return int(d / frameDuration) }
+
+// remember slides the window along by one frame, keeping both counts current so
+// that nothing has to walk the window to ask a question of it.
+func (d *Detector) remember(s state) {
+	old := d.window[d.at]
+	if old.any {
+		d.speaking--
+	}
+	if old.sys {
+		d.others--
+	}
+	if s.any {
+		d.speaking++
+	}
+	if s.sys {
+		d.others++
+	}
+	d.window[d.at] = s
+	d.at = (d.at + 1) % len(d.window)
+}
+
+// clearWindow stops the silence that ended one recording from being carried
+// into the decision about the next.
+func (d *Detector) clearWindow() {
+	clear(d.window)
+	d.speaking, d.others, d.at = 0, 0, 0
+}

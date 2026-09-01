@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.dmykolen.meeting-transcriber</string>
+
+	<key>ProgramArguments</key>
+	<array>
+		<string>__UV__</string>
+		<string>run</string>
+		<string>fastapi</string>
+		<string>run</string>
+		<string>app/main.py</string>
+		<string>--port</string>
+		<string>__PORT__</string>
+	</array>
+
+	<key>WorkingDirectory</key>
+	<string>__PROJECT__</string>
+
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
+
+	<!-- launchd starts with almost no environment. The Hugging Face cache and
+	     the API key both have to be named here, or the models re-download and
+	     summaries quietly fall back to nothing. -->
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>__PATH__</string>
+		<key>HOME</key>
+		<string>__HOME__</string>
+	</dict>
+
+	<key>StandardOutPath</key>
+	<string>/tmp/meeting-transcriber.log</string>
+	<key>StandardErrorPath</key>
+	<string>/tmp/meeting-transcriber.log</string>
+</dict>
+</plist>

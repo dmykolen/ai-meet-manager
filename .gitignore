@@ -7,3 +7,8 @@ __pycache__/
 *.wav
 *.m4a
 .bkp
+
+# Go daemon build output and the vendored audiotee checkout
+daemon/build/
+daemon/runtime/onnxruntime.dylib
+daemon/runtime/silero_vad.onnx

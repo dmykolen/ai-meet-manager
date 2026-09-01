@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.dmykolen.mtd</string>
+
+	<!-- The bundle's own executable, not a bare binary: macOS attaches the
+	     microphone and system-audio grants to the .app around it. -->
+	<key>ProgramArguments</key>
+	<array>
+		<string>__APP__/Contents/MacOS/mtd</string>
+	</array>
+
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<dict>
+		<!-- Restart if it falls over, but not if it exited because somebody
+		     chose Quit from the menu bar. -->
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
+
+	<key>StandardOutPath</key>
+	<string>/tmp/mtd.log</string>
+	<key>StandardErrorPath</key>
+	<string>/tmp/mtd.log</string>
+</dict>
+</plist>
