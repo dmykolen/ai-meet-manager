@@ -7,7 +7,7 @@ from typing import ClassVar
 import numpy as np
 import pytest
 
-from app import engines
+from app import engines, pipeline
 from app.config import settings
 
 SPOKEN = {
@@ -159,3 +159,73 @@ def test_an_unmapped_model_falls_back_instead_of_guessing_a_repository(monkeypat
     engines._mlx.cache_clear()
     with pytest.raises(LookupError):
         engines._mlx("distil-large-v3")
+
+
+# --- parakeet -----------------------------------------------------------------
+
+
+class FakeToken:
+    def __init__(self, text, start, end):
+        self.text, self.start, self.end = text, start, end
+
+
+class FakeSentence:
+    def __init__(self, text, tokens, confidence=0.9):
+        self.text, self.tokens, self.confidence = text, tokens, confidence
+        self.start, self.end = tokens[0].start, tokens[-1].end
+
+
+def test_subword_tokens_are_joined_back_into_words():
+    """Diarization aligns on words; Parakeet hands back pieces of them."""
+    sentence = FakeSentence(
+        " token ised",
+        [FakeToken(" to", 0.0, 0.1), FakeToken("ken", 0.1, 0.2), FakeToken(" is", 0.3, 0.4), FakeToken("ed", 0.4, 0.5)],
+    )
+    words = engines._words(sentence)
+    assert [w.word for w in words] == [" to" + "ken", " is" + "ed"]
+    assert (words[0].start, words[0].end) == (0.0, 0.2)
+    assert (words[1].start, words[1].end) == (0.3, 0.5)
+
+
+def test_a_parakeet_sentence_looks_like_a_whisper_segment():
+    """The pipeline reads one shape; nothing in it knows which engine ran."""
+    sentence = FakeSentence("hello", [FakeToken(" hello", 1.0, 1.5)], confidence=0.5)
+    segment = engines._from_sentence(sentence)
+
+    assert (segment.text, segment.start, segment.end) == ("hello", 1.0, 1.5)
+    assert pipeline._confidence(segment) == 0.5, "confidence must survive the round trip"
+    # Nothing is emitted over silence, so there is no "probably not speech" to report,
+    # and `_hallucinated` must not throw the row away on account of it.
+    assert segment.no_speech_prob == 0.0
+    assert not pipeline._hallucinated(segment)
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("Щоб загуглить скільки вона буде стоїть", "uk"),
+        ("Это было бы очень хорошо", "ru"),
+        ("This is the closing verification run", "en"),
+        ("нота корова", ""),  # Cyrillic, but nothing that tells the two apart
+        ("", ""),
+    ],
+)
+def test_the_language_is_read_off_the_alphabet(text, expected):
+    """Parakeet identifies the language and then does not report it, and a fixed
+    MT_LANGUAGE would be wrong for anybody whose meetings are not all in one."""
+    assert engines._alphabet(text) == expected
+
+
+def test_parakeet_is_never_chosen_on_its_own(monkeypatch):
+    """It is Apple Silicon only and reports no language, so it is opted into."""
+    monkeypatch.setattr(settings, "asr_backend", "auto")
+    monkeypatch.setattr(engines, "parakeet_installed", lambda: True)
+    monkeypatch.setattr(engines, "mlx_installed", lambda: False)
+    monkeypatch.setattr(engines, "device", lambda: "cpu")
+    assert engines.backend() == "faster-whisper"
+
+
+def test_asking_for_parakeet_is_honoured(monkeypatch):
+    monkeypatch.setattr(settings, "asr_backend", "parakeet")
+    assert engines.backend() == "parakeet"
+    assert engines.asr_device() == "metal"

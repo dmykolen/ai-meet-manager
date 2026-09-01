@@ -477,7 +477,7 @@ def test_health_reports_what_is_actually_doing_the_work(client):
     """Three separate answers: which Whisper, on what, and where pyannote went."""
     body = client.get("/health").json()
     assert body["status"] == "ok"
-    assert body["asr_backend"] in ("faster-whisper", "mlx", "resolving")
+    assert body["asr_backend"] in ("faster-whisper", "mlx", "parakeet", "resolving")
     assert body["device"] in ("cpu", "cuda", "metal", "resolving")
     assert body["diarization_device"] in ("cpu", "cuda", "mps", "resolving")
 

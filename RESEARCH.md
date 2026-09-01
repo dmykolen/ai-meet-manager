@@ -34,6 +34,24 @@ than from memory.
 | 9 | simple-diarizer | spectral clustering | Basic | Yes | Yes | Small hobby project |
 | 10 | Commercial APIs (AssemblyAI, Deepgram, pyannoteAI premium) | hosted | Best-in-class | n/a | n/a | Rejected: recordings must stay on-premise |
 
+## Revisited, September 2026: Parakeet TDT 0.6B v3
+
+Ten of twelve real meetings turned out to be in Ukrainian, where `large-v3-turbo`
+is weakest — it is `large-v3` with the decoder cut from 32 layers to 4, which costs
+1–2% WER on well-resourced languages and far more on the rest.
+
+| | Ukrainian | Russian | Hallucinates on silence |
+|---|---|---|---|
+| Parakeet TDT 0.6B v3 | **5.10%** | **3.00%** | No — a transducer emits a blank |
+| Whisper large-v3 | 12.52% | 4.04% | Yes, fluently and confidently |
+
+Measured here on three minutes of a real meeting: 78x realtime against 51x for
+turbo and 11x for large-v3, and zero repeated lines where Whisper looped five
+times over a quiet stretch and lost the technical passage either side of it.
+
+Added as `MT_ASR_BACKEND=parakeet` rather than made the default: it is Apple
+Silicon only through `parakeet-mlx`, and it reports no detected language.
+
 ## Choice
 
 **faster-whisper (`large-v3-turbo`) + pyannote.audio 4.x (`speaker-diarization-community-1`).**

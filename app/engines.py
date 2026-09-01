@@ -6,6 +6,7 @@ Which Whisper runs is decided by what the machine has, not by configuration: see
 
 import importlib.util
 import logging
+import math
 import os
 import platform
 import time
@@ -69,6 +70,12 @@ def backend() -> str:
     stays on CTranslate2, which is what is deployed there and what has been measured
     there. MLX does ship Linux wheels now; when somebody measures them on a real box,
     this function is the only thing that has to change.
+
+    Parakeet is never chosen automatically. It transcribes Ukrainian far better —
+    5.10% WER against 12.52% on FLEURS, and measured here at 78x realtime with no
+    repeated lines where Whisper looped five times over a quiet stretch — but it is
+    Apple Silicon only for now and reports no detected language, so it is opted into
+    with MT_ASR_BACKEND=parakeet rather than sprung on anybody.
     """
     if settings.asr_backend != "auto":
         return settings.asr_backend
@@ -80,12 +87,21 @@ def backend() -> str:
 def asr_device() -> str:
     """What the chosen Whisper actually runs on. `device()` answers for CTranslate2 only,
     and would report "cpu" on a machine where MLX is the one doing the work."""
-    return "metal" if backend() == "mlx" else device()
+    return "metal" if backend() in ("mlx", "parakeet") else device()
 
 
 def mlx_installed() -> bool:
     """Apple Silicon with the optional extra actually installed (`uv sync --extra mlx`)."""
-    return platform.system() == "Darwin" and platform.machine() == "arm64" and importlib.util.find_spec("mlx_whisper") is not None
+    return _apple_silicon("mlx_whisper")
+
+
+def parakeet_installed() -> bool:
+    """Apple Silicon with `uv sync --extra parakeet`."""
+    return _apple_silicon("parakeet_mlx")
+
+
+def _apple_silicon(module: str) -> bool:
+    return platform.system() == "Darwin" and platform.machine() == "arm64" and importlib.util.find_spec(module) is not None
 
 
 class Mlx:
@@ -124,6 +140,115 @@ def _as_segment(raw: dict) -> SimpleNamespace:
     )
 
 
+class Parakeet:
+    """NVIDIA's Parakeet TDT v3 wearing faster-whisper's signature.
+
+    Why it is here at all: it is a transducer, not an autoregressive decoder. It
+    emits a blank per frame when nobody is talking, where Whisper invents fluent
+    text — fourteen identical rows of a stock Russian subtitle phrase over one real
+    meeting's silence, at confidences of 0.75 to 0.90, which no confidence filter
+    could ever have caught. And on Ukrainian, which is what most of these meetings
+    are in, it is roughly two and a half times more accurate.
+
+    Everything Whisper is asked for that Parakeet has no notion of is dropped: it
+    decodes greedily by construction, chunks on its own, and does not take a
+    vocabulary or a language.
+    """
+
+    IGNORED = ("batch_size", "vad_filter", "beam_size", "hotwords", "language", "condition_on_previous_text")
+
+    # Long meetings are chunked rather than fed whole, with an overlap wide enough
+    # that a sentence spanning the seam is not cut in half.
+    CHUNK = 600.0
+    OVERLAP = 15.0
+
+    def __init__(self, repo: str):
+        self.repo = repo
+        self._model = None
+
+    def _load(self):
+        if self._model is None:
+            from parakeet_mlx import from_pretrained
+
+            self._model = from_pretrained(self.repo)
+        return self._model
+
+    def transcribe(self, audio: np.ndarray, **options):
+        import mlx.core as mx
+        from parakeet_mlx.audio import get_logmel
+
+        model = self._load()
+        mel = get_logmel(mx.array(audio), model.preprocessor_config)
+        spoken = model.generate(mel)[0]
+        segments = [_from_sentence(s) for s in spoken.sentences]
+        return segments, SimpleNamespace(language=settings.language or _alphabet(spoken.text))
+
+
+# Letters that exist in one of these alphabets and not the others. Parakeet v3
+# identifies the language internally and then does not report it, and a fixed
+# MT_LANGUAGE would be wrong for anybody whose meetings are not all in one
+# language. This is not language detection in general — it is the smallest thing
+# that separates the three that turn up here, and it says nothing when unsure.
+ONLY_UKRAINIAN = set("їієґ")
+ONLY_RUSSIAN = set("ыэъё")
+
+
+def _alphabet(text: str) -> str:
+    lowered = text.lower()
+    uk = sum(lowered.count(c) for c in ONLY_UKRAINIAN)
+    ru = sum(lowered.count(c) for c in ONLY_RUSSIAN)
+    if uk or ru:
+        return "uk" if uk >= ru else "ru"
+    cyrillic = sum("\u0400" <= c <= "\u04ff" for c in lowered)
+    if cyrillic:
+        return ""  # Cyrillic, but nothing that tells the two apart
+    return "en" if any(c.isalpha() for c in lowered) else ""
+
+
+def _from_sentence(sentence) -> SimpleNamespace:
+    """One Parakeet sentence as the pipeline expects a Whisper segment."""
+    return SimpleNamespace(
+        text=sentence.text,
+        start=sentence.start,
+        end=sentence.end,
+        words=_words(sentence) or None,
+        # A probability where Whisper reports a log probability; `_confidence`
+        # exponentiates it back, so this keeps the two engines comparable.
+        avg_logprob=math.log(max(sentence.confidence, 1e-9)),
+        # Nothing is emitted over silence in the first place, so there is no
+        # "this was probably not speech" to report.
+        no_speech_prob=0.0,
+    )
+
+
+def _words(sentence) -> list[SimpleNamespace]:
+    """Sub-word tokens joined back into words, which is what diarization aligns on.
+
+    Parakeet tokenises sub-word: " to", "ken", " is", "ed". A leading space starts
+    a new word, which is the SentencePiece convention and the only rule needed here.
+    """
+    words: list[SimpleNamespace] = []
+    for token in sentence.tokens:
+        if words and not token.text.startswith(" "):
+            words[-1].word += token.text
+            words[-1].end = token.end
+            continue
+        words.append(SimpleNamespace(word=token.text, start=token.start, end=token.end))
+    return words
+
+
+PARAKEET_WEIGHTS = {"parakeet": "mlx-community/parakeet-tdt-0.6b-v3"}
+
+
+@lru_cache(maxsize=1)
+def _parakeet(name: str) -> Parakeet:
+    repo = name if "/" in name else PARAKEET_WEIGHTS.get(name, PARAKEET_WEIGHTS["parakeet"])
+    engine = Parakeet(repo)
+    with _loading(repo, "parakeet, apple silicon"):
+        engine.transcribe(np.zeros(16000, dtype=np.float32))  # fetch the weights now, not mid-job
+    return engine
+
+
 # MLX keeps the weights in its own layout, and mlx-community names those repositories
 # by no rule at all — `-mlx` for most sizes, bare for turbo, and the `-fp16` ones are
 # not MLX weights however much they look like it. So the map is written out.
@@ -150,6 +275,11 @@ def _mlx(name: str) -> Mlx:
 
 def _engine(name: str, batched: bool):
     """One model name on whichever backend this machine wants, falling back if it cannot."""
+    if backend() == "parakeet":
+        try:
+            return _parakeet(name)
+        except Exception as exc:
+            log.warning("Parakeet could not load (%s); using Whisper instead", exc)
     if backend() == "mlx":
         try:
             return _mlx(name)

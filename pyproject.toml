@@ -22,6 +22,11 @@ postgres = ["psycopg[binary]>=3.2"]
 # CTranslate2 on the same clip. The marker keeps `uv sync --extra mlx` a no-op
 # everywhere else, so one lockfile still serves a Mac laptop and a Linux worker.
 mlx = ["mlx-whisper>=0.4; sys_platform == 'darwin' and platform_machine == 'arm64'"]
+# NVIDIA's Parakeet TDT v3 on Metal, chosen with MT_ASR_BACKEND=parakeet. Measured
+# on a real Ukrainian meeting: 78x realtime against 51x for whisper large-v3-turbo,
+# and no repeated lines at all where Whisper looped five times over a quiet stretch.
+# Published FLEURS WER for Ukrainian is 5.10% against 12.52% for whisper large-v3.
+parakeet = ["parakeet-mlx>=0.3; sys_platform == 'darwin' and platform_machine == 'arm64'"]
 
 [dependency-groups]
 dev = [

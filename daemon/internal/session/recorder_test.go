@@ -190,12 +190,17 @@ func TestTheRecordingReachesBackBeforeItStarted(t *testing.T) {
 		t.Fatalf("spooled %v", files)
 	}
 	held := wavSeconds(t, files[0])
-	// Detection needs StartSpeech of audio before it fires; with a 5s preroll
-	// the file must be meaningfully longer than what followed the trigger.
-	if held < (StartSpeech + 3*time.Second).Seconds() {
-		t.Fatalf("the recording is %.1fs; the preroll did not make it in", held)
+	// Detection eats the first ~23s of talking before it fires (Silero calls
+	// about 88% of speech frames speech, so StartSpeech needs more than
+	// StartSpeech of audio). Of the 30s played, roughly 7s arrive after the
+	// trigger — so anything much past that came out of the ring.
+	const afterTheTrigger = 7.0
+	if held < afterTheTrigger+3 {
+		t.Fatalf("the recording is %.1fs, barely more than the %.0fs that followed the "+
+			"trigger; the preroll did not make it in", held, afterTheTrigger)
 	}
-	t.Logf("recording is %.1fs, of which %v was replayed from the ring", held, 5*time.Second)
+	t.Logf("recording is %.1fs, of which about %.1fs was replayed from the ring",
+		held, held-afterTheTrigger)
 }
 
 func TestPausingStopsRecordingAndClosesTheFile(t *testing.T) {
@@ -306,4 +311,52 @@ func TestTheTrayCanBeToldThatPermissionIsMissing(t *testing.T) {
 	if r.Recording() {
 		t.Fatal("nothing can be recording while the devices are shut")
 	}
+}
+
+func TestTheQuietTailIsNotRecorded(t *testing.T) {
+	// Measured on a real meeting: it ended at 40.9 minutes and the file ran to
+	// 65, because the detector needs three minutes of silence to be sure. Whisper
+	// filled the gap with "Продолжение следует..." fourteen times.
+	r, spool := recorder(t)
+	talk := speech(t, 4*time.Second)
+
+	run(t, r, func(frames chan<- []int16) {
+		play(frames, talk, talk, StartSpeech+10*time.Second)
+		play(frames, nil, nil, QuietMeeting+5*time.Second)
+	})
+
+	files := spool.files(t)
+	if len(files) != 1 {
+		t.Fatalf("spooled %v", files)
+	}
+	held := wavSeconds(t, files[0])
+	// The talking was about 30s plus the preroll; the three minutes of silence
+	// that ended it must not be in the file.
+	if held > 90 {
+		t.Fatalf("the recording is %.0fs — the quiet tail was kept", held)
+	}
+	t.Logf("recording is %.0fs of talking, with %v of trailing silence dropped",
+		held, QuietMeeting)
+}
+
+func TestAPauseInsideAMeetingIsKept(t *testing.T) {
+	// Only the trailing silence goes. A pause in the middle is part of it.
+	r, spool := recorder(t)
+	talk := speech(t, 4*time.Second)
+
+	run(t, r, func(frames chan<- []int16) {
+		play(frames, talk, talk, StartSpeech+10*time.Second)
+		play(frames, nil, nil, 30*time.Second) // a pause, not the end
+		play(frames, talk, talk, 10*time.Second)
+		play(frames, nil, nil, QuietMeeting+5*time.Second)
+	})
+
+	// 5s preroll + ~7s of speech after the trigger + 30s pause + 10s speech.
+	// Without the pause it would be about 22s, so 45 is comfortably on the right
+	// side of the question this test asks.
+	held := wavSeconds(t, spool.files(t)[0])
+	if held < 45 {
+		t.Fatalf("the recording is only %.0fs — the pause in the middle was dropped too", held)
+	}
+	t.Logf("recording is %.0fs, with the 30s pause kept and the trailing silence gone", held)
 }

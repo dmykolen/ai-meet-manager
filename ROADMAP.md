@@ -43,6 +43,43 @@ Everything in the table below is aimed at one of those two problems.
 | 14 | **Ask with memory** — follow-ups, and "what changed since last time" | ●●●●● | ●●●●○ | ●●●●○ | Planned | `/ask` is one-shot today, with no thread |
 | 15 | **Live assistant** — questions aimed at you, terms, prompts as it happens | ●●●●● | ●●●○○ | ●●●●● | Idea | The most impressive and the most expensive. Live latency is ~6 s; whether that is usable has to be measured on a real meeting, not guessed |
 
+### Why Parakeet, in numbers — now available as `MT_ASR_BACKEND=parakeet`
+
+Ten of the twelve recent meetings are in Ukrainian, two in Russian. The model in
+use, `large-v3-turbo`, is `large-v3` with the decoder cut from 32 layers to 4 —
+a 1–2% WER cost on well-resourced languages and far more on the rest.
+
+Published, on FLEURS:
+
+| | Ukrainian | Russian |
+|---|---|---|
+| Parakeet TDT 0.6B v3 | **5.10%** | **3.00%** |
+| Whisper large-v3 | 12.52% | 4.04% |
+
+Measured here, on three minutes cut from a real Ukrainian meeting
+(`meeting 2026-09-01 13:31`):
+
+| Model | Time | ×realtime | Words | Repeated lines |
+|---|---|---|---|---|
+| large-v3-turbo | 3.5 s | 50.8× | 199 | 2 |
+| large-v3 | 16.3 s | 11.0× | 133 | 9 |
+| **parakeet-tdt-0.6b-v3** | **2.3 s** | **78.0×** | 184 | **0** |
+
+Whisper looped on a quiet stretch — "Сто літу" five times over — while Parakeet
+emitted nothing there and transcribed the technical passage either side of it
+that both Whisper models lost entirely.
+
+The architecture is why. Whisper decodes autoregressively and will invent fluent
+text when there is nothing to hear; a transducer emits a blank per frame and
+stays quiet. That makes the hallucination class structural rather than something
+to filter afterwards — and the confidences on the invented rows were 0.75–0.90,
+so filtering by confidence was never going to work.
+
+It is **added, not substituted**: `auto` still picks CTranslate2 or MLX exactly as
+before, and Parakeet is opted into with `MT_ASR_BACKEND=parakeet`. It is Apple
+Silicon only (`uv sync --extra parakeet`) and needs a Linux path before it could
+ever be the default anywhere.
+
 ### By ROI
 
 Value per unit of work, highest first: **1, 2, 3, 4, 5, 6, 7, 8, 9, 10**.
@@ -64,7 +101,6 @@ yet do is show the result.
 | `test_a_recording_being_worked_on_is_refused_until_its_worker_goes_quiet` races the live worker | Low | Open | Fails under CPU load only. The app is correct; the test is racy. See the spawned task |
 | Windows and Linux system audio written but never run | Medium | Open | WASAPI loopback and the PipeWire monitor compile but have not executed on their own platform. cgo means each needs its own build machine, as does signing — waiting on a CI matrix |
 | No authentication or rate limiting on the API | Medium | Open | Loopback-only by default, which is why this is not urgent |
-| **Whisper hallucinates over the quiet tail of every recording** | Medium | Open | The listener records three minutes of silence at the end of every meeting *by design* — that is how it decides the meeting is over — and Whisper invents rows over it ("and you can see the next video", repeatedly). The fix belongs in the daemon, which knows exactly how long the quiet ran: trim the tail before spooling. Server-side `_hallucinated()` does not catch these |
 | Comb filtering when recording without headphones | Low | Open | Both channels carry the same audio a few ms apart. Fix is a cross-correlation check, ~15 lines |
 | Two copies of the signing certificate in the keychain | Cosmetic | Open | Harmless: the build picks the lowest fingerprint deterministically. Tidy up in Keychain Access when convenient |
 
@@ -77,6 +113,24 @@ ten-minute memory buffer so recordings begin five minutes before anything
 noticed. Menu bar item, manual *Record now*, spool that survives the app being
 down. `make install` sets up both halves to start at login. See
 [DAEMON.md](DAEMON.md).
+
+**2026-09-01 — Parakeet TDT v3 as an optional engine.** `MT_ASR_BACKEND=parakeet`
+switches transcription to NVIDIA's Parakeet, which is 2.5× more accurate on
+Ukrainian and, being a transducer, cannot hallucinate over silence the way
+Whisper does. Added rather than substituted — `auto` behaves exactly as before.
+Sub-word tokens are merged back into words so diarization still aligns, and the
+language is read off the alphabet because Parakeet identifies it internally and
+then does not say. Verified through the whole pipeline, diarization included, on
+a real Ukrainian meeting.
+
+**2026-09-01 — silence trimmed at both ends.** Real meetings were starting with
+up to five minutes of an empty room (first word at 4.6, 4.7 and 5.0 minutes into
+three of them) and ending with up to 24 minutes of it, because the whole preroll
+was replayed whether anybody had been talking in it and the quiet that ends a
+recording was written before the recording was known to be over. The ring now
+remembers which frames held speech and replays from the first of them, and quiet
+frames are held back and dropped unless the talking resumes. A pause inside a
+meeting is still kept; only the silence around it goes.
 
 **2026-08-31 — stable code signing.** `make cert` creates a local self-signed
 certificate so the microphone permission survives rebuilds, instead of macOS

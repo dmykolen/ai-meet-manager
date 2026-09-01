@@ -56,6 +56,13 @@ type Recorder struct {
 	// Everything below is read by the tray from another goroutine, so it is
 	// only ever touched under mu — including the snapshot, because the detector
 	// itself belongs to the capture loop.
+	// Quiet frames are held back rather than written: if the talking resumes they
+	// are flushed, and if the recording ends they are dropped. Without this every
+	// meeting ended with the three minutes of silence the detector needed to be
+	// sure it was over — measured at 24 minutes on one real recording — and
+	// Whisper filled it with "Продолжение следует..." fourteen times over.
+	pending [][]int16
+
 	mu      sync.Mutex
 	writer  *Writer
 	kind    Kind
@@ -142,8 +149,6 @@ func (r *Recorder) Run(ctx context.Context, frames <-chan []int16) error {
 // step is one frame: remember it, ask the VAD about each channel, and act on
 // whatever the detector makes of it.
 func (r *Recorder) step(frame, left, right []int16) error {
-	r.ring.Add(frame)
-
 	// The tray runs on its own goroutine and only leaves a note; the detector is
 	// touched here and nowhere else.
 	r.mu.Lock()
@@ -163,6 +168,7 @@ func (r *Recorder) step(frame, left, right []int16) error {
 	if err != nil {
 		return err
 	}
+	r.ring.Add(frame, speaking || others)
 
 	switch r.detector.Feed(speaking, others) {
 	case Started:
@@ -170,6 +176,9 @@ func (r *Recorder) step(frame, left, right []int16) error {
 			return err
 		}
 	case Rolled:
+		if err := r.flush(nil); err != nil {
+			return err
+		}
 		if err := r.finish("hourly split"); err != nil {
 			return err
 		}
@@ -193,10 +202,32 @@ func (r *Recorder) step(frame, left, right []int16) error {
 		r.kind = kind
 		r.mu.Unlock()
 	}
-	if r.writer != nil {
-		return r.writer.Write(frame)
+	if r.writer == nil {
+		return nil
 	}
-	return nil
+	if !speaking && !others {
+		// Held, not written. Bounded by the quiet period that ends a recording,
+		// so it can never grow beyond a few minutes of frames.
+		r.pending = append(r.pending, append([]int16(nil), frame...))
+		return nil
+	}
+	return r.flush(frame)
+}
+
+// flush writes everything that was held back, then the frame that broke the
+// silence. A pause inside a meeting belongs in the recording; the silence after
+// the meeting does not, and only hindsight tells them apart.
+func (r *Recorder) flush(frame []int16) error {
+	for _, held := range r.pending {
+		if err := r.writer.Write(held); err != nil {
+			return err
+		}
+	}
+	r.pending = r.pending[:0]
+	if frame == nil {
+		return nil
+	}
+	return r.writer.Write(frame)
 }
 
 // begin opens a recording and pours the ring into it, so that the meeting
@@ -206,7 +237,7 @@ func (r *Recorder) begin() error {
 	// time and the ring may hold less than the preroll asks for — a meeting in
 	// the first minutes after boot, most obviously. Naming it five minutes ago
 	// when only fifty seconds were replayed would be a lie in the Library.
-	replay := r.ring.Replay(r.preroll)
+	replay := r.ring.ReplaySpeech(r.preroll)
 	if err := r.open(time.Duration(len(replay)) * frameDuration); err != nil {
 		return err
 	}
@@ -252,6 +283,11 @@ func (r *Recorder) finish(why string) error {
 		return nil
 	}
 
+	// Whatever is still held back is the silence that ended the recording. It is
+	// dropped here, which is the whole point of holding it.
+	dropped := time.Duration(len(r.pending)) * frameDuration
+	r.pending = r.pending[:0]
+
 	held := writer.Duration()
 	if err := writer.Close(); err != nil {
 		return err
@@ -261,7 +297,9 @@ func (r *Recorder) finish(why string) error {
 	if err := writer.Rename(r.spool.Path(string(kind), begun)); err != nil {
 		return err
 	}
-	slog.Info("recording finished", "kind", kind, "length", held.Round(time.Second), "why", why)
+	slog.Info("recording finished", "kind", kind,
+		"length", held.Round(time.Second),
+		"trimmed", dropped.Round(time.Second), "why", why)
 	r.spool.Wake()
 	return nil
 }
