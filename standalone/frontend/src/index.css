@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+/* One palette, defined once. Semantic names rather than colour names, so a
+   token is never wrong about what it is for.
+
+   Violet stays — it is the app's colour. What changed is everything around it.
+   The greys were mixed with violet at a chroma of 0.012, which reads as a
+   slightly dirty neutral rather than as a colour; they are now cooler and
+   nearly achromatic, which is what makes the accent look saturated by
+   comparison. The three status colours were the real problem: amber at 0.16
+   and a green at 0.15 sit at the same muted weight as everything else, so
+   nothing on the screen ever looked lit. They are now pushed to the edge of
+   what P3 will show — a hot coral rather than amber, a spring green rather
+   than a herbal one, and a cyan that gives the palette a second pole to work
+   against instead of six shades of one hue. */
+@theme {
+  --color-ink: oklch(13% 0.008 268);
+  --color-surface: oklch(17.5% 0.010 268);
+  --color-raised: oklch(22.5% 0.012 268);
+  --color-line: oklch(29% 0.014 268);
+
+  --color-text: oklch(97% 0.003 268);
+  --color-soft: oklch(75% 0.012 268);
+  --color-faint: oklch(56% 0.015 268);
+
+  --color-accent: oklch(69% 0.235 295);
+  --color-accent-soft: oklch(32% 0.13 295);
+  --color-warn: oklch(70% 0.215 22);
+  --color-good: oklch(80% 0.215 152);
+  --color-cool: oklch(78% 0.155 205);
+
+  --font-sans: "Inter var", ui-sans-serif, -apple-system, system-ui, sans-serif;
+  --font-serif: ui-serif, "Iowan Old Style", "Palatino", Georgia, serif;
+
+  --radius-panel: 0.875rem;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  /* Transparent: the window itself is translucent, and painting over it would
+     throw away the material the platform already gives us. */
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* The inset title bar leaves the traffic lights floating over our content;
+   this is the strip they live in. */
+.titlebar {
+  height: 42px;
+  --wails-draggable: drag;
+}
+.no-drag {
+  --wails-draggable: no-drag;
+}
+
+/* A scrollbar that does not announce itself until it is used. */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: transparent;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+*:hover::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--color-line) 80%, transparent);
+  background-clip: content-box;
+}
+
+::selection {
+  background: var(--color-accent-soft);
+}
+
+/* The first-run pulse.
+   CSS rather than Motion on purpose: AnimatePresence with mode="wait" waits for
+   every animation in the exiting subtree to finish, and one with repeat:Infinity
+   never does — the screen froze at opacity 0 and the app behind it never
+   mounted. A CSS animation takes no part in that. */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.35); opacity: 0; }
+}
+.breathe {
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+/* Respect the setting. Everything below moves; nothing below has to. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

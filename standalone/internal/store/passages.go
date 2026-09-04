@@ -1,0 +1,180 @@
+package store
+
+import (
+	"encoding/binary"
+	"math"
+	"sort"
+	"strings"
+)
+
+// Passages is what search actually reads: a transcript cut into stretches long
+// enough to mean something on their own.
+//
+// Forty-five seconds, because that is about a paragraph of speech — long enough
+// to carry a thought, short enough that a hit points at a moment rather than at
+// a chapter. The same number the Python edition settled on.
+const Passage = 45.0
+
+// A Piece is one indexed stretch of a meeting.
+type Piece struct {
+	Recording int64
+	Start     float64
+	Speaker   string
+	Text      string
+}
+
+// Cut folds a transcript into passages. Speaker changes do not break one: a
+// question and its answer belong in the same passage, and searching for the
+// answer should find the question.
+func Cut(recording int64, turns []Turn) []Piece {
+	var out []Piece
+	var current Piece
+	var open bool
+
+	for _, t := range turns {
+		if text := strings.TrimSpace(t.Text); text != "" {
+			if !open {
+				current = Piece{Recording: recording, Start: t.Start, Speaker: t.Speaker}
+				open = true
+			}
+			current.Text += text + " "
+		}
+		if open && t.End-current.Start >= Passage {
+			current.Text = strings.TrimSpace(current.Text)
+			out, open = append(out, current), false
+		}
+	}
+	if open {
+		current.Text = strings.TrimSpace(current.Text)
+		if current.Text != "" {
+			out = append(out, current)
+		}
+	}
+	return out
+}
+
+// Index replaces the passages of one recording. Vectors may be nil — a machine
+// with no key still gets keyword search, and the passages are what the vectors
+// would attach to when a key arrives.
+func (d *DB) Index(recording int64, pieces []Piece, vectors [][]float32) error {
+	tx, err := d.sql.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM passages WHERE recording = ?`, recording); err != nil {
+		return err
+	}
+	for i, p := range pieces {
+		var vector []byte
+		if i < len(vectors) && len(vectors[i]) > 0 {
+			vector = pack(vectors[i])
+		}
+		if _, err := tx.Exec(
+			`INSERT INTO passages (recording, seq, start, speaker, text, vector) VALUES (?, ?, ?, ?, ?, ?)`,
+			recording, i, p.Start, p.Speaker, p.Text, vector); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// Closest is semantic search: the passages nearest a question, whatever words
+// it used.
+//
+// Every vector is compared, in memory. A year of daily meetings is on the order
+// of a hundred thousand passages, which is twenty million multiply-adds — a few
+// milliseconds. An index would be machinery bought before it is needed.
+func (d *DB) Closest(vector []float32, limit int) ([]Hit, error) {
+	rows, err := d.sql.Query(`
+		SELECT p.recording, r.title, p.start, p.speaker, p.text, p.vector
+		FROM passages p JOIN recordings r ON r.id = p.recording
+		WHERE p.vector IS NOT NULL`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	type scored struct {
+		hit   Hit
+		score float64
+	}
+	var found []scored
+	for rows.Next() {
+		var h Hit
+		var raw []byte
+		if err := rows.Scan(&h.Recording, &h.Title, &h.Start, &h.Speaker, &h.Text, &raw); err != nil {
+			return nil, err
+		}
+		found = append(found, scored{h, Cosine(vector, unpack(raw))})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	sort.Slice(found, func(i, j int) bool { return found[i].score > found[j].score })
+
+	// A floor, because cosine always returns something: without it a question
+	// about nothing in the database comes back with the least unrelated
+	// passage in it, presented as an answer.
+	out := []Hit{}
+	for _, s := range found {
+		if len(out) >= limit || s.score < 0.25 {
+			break
+		}
+		out = append(out, s.hit)
+	}
+	return out, nil
+}
+
+// Indexed reports how many passages carry a vector, which is what tells the
+// interface whether semantic search is on.
+func (d *DB) Indexed() (with, without int) {
+	_ = d.sql.QueryRow(`SELECT
+		COUNT(vector), COUNT(*) - COUNT(vector) FROM passages`).Scan(&with, &without)
+	return with, without
+}
+
+// Stale lists recordings whose passages have no vectors, so that adding a key
+// can index everything already recorded rather than only what comes next.
+func (d *DB) Stale(limit int) ([]int64, error) {
+	rows, err := d.sql.Query(`
+		SELECT DISTINCT recording FROM passages WHERE vector IS NULL
+		UNION
+		SELECT id FROM recordings WHERE status = 'done'
+		  AND id NOT IN (SELECT recording FROM passages)
+		LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// pack and unpack keep vectors as raw little-endian float32 rather than JSON.
+// Five hundred numbers as text is about 6 KB; as bytes it is 2 KB, and it needs
+// no parsing to compare.
+func pack(v []float32) []byte {
+	out := make([]byte, 4*len(v))
+	for i, x := range v {
+		binary.LittleEndian.PutUint32(out[4*i:], math.Float32bits(x))
+	}
+	return out
+}
+
+func unpack(raw []byte) []float32 {
+	out := make([]float32, len(raw)/4)
+	for i := range out {
+		out[i] = math.Float32frombits(binary.LittleEndian.Uint32(raw[4*i:]))
+	}
+	return out
+}
