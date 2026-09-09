@@ -27,21 +27,14 @@ const (
 	// the unit everywhere means the VAD never has to buffer or split.
 	FrameSize = 512
 
-	// slack is how far the system stream may run behind the microphone before
-	// the backlog is dropped. The two are separate clocks, so one always
-	// drifts.
+	// slack is how far the system stream may lag the microphone before the
+	// backlog is dropped; the two are separate clocks and one always drifts.
 	//
-	// It was half a second, and half a second is audible. Measured on a real
-	// meeting: the microphone led the tap by 495 ms for the whole recording,
-	// because the backlog only ever got trimmed at the bound and so sat just
-	// under it for ever. Anybody without headphones then heard every remote
-	// sentence twice — once through the room, once from the tap half a second
-	// later.
-	//
-	// A hundred and twenty-five milliseconds: four of the 32 ms periods the
-	// devices deliver, so ordinary jitter is absorbed, and short enough that
-	// the fold downstream switches channels at the right moments. It must stay
-	// comfortably above one frame, or the system channel starves.
+	// Was half a second, which is audible: the backlog only got trimmed at the
+	// bound, so it sat just under it for ever and every remote sentence arrived
+	// twice. 125 ms is four of the 32 ms periods the devices deliver — enough
+	// for jitter, short enough for the fold to switch at the right moments, and
+	// it must stay well above one frame or the system channel starves.
 	slack = SampleRate / 8
 )
 
@@ -91,7 +84,7 @@ const Waiting = 4 * time.Second
 // Open starts capture. A microphone is mandatory; the system tap is not, because
 // a machine without one still records useful notes and saying so is better than
 // refusing to run.
-func Open(ctx context.Context) (*Stream, error) {
+func Open(ctx context.Context, system bool) (*Stream, error) {
 	// Opening the microphone blocks until macOS has an answer about the
 	// permission, and when there is a dialog on screen that answer is a person.
 	// There is deliberately no timeout: the wait is legitimate, and the menu bar
@@ -116,10 +109,12 @@ func Open(ctx context.Context) (*Stream, error) {
 		return nil, err
 	}
 
-	sys, err := openSystemAudio()
-	if err != nil {
-		slog.Warn("no system audio; only your own voice will be recorded", "err", err)
-		sys = nil
+	var sys Device
+	if system {
+		if sys, err = openSystemAudio(); err != nil {
+			slog.Warn("no system audio; only your own voice will be recorded", "err", err)
+			sys = nil
+		}
 	}
 
 	return newStream(ctx, mic, sys), nil
@@ -184,9 +179,14 @@ func (s *Stream) mix(ctx context.Context, mic, sys Device) {
 				drain = false
 			}
 		}
+		// One sample, not the whole backlog. Trimming in blocks kept the delay
+		// bounded but made it step by tens of milliseconds several times a
+		// second — inaudible alone, fatal to anything that needs the channels
+		// aligned. One sample per frame drains the same backlog as a few
+		// hundred ppm of drift, which a filter can follow.
 		if len(right) > slack {
-			dropped += len(right) - slack
-			right = right[len(right)-slack:]
+			dropped++
+			right = right[1:]
 			// Once a minute, not once a frame. Trimming is the normal state of
 			// affairs now that the bound is small — the tap delivers in bursts
 			// and the backlog is what would otherwise be heard as an echo — so

@@ -9,6 +9,7 @@ package main
 import (
 	"context"
 	"embed"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -71,6 +72,19 @@ func sound(dir, cache string) application.Middleware {
 }
 
 func main() {
+	// The log is opened here, not in run, because run's defers have already
+	// closed everything by the time it returns — which meant that the one
+	// message worth having, the reason the app would not start, was written to
+	// a closed file and lost. Found by an app that exited 1 in silence.
+	dir, err := home.Dir()
+	if err == nil {
+		if logs, err := os.OpenFile(filepath.Join(home.Logs(dir), "mt.log"),
+			os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644); err == nil {
+			defer logs.Close()
+			slog.SetDefault(slog.New(slog.NewTextHandler(
+				io.MultiWriter(logs, os.Stderr), &slog.HandlerOptions{Level: slog.LevelInfo})))
+		}
+	}
 	if err := run(); err != nil {
 		slog.Error("Meeting Transcriber stopped", "err", err)
 		os.Exit(1)
@@ -84,12 +98,6 @@ func run() error {
 	dir, err := home.Dir()
 	if err != nil {
 		return err
-	}
-	logs, err := os.OpenFile(filepath.Join(home.Logs(dir), "mt.log"),
-		os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
-	if err == nil {
-		defer logs.Close()
-		slog.SetDefault(slog.New(slog.NewTextHandler(logs, &slog.HandlerOptions{Level: slog.LevelInfo})))
 	}
 	slog.Info("starting", "folder", dir)
 	// Where the decoders the app downloaded live, so a machine with an ancient
@@ -110,6 +118,13 @@ func run() error {
 	}
 	defer db.Close()
 
+	// Voiceprints saved before they carried a source are matched back to the
+	// meetings they came from, so a sample can be played rather than taken on
+	// trust. Does nothing on every start after the first.
+	if err := db.Trace(); err != nil {
+		slog.Warn("could not trace where the saved voices came from", "err", err)
+	}
+
 	// The models are fetched and loaded behind the window rather than in front
 	// of it: the app appears at once and says what it is doing, instead of
 	// spending the first two minutes of its life as a bouncing icon.
@@ -118,6 +133,8 @@ func run() error {
 	// somebody has chosen it in the settings.
 	setup.Want(models.Optional(cfg.Transcriber))
 	lib := library.New(db, nil, insights.New(cfg.OpenAIKey, cfg.OpenAIModel, cfg.Language), home.Recordings(dir))
+	lib.Policy(store.When(cfg.Summarise))
+	lib.Owner(cfg.Me)
 	meetings := service.New(db, lib, dir, cfg)
 
 	// Anything left half-written when the app last died holds no readable
@@ -155,6 +172,11 @@ func run() error {
 					slog.Error("could not file a recording", "path", path, "err", err)
 				}
 			},
+			func(seconds float64, why string) {
+				if err := db.Skipped(seconds, why); err != nil {
+					slog.Warn("could not record what was discarded", "err", err)
+				}
+			},
 			// The live transcript. One utterance at a time through the same
 			// Whisper the queue uses, which is why the queue steps aside below.
 			func(samples []float32) (string, error) {
@@ -167,7 +189,11 @@ func run() error {
 					said[i] = t.Text
 				}
 				return strings.TrimSpace(strings.Join(said, " ")), nil
-			})
+			},
+			// How the listener tells one voice from another when it has only
+			// the microphone to go on. The same embedder the speaker models
+			// use, so "a different person" means the same thing everywhere.
+			e.Print)
 		meetings.Listener(ears)
 		go ears.Run(ctx)
 

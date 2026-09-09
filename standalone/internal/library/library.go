@@ -26,7 +26,7 @@ import (
 // Engine is what the library needs from the models, so that tests can hand it
 // something that does not take a gigabyte to load.
 type Engine interface {
-	Run(samples []float32) (engine.Result, error)
+	Run(heard, apart []float32) (engine.Result, error)
 	Solo(samples []float32, who string) (engine.Result, error)
 }
 
@@ -47,6 +47,29 @@ type Library struct {
 	mu     sync.Mutex
 	engine Engine
 	busy   func() bool
+	policy store.When
+	owner  string
+}
+
+// Owner is the name the person holding the laptop goes by, set by "This is me".
+// Empty until they say.
+func (l *Library) Owner(name string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.owner = name
+}
+
+func (l *Library) who() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.owner
+}
+
+// Policy sets which recordings are worth a model call.
+func (l *Library) Policy(when store.When) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.policy = when
 }
 
 // Wait tells the queue when to stand aside. It is asked before every job, and
@@ -194,7 +217,7 @@ func (l *Library) process(ctx context.Context, id int64) error {
 		slog.Info("one voice only: the system channel is silent", "id", id)
 		read, err = l.ready().Solo(samples, Me)
 	} else {
-		read, err = l.ready().Run(samples)
+		read, err = l.ready().Run(samples, system)
 	}
 	turns := read.Turns
 	if stereo && !solo {
@@ -214,9 +237,33 @@ func (l *Library) process(ctx context.Context, id int64) error {
 	// Anybody the app has been told the name of before gets their name back,
 	// here, before the transcript is written — so naming somebody is something
 	// you do once ever rather than once per meeting.
-	if people, err := l.db.People(); err != nil {
+	people, err := l.db.People()
+	if err != nil {
 		slog.Warn("could not read the voices", "err", err)
-	} else if names := store.Recognise(read.Voices, people); len(names) > 0 {
+	}
+
+	// The clusterer is set to split too eagerly on purpose, because no single
+	// threshold suits both a meeting of two and a meeting of six. Whatever it
+	// split that the app can put a name to is joined back up here; whatever it
+	// cannot name stays a speaker of its own, which is right — that is somebody
+	// nobody has introduced yet.
+	same := store.Same(read.Voices, people)
+	// The microphone channel is the one thing the app is certain about, so the
+	// owner's label is never the one folded away. A cluster may still join it.
+	delete(same, Me)
+	if len(same) > 0 {
+		for i := range turns {
+			if to, split := same[turns[i].Speaker]; split {
+				turns[i].Speaker = to
+			}
+		}
+		for from := range same {
+			delete(read.Voices, from)
+		}
+		slog.Info("clusters rejoined", "id", id, "merged", len(same))
+	}
+
+	if names := store.Recognise(enough(read.Voices, turns), people); len(names) > 0 {
 		for i := range turns {
 			if name, known := names[turns[i].Speaker]; known {
 				turns[i].Speaker = name
@@ -225,13 +272,28 @@ func (l *Library) process(ctx context.Context, id int64) error {
 		for label, name := range names {
 			// Another sample of a voice already known, so recognition keeps
 			// improving instead of staying as good as the first meeting.
-			if err := l.db.Remember(name, read.Voices[label]); err != nil {
+			if err := l.db.Remember(name, read.Voices[label],
+				store.Source{Recording: id, Speaker: name}); err != nil {
 				slog.Warn("could not file a voice", "name", name, "err", err)
 			}
 			read.Voices[name] = read.Voices[label]
 			delete(read.Voices, label)
 		}
 		slog.Info("voices recognised", "id", id, "who", values(names))
+	}
+
+	// The owner's own turns carry their name from the setting, not from a
+	// match. Nothing else in the app is this certain about who somebody is.
+	if owner := l.who(); owner != "" {
+		for i := range turns {
+			if turns[i].Speaker == Me {
+				turns[i].Speaker = owner
+			}
+		}
+		if print, have := read.Voices[Me]; have {
+			read.Voices[owner] = print
+			delete(read.Voices, Me)
+		}
 	}
 
 	// Kept under whatever label the transcript ended up showing, so that naming
@@ -304,14 +366,34 @@ func (l *Library) Reindex(ctx context.Context) (int, error) {
 	return len(ids), nil
 }
 
-// mine folds everything the microphone heard into one speaker.
-//
-// A diarizer has no idea that half of a call arrives through a codec and the
-// other half through the room, so it happily splits one person into three as
-// their voice changes across an hour. The channels do know. Anything markedly
-// louder on the microphone than on the system tap was said by the person
-// sitting here, whatever the clusterer decided — and that also holds when the
-// speakers are on and the room echoes back, because a remote voice is always
+// Evidence is how much somebody must say before the app will name their voice.
+// Four seconds is enough to find *a* nearest match and nowhere near enough to
+// be right: an eighteen-second fragment once got a colleague's name, which is
+// worse than SPEAKER_02 because a name asserts something. Below the bar the
+// label stands and anybody can name it by hand.
+const Evidence = 30.0
+
+// enough keeps only the voiceprints that may be given a name: anybody under
+// Evidence, and the microphone side, are excluded. The microphone is always the
+// same person and the app knows it without a model — matching it once put a
+// colleague's name on nineteen minutes of the owner's own speech.
+func enough(prints map[string][]float32, turns []engine.Turn) map[string][]float32 {
+	held := map[string]float64{}
+	for _, t := range turns {
+		held[t.Speaker] += t.End - t.Start
+	}
+	out := map[string][]float32{}
+	for label, print := range prints {
+		if label != Me && held[label] >= Evidence {
+			out[label] = print
+		}
+	}
+	return out
+}
+
+// mine folds everything the microphone heard into one speaker. A diarizer does
+// not know that half a call arrives through a codec and half through the room,
+// so it splits one person into three; the channels do know. A voice is always
 // loudest on the side it arrived from.
 func mine(read engine.Result, mic, system []float32) engine.Result {
 	loudest, best := "", 0.0
@@ -399,6 +481,37 @@ func stillUsed(turns []engine.Turn, label string) bool {
 	return false
 }
 
+// worth decides whether a recording earns a model call.
+//
+// Every summary is money and a round trip, and most of what an always-on
+// recorder catches is not a meeting: half of a phone call, a thought said out
+// loud, somebody testing the microphone. The Summarise button is always there,
+// so being wrong here costs one click rather than a lost summary.
+func (l *Library) worth(id int64, turns []engine.Turn) bool {
+	l.mu.Lock()
+	policy := l.policy
+	l.mu.Unlock()
+
+	if policy == store.Always {
+		return true
+	}
+	if policy == store.Never {
+		return false
+	}
+	// Meetings only: somebody other than the person holding the laptop said
+	// something. That is the whole distinction, and the channels already know
+	// it — it is what made this a meeting rather than a note in the first place.
+	r, err := l.db.Get(id)
+	if err != nil {
+		return true // rather summarise than lose one to a database error
+	}
+	if r.Kind == store.Meeting {
+		return true
+	}
+	slog.Info("not summarised: nobody else was in it", "id", id, "policy", policy)
+	return false
+}
+
 // Again puts a finished recording back in the queue, from the audio.
 //
 // Everything derived from it is written over: the transcript, the speakers, the
@@ -458,7 +571,7 @@ func values(m map[string]string) []string {
 // already saved and searchable, and a missing summary is a smaller loss than a
 // recording marked failed.
 func (l *Library) summarise(ctx context.Context, id int64, turns []engine.Turn) error {
-	if !l.llm.Ready() || len(turns) == 0 {
+	if !l.llm.Ready() || len(turns) == 0 || !l.worth(id, turns) {
 		return l.db.Progress(id, store.Done, 1)
 	}
 	if err := l.db.Progress(id, store.Summarising, 0.9); err != nil {
@@ -478,6 +591,11 @@ func (l *Library) summarise(ctx context.Context, id int64, turns []engine.Turn) 
 		return err
 	}
 	slog.Info("summarised", "id", id, "title", summary.Title, "actions", len(summary.ActionItems))
+	// And the project it belongs to moves on. A failure here is logged inside
+	// and never fails the recording: the summary is already saved.
+	if err := l.Advance(ctx, id); err != nil {
+		slog.Warn("the project document did not move", "id", id, "err", err)
+	}
 	return l.db.Progress(id, store.Done, 1)
 }
 
@@ -521,13 +639,9 @@ func (l *Library) Find(ctx context.Context, query string, limit int) ([]store.Hi
 	return blend(words, near, limit), nil
 }
 
-// blend interleaves the two result lists, best of each first, without repeating
-// a passage that both found.
-//
-// Interleaved rather than scored together on purpose: a keyword rank and a
-// cosine are not the same quantity, and inventing a formula to add them would
-// be a number nobody could check. Taking one from each in turn is honest about
-// there being two opinions.
+// blend interleaves the two result lists without repeating a passage. Not
+// scored together: a keyword rank and a cosine are not the same quantity, and a
+// formula adding them would be a number nobody could check.
 func blend(words, near []store.Hit, limit int) []store.Hit {
 	seen := map[string]bool{}
 	out := []store.Hit{}
@@ -544,13 +658,34 @@ func blend(words, near []store.Hit, limit int) []store.Hit {
 	return out
 }
 
-// Delete forgets a recording and removes its audio.
-func (l *Library) Delete(id int64) error {
-	audio, err := l.db.Delete(id)
+// Delete moves a recording to the bin. Nothing is destroyed, which is what
+// makes deleting one click and no dialog.
+func (l *Library) Delete(id int64) error { return l.db.Bury(id) }
+
+// Restore takes it back out of the bin.
+func (l *Library) Restore(id int64) error { return l.db.Restore(id) }
+
+// Empty destroys everything in the bin older than the given age, audio and
+// all. A zero age empties it completely, which is the button in the interface;
+// the daily sweep passes a fortnight.
+func (l *Library) Empty(olderThan time.Duration) (int, error) {
+	buried, err := l.db.Buried(olderThan)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return os.Remove(filepath.Join(l.dir, audio))
+	for _, r := range buried {
+		if _, err := l.db.Delete(r.ID); err != nil {
+			return 0, err
+		}
+		if r.Audio != "" {
+			_ = os.Remove(filepath.Join(l.dir, r.Audio))
+			_ = os.Remove(filepath.Join(filepath.Dir(l.dir), "cache", r.Audio))
+		}
+	}
+	if len(buried) > 0 {
+		slog.Info("bin emptied", "recordings", len(buried))
+	}
+	return len(buried), nil
 }
 
 func convert(turns []engine.Turn) []store.Turn {

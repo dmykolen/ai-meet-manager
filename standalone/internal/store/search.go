@@ -3,6 +3,8 @@ package store
 import (
 	"fmt"
 	"strings"
+
+	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/media"
 )
 
 // Hit is one passage that matched a search.
@@ -78,12 +80,7 @@ func Passages(hits []Hit) []string {
 		if who == "" {
 			who = "Unknown"
 		}
-		out = append(out, fmt.Sprintf("%s [%s] %s: %s", h.Title, clock(h.Start), who, h.Text))
+		out = append(out, fmt.Sprintf("%s [%s] %s: %s", h.Title, media.Clock(h.Start), who, h.Text))
 	}
 	return out
-}
-
-func clock(seconds float64) string {
-	s := int(seconds)
-	return fmt.Sprintf("%02d:%02d:%02d", s/3600, s/60%60, s%60)
 }

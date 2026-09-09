@@ -8,29 +8,16 @@ import (
 	sherpa "github.com/k2-fsa/sherpa-onnx-go-macos"
 )
 
-// parakeet is NVIDIA's Parakeet TDT 0.6B v3, through sherpa-onnx.
+// parakeet is NVIDIA's Parakeet TDT 0.6B v3, through sherpa-onnx. Offered, not
+// recommended.
 //
-// Offered, not recommended, and the measurements are why. On three minutes of a
-// real Ukrainian meeting, against Whisper on the identical audio:
+// Measured against Whisper on the same 23-minute meeting: 11 rows to Whisper's
+// 281, and largely nonsense. On three minutes of another it managed 161 words
+// to Whisper's 320, and in Russian — the transducer takes no language argument,
+// so there is nothing to set that stops it.
 //
-//	Whisper large-v3-turbo q5_0, language uk   320 words, Ukrainian
-//	Parakeet TDT 0.6b v3 int8                  161 words, Russian
-//
-// Half the words, and it decides the language for itself — the transducer takes
-// no language argument, so a Ukrainian meeting with a few borrowed words comes
-// back written in Russian and there is nothing to set that stops it.
-//
-// It is here because it is genuinely better on some material: NVIDIA's own
-// numbers put its Ukrainian word error rate at 5.10% against large-v3's 12.52%
-// on clean read speech, and it is three times faster. A meeting recorded from a
-// good headset is not the same problem as one recorded through a room, and the
-// only way to know which you have is to try both.
-//
-// An earlier version of this app rejected Parakeet outright on the strength of
-// a measurement that turned out to be wrong: it was being handed the microphone
-// and the system tap averaged together, which for a transducer is fatal. On
-// that input it produced three words in three minutes. The fold fixed the input
-// and the number went to 161.
+// Kept because it cannot loop, being non-autoregressive, and because NVIDIA's
+// own numbers put it ahead on clean read speech. A headset is not a room.
 type parakeet struct {
 	rec *sherpa.OfflineRecognizer
 }

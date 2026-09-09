@@ -61,10 +61,18 @@ func Sweep(db *store.DB, dir string, days int) (int, int64, error) {
 // Tidy runs Sweep now and once a day after that. Daily rather than hourly
 // because the setting is measured in days: checking more often can only find
 // the same nothing.
+// Fortnight is how long something stays in the bin before it is really gone.
+// Long enough that "I deleted the wrong one" is recoverable a week later,
+// short enough that the folder does not fill up with things nobody wants.
+const Fortnight = 14 * 24 * time.Hour
+
 func (l *Library) Tidy(stop <-chan struct{}, days func() int) {
 	for {
 		if _, _, err := Sweep(l.db, l.dir, days()); err != nil {
 			slog.Warn("could not tidy the recordings folder", "err", err)
+		}
+		if _, err := l.Empty(Fortnight); err != nil {
+			slog.Warn("could not empty the bin", "err", err)
 		}
 		select {
 		case <-stop:

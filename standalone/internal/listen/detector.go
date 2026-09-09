@@ -74,13 +74,10 @@ const (
 
 // Detector decides when a recording starts, what kind it is, and when it ends.
 //
-// Once the system channel is being captured the whole classifier collapses to
-// one question — is anybody else talking? — which is why there is no process
-// enumeration, no window-title scraping and no calendar anywhere in this
-// package.
-//
-// It counts frames rather than reading a clock, so the same input always gives
-// the same answer and the tests never have to sleep.
+// With the system channel captured the whole classifier is one question — is
+// anybody else talking? — hence no process enumeration, no window titles, no
+// calendar. It counts frames rather than reading a clock, so the same input
+// always gives the same answer and tests never sleep.
 type Detector struct {
 	tuning    Tuning
 	forced    bool // somebody pressed Record now
@@ -93,8 +90,9 @@ type Detector struct {
 
 	window   []state // the rolling StartWindow
 	at       int
-	speaking int // frames of the window with speech on either channel
-	others   int // frames of the window with speech on the system channel
+	speaking int  // frames of the window with speech on either channel
+	others   int  // frames of the window with speech on the system channel
+	company  bool // a second voice was heard on the microphone alone
 }
 
 type state struct{ any, sys bool }
@@ -135,8 +133,9 @@ func (d *Detector) Feed(mic, sys bool) Transition {
 
 	d.held++
 	d.total++
-	// A note that acquires a second voice was a meeting all along.
-	if sys && d.kind == Note {
+	// A note that acquires a second voice was a meeting all along — whether the
+	// second voice arrived on the system channel or was heard in the room.
+	if (sys || d.company) && d.kind == Note {
 		d.kind = Meeting
 	}
 	if mic || sys {
@@ -178,14 +177,23 @@ func (d *Detector) quietEnough() time.Duration {
 // Recording reports whether audio is being kept right now, and as what.
 func (d *Detector) Recording() (bool, Kind) { return d.recording, d.kind }
 
-// Force starts a recording on the next frame and keeps it running until it is
-// released. It exists for the meeting the detector cannot see: everybody in one
-// room, nothing playing through the speakers, and long thoughtful silences.
+// Force records until released — for the meeting the detector cannot see:
+// everybody in one room, nothing through the speakers, long silences.
 //
-// It only ever sets a flag. The recording still starts and stops inside Feed, on
-// the goroutine that owns this detector.
+// Turning it off stops whatever is recording, however it began. Stopping only
+// forced recordings made the button do nothing for every meeting the app had
+// started itself, which is almost all of them.
+//
+// Sets a flag only; Feed starts and stops on its own goroutine.
+// Company says a voice has been heard that belongs to nobody heard before, so
+// there is more than one person in the room. It is the microphone-only stand-in
+// for speech on the system channel, and it only ever promotes: a recording that
+// has become a meeting does not go back to being a note because somebody went
+// quiet.
+func (d *Detector) Company() { d.company = true }
+
 func (d *Detector) Force(on bool) {
-	if !on && d.recording && d.forced {
+	if !on && d.recording {
 		d.stopping = true
 	}
 	d.forced = on
@@ -227,5 +235,5 @@ func (d *Detector) remember(s state) {
 // into the decision about the next.
 func (d *Detector) clearWindow() {
 	clear(d.window)
-	d.speaking, d.others, d.at = 0, 0, 0
+	d.speaking, d.others, d.at, d.company = 0, 0, 0, false
 }

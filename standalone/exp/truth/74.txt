@@ -1,0 +1,7 @@
+# Meeting 74 — "Планування релізів і задач", meeting 2026-09-09 11-58.wav
+# Given by the owner, by ear. start end speaker
+# "Сергій" is not enrolled: the app has never been introduced to him, so the
+# right answer is a speaker of his own, not somebody else's name.
+184  296  Сергій
+296  299  Diatlenko Bohdan
+300  372  Сергій

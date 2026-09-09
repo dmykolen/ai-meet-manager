@@ -7,15 +7,19 @@ import (
 	sherpa "github.com/k2-fsa/sherpa-onnx-go-macos"
 )
 
-// Threshold is how close two stretches of speech have to sound before they are
-// called the same person.
+// Threshold is how alike two stretches must sound to be one person. Loose on
+// purpose: split freely here, rejoin by voiceprint in internal/library.
 //
-// Chosen by measurement rather than by the library's default. On a real
-// Ukrainian meeting where pyannote found five speakers, this embedding model
-// found nine at 0.5, seven at 0.75 and exactly five at 0.9. Two other embedding
-// models were tried on the same audio: a Chinese-trained one found nine and
-// NeMo's TitaNet found sixteen, so the model matters more than the threshold.
-const Threshold = 0.9
+// Measured on two recordings whose answers are known — speakers found at each
+// threshold, against 2 and 6:
+//
+//	0.90 → 8, 9    1.00 → 5, 5    1.10 → 2 ✓, 3 ✗    1.20 → 2, 2
+//
+// No value serves both, so the choice is which mistake to make. Splitting one
+// person in two is undone later by store.Same; merging two into one destroys
+// the distinction for good. Stronger embedding models were tried and were
+// worse: resnet221_LM and resnet293_LM merge three known people into one.
+const Threshold = 0.90
 
 // speakers is sherpa-onnx: pyannote segmentation, then embeddings, then
 // clustering. Measured at 24x realtime against pyannote's 10.5x on the GPU.
@@ -29,9 +33,7 @@ func openSpeakers(dir string, opts Options) (*speakers, error) {
 	c.Segmentation.NumThreads = opts.Threads
 	c.Embedding.Model = filepath.Join(dir, "embedding.onnx")
 	c.Embedding.NumThreads = opts.Threads
-	// Unknown ahead of time, which is the whole point: a meeting does not
-	// announce how many people are in it.
-	c.Clustering.NumClusters = -1
+	c.Clustering.NumClusters = -1 // a meeting does not announce how many are in it
 	c.Clustering.Threshold = Threshold
 	c.MinDurationOn = 0.3
 	c.MinDurationOff = 0.5

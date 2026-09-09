@@ -111,14 +111,15 @@ var (
 		Bytes: 7_000_000,
 	}
 
-	// Chosen by measurement. On a meeting where pyannote found five speakers,
-	// this found exactly five; a Chinese-trained embedder found nine and
-	// NeMo's TitaNet sixteen, on the same audio at the same threshold.
+	// Chosen by measurement, against a meeting whose speakers the owner named
+	// by ear. The English VoxCeleb CAM++ that was here folded a stranger into
+	// an enrolled colleague on every configuration tried; this one, given the
+	// system channel alone, keeps them apart. See exp/out/F-speakers-74.txt.
 	Embedding = Model{
 		Name:  "Speaker voices",
 		Key:   "embedding.onnx",
-		URL:   "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/wespeaker_en_voxceleb_CAM++.onnx",
-		Bytes: 28_000_000,
+		URL:   "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_campplus_sv_zh_en_16k-common_advanced.onnx",
+		Bytes: 28_300_000,
 	}
 )
 
@@ -174,11 +175,13 @@ func (s Set) Size() int64 {
 	return total
 }
 
-// Have reports whether a model is already unpacked. A marker file is written
-// last, so a half-unpacked archive is never mistaken for a finished one.
+// Have reports whether this exact model is already unpacked. The marker is
+// written last, so a half-unpacked archive is never mistaken for a finished
+// one, and it holds the URL it came from — so changing a model here is enough
+// to fetch the new one, with no version suffix to invent and keep in step.
 func Have(dir string, m Model) bool {
-	_, err := os.Stat(filepath.Join(dir, ".have-"+m.Key))
-	return err == nil
+	from, err := os.ReadFile(filepath.Join(dir, ".have-"+m.Key))
+	return err == nil && string(from) == m.URL
 }
 
 // Path is where a model ended up. Executables go in a sibling bin/ so that

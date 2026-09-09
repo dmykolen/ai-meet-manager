@@ -110,12 +110,28 @@ func (e *Engine) Diarize(samples []float32) ([]Span, error) {
 }
 
 // Run does both and merges them, which is what a recording actually needs.
-func (e *Engine) Run(samples []float32) (Result, error) {
-	turns, err := e.Transcribe(samples)
+//
+// Two signals, not one. heard is the mix — everybody, which is what has to be
+// transcribed. apart, when there is one, is the system channel alone: the
+// remote people with no room in it and, crucially, without the owner, who is on
+// the microphone and known without a model. Clustering that is a strictly
+// smaller problem, and measured on a meeting the owner had labelled by ear it
+// is the difference between a stranger being folded into a colleague and not.
+// Nothing else tried moved it — not a better segmentation model, not a better
+// embedding on the mix. See exp/out/F-speakers-74.txt.
+//
+// The two are sample-aligned by media.Sides, so spans found in one are valid in
+// the other.
+func (e *Engine) Run(heard, apart []float32) (Result, error) {
+	turns, err := e.Transcribe(heard)
 	if err != nil {
 		return Result{}, err
 	}
-	spans, err := e.Diarize(samples)
+	voices := apart
+	if len(voices) == 0 {
+		voices = heard // a file dropped in has no channel of its own
+	}
+	spans, err := e.Diarize(voices)
 	if err != nil {
 		// A transcript without speakers is worth keeping; failing the whole
 		// recording because the speaker model stumbled is not.
@@ -123,9 +139,18 @@ func (e *Engine) Run(samples []float32) (Result, error) {
 	}
 
 	e.mu.Lock()
-	prints := e.voices.voiceprints(samples, spans)
+	prints := e.voices.voiceprints(voices, spans)
 	e.mu.Unlock()
 	return Result{Turns: Attribute(turns, spans), Voices: prints}, nil
+}
+
+// Print is a voiceprint of one stretch of speech — the same vector the speaker
+// models use to tell two people apart, for anybody who needs to ask whether two
+// utterances came from the same person.
+func (e *Engine) Print(samples []float32) []float32 {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.voices.print(samples)
 }
 
 // Solo is a recording with one person in it: transcribed, labelled, and never

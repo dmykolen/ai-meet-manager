@@ -105,3 +105,25 @@ func TestAShortRecordingKeepsEverySpeaker(t *testing.T) {
 		t.Fatalf("a brief speaker was absorbed in a short recording: %q", got[2].Speaker)
 	}
 }
+
+func TestANameNeedsMoreThanAFragmentToJustifyIt(t *testing.T) {
+	// A voiceprint can be computed from four seconds, and four seconds is
+	// plenty to find a nearest match and nowhere near enough to be right. On a
+	// real meeting an eighteen-second fragment was handed a colleague's name.
+	prints := map[string][]float32{
+		"SPEAKER_00": {1, 0},
+		"SPEAKER_01": {0, 1},
+	}
+	turns := []engine.Turn{
+		{Start: 0, End: 600, Speaker: "SPEAKER_00"},   // ten minutes
+		{Start: 600, End: 618, Speaker: "SPEAKER_01"}, // eighteen seconds
+	}
+
+	kept := enough(prints, turns)
+	if _, in := kept["SPEAKER_00"]; !in {
+		t.Fatal("somebody who spoke for ten minutes was refused a name")
+	}
+	if _, in := kept["SPEAKER_01"]; in {
+		t.Fatal("an eighteen-second fragment is still eligible for a colleague's name")
+	}
+}

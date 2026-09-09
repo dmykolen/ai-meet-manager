@@ -7,18 +7,13 @@ import (
 	"time"
 )
 
-// Scribe writes the meeting down while it is still happening.
+// Scribe writes the meeting down while it is happening. The detector already
+// cuts the audio into utterances, so each one goes through Whisper as it
+// finishes and appears a second or two later.
 //
-// The audio is already being cut into utterances — the detector has to know
-// when somebody stopped talking anyway — so the only thing missing was somebody
-// to hand them to. Each one goes through Whisper as it finishes and appears in
-// the window a second or two later.
-//
-// Deliberately not the transcript. Whisper on a four-second fragment is worse
-// than Whisper on the whole meeting: it has no context, it will not spell a
-// name it has not heard yet, and it cannot be diarized. This is for reading
-// along and catching what somebody just said; the real transcript is written
-// afterwards from the file, and replaces it.
+// Deliberately not the transcript: Whisper on a four-second fragment has no
+// context, cannot spell an unheard name and cannot be diarized. The real
+// transcript is written afterwards from the file and replaces this.
 type Scribe struct {
 	transcribe func([]float32) (string, error)
 

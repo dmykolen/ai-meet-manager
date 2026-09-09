@@ -1,13 +1,9 @@
 // Package media turns any recording into the 16 kHz mono float32 the models
 // want.
 //
-// Three decoders, tried in that order, because each is cheaper than the next.
-// WAV is read here — the listener writes WAV and that is most of the traffic.
-// Everything Core Audio knows (m4a, mp3, aac, alac, flac, aiff, caf, and the
-// audio track of an mp4 or mov) goes through afconvert, which is part of macOS
-// and needs nothing installed. What is left — webm, ogg, opus, mkv, avi — goes
-// through ffmpeg, which the app fetches on first run alongside the models.
-// Writing a container parser was never the job.
+// Three decoders in order of cost: WAV here (the listener writes it, so most of
+// the traffic), then afconvert for anything Core Audio knows, then ffmpeg for
+// webm/ogg/opus/mkv/avi. Writing a container parser was never the job.
 package media
 
 import (
@@ -29,14 +25,13 @@ const Rate = 16000
 // an empty value just means the PATH is the only place to look.
 var Tools string
 
-// Sides splits a recording this app made into its two channels: what the
-// microphone heard, and what the machine was playing.
+// Sides splits one of our recordings into the microphone (the person here) and
+// the system tap (everybody else). Anything else comes back ok false.
 //
-// That distinction is the app's one real advantage over a generic transcriber,
-// and it was being thrown away by the downmix. The microphone side is the
-// person sitting here; the system side is everybody else. Anything that is not
-// one of our own stereo WAVs comes back with ok false, and the caller carries
-// on with the mono mix.
+// The two are aligned before they are handed over, and everything downstream
+// assumes that happened. They do not arrive aligned — the tap is interleaved
+// about 230 ms late — and that quarter-second is why every echo canceller tried
+// here removed 0.0 dB: they model a causal response and cannot look backwards.
 func Sides(path string) (mic, system []float32, ok bool) {
 	if !strings.EqualFold(filepath.Ext(path), ".wav") {
 		return nil, nil, false
@@ -55,7 +50,27 @@ func Sides(path string) (mic, system []float32, ok bool) {
 		mic[i] = float32(int16(binary.LittleEndian.Uint16(body[4*i:]))) / 32768
 		system[i] = float32(int16(binary.LittleEndian.Uint16(body[4*i+2:]))) / 32768
 	}
-	return mic, system, true
+	return mic, ahead(system, Offset(mic, system)), true
+}
+
+// ahead moves a channel earlier in time, which is what "it was written late"
+// means once the file exists.
+func ahead(samples []float32, n int) []float32 {
+	if n <= 0 || n >= len(samples) {
+		return samples
+	}
+	out := make([]float32, len(samples))
+	copy(out, samples[n:])
+	return out
+}
+
+// Clock is a position in a recording, written the way a person reads it.
+func Clock(seconds float64) string {
+	s := int(seconds)
+	if s >= 3600 {
+		return fmt.Sprintf("%d:%02d:%02d", s/3600, s/60%60, s%60)
+	}
+	return fmt.Sprintf("%d:%02d", s/60, s%60)
 }
 
 // Loud is the RMS of a stretch of samples, which is all anything here needs to

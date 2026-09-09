@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2 — Ландшафт</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@200;300;400;600&family=Onest:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═════════════════════════════════════════════════════════════════════════
+   ЛАНДШАФТ — друга редакція
+
+   Застосунок про звук, тож і мова візуальна від звуку: темне поле, на якому
+   події СВІТЯТЬСЯ. Не пласкі прямокутники діаграми, а сліди на довгій
+   витримці. Кожна нарада світиться тим сильніше, чим більше по ній лишилось
+   незакритих зобовʼязань — тобто на ландшафті видно не тільки коли ви
+   працювали, а де у вас досі горить.
+
+   Вісь X — дні. Вісь Y — ГОДИНА ДОБИ. Ніякого списку в основі.
+   ═════════════════════════════════════════════════════════════════════════ */
+:root{
+  --void:oklch(10% 0.022 275);
+  --deep:oklch(13% 0.028 280);
+  --panel:oklch(15.5% 0.026 278);
+  --line:oklch(26% 0.026 278);
+  --hair:oklch(21% 0.024 278);
+  --text:oklch(96% 0.008 280);
+  --soft:oklch(74% 0.016 280);
+  --faint:oklch(54% 0.020 280);
+  --accent:oklch(72% 0.20 295);
+
+  /* Неон, а не набір із діаграми. Висока хрома, різний характер, не лише
+     різний відтінок: крижаний, гарячий, кислотний, теплий. */
+  --p1:oklch(83% 0.17 197);   /* крижаний ціан   — VF-AIA */
+  --p2:oklch(72% 0.26 342);   /* гарячий магента — Архітектура */
+  --p3:oklch(89% 0.21 128);   /* кислотний лайм  — Операційка */
+  --p4:oklch(83% 0.17 68);    /* теплий бурштин  — Дослідження */
+  --p0:oklch(60% 0.075 268);  /* холодний бузок — поза проєктами */
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:
+    radial-gradient(120% 90% at 18% -10%, oklch(18% 0.05 290) 0%, transparent 55%),
+    radial-gradient(90% 70% at 92% 8%, oklch(16% 0.05 205) 0%, transparent 50%),
+    var(--void);
+  color:var(--text);
+  font-family:Onest,system-ui,sans-serif;font-size:13px;
+  -webkit-font-smoothing:antialiased;
+  padding:24px 28px 40px;
+}
+
+/* ── шапка ──────────────────────────────────────────────────────────── */
+.top{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:16px;gap:24px}
+h1{
+  font-family:Unbounded,sans-serif;font-weight:200;font-size:27px;
+  letter-spacing:-.03em;line-height:1;
+}
+h1 b{font-weight:600;color:var(--accent)}
+.lede{color:var(--faint);font-size:12px;margin-top:5px}
+
+/* зум — сегменти зі світлом під активним, а не сірі кнопки */
+.zoom{display:flex;gap:2px;background:oklch(17% 0.024 278);padding:3px;border-radius:11px}
+.zoom button{
+  border:0;background:none;color:var(--faint);cursor:pointer;
+  font-family:Onest,sans-serif;font-size:11.5px;font-weight:500;
+  padding:6px 13px;border-radius:8px;position:relative;transition:color .18s;
+}
+.zoom button:hover{color:var(--soft)}
+.zoom button.on{
+  color:var(--text);
+  background:linear-gradient(180deg, oklch(26% 0.04 285), oklch(22% 0.032 282));
+  box-shadow:0 0 0 1px oklch(34% 0.05 288), 0 6px 18px -8px oklch(50% 0.16 295);
+}
+
+/* пошук — розкривається з іконки, не займає місце постійно */
+.seek{display:flex;align-items:center;gap:8px}
+.seek input{
+  width:0;opacity:0;padding:0;border:0;background:none;outline:0;
+  color:var(--text);font-family:Onest,sans-serif;font-size:12.5px;
+  transition:width .28s cubic-bezier(.16,1,.3,1), opacity .2s, padding .28s;
+}
+.seek.open input{width:190px;opacity:1;padding:7px 12px;
+  background:oklch(17% 0.024 278);border-radius:9px}
+.ico{
+  width:32px;height:32px;border-radius:9px;border:0;cursor:pointer;
+  background:oklch(17% 0.024 278);color:var(--faint);
+  display:flex;align-items:center;justify-content:center;transition:.18s;
+}
+.ico:hover{color:var(--text);background:oklch(21% 0.03 280)}
+
+/* ── ландшафт ───────────────────────────────────────────────────────── */
+.land{
+  position:relative;border-radius:16px;padding:14px 14px 6px 44px;
+  background:linear-gradient(180deg, var(--panel), var(--deep));
+  box-shadow:inset 0 1px 0 oklch(30% 0.03 282), 0 30px 70px -40px oklch(4% 0.02 280);
+  margin-bottom:14px;user-select:none;
+}
+.grid{position:relative;height:344px;cursor:crosshair}
+.hours{position:absolute;left:-36px;top:0;bottom:0;width:32px;pointer-events:none}
+.hours i{
+  position:absolute;right:0;font-style:normal;font-size:9px;color:var(--faint);
+  font-variant-numeric:tabular-nums;transform:translateY(-50%);letter-spacing:.06em;
+}
+/* смуга робочого дня — сама земля натякає на форму доби */
+.band{position:absolute;left:0;right:0;background:oklch(18% 0.03 282);opacity:.55;pointer-events:none;border-radius:4px}
+.hline{position:absolute;left:0;right:0;height:1px;background:var(--hair);pointer-events:none}
+
+.days{position:absolute;inset:0;display:flex;gap:1.5px}
+.day{position:relative;flex:1;min-width:0;border-radius:3px;transition:background .15s}
+.day.wknd{background:oklch(12% 0.02 278)}
+.day:hover{background:oklch(20% 0.03 282)}
+.day.now:after{
+  content:'';position:absolute;left:50%;top:-6px;bottom:-6px;width:1px;
+  background:linear-gradient(180deg,transparent,var(--accent),transparent);opacity:.6;
+}
+
+/* нарада — світиться, а не лежить */
+.m{
+  position:absolute;left:50%;transform:translateX(-50%);border-radius:2.5px;
+  transform-origin:bottom center;
+  transition:opacity .22s, filter .18s, transform .18s;
+  cursor:pointer;
+}
+.m:hover{transform:translateX(-50%) scaleX(2.6);z-index:9;filter:brightness(1.45) saturate(1.25)}
+.m.mute{opacity:.07;filter:saturate(.2)}
+.m.out{opacity:.16;filter:saturate(.4)}
+
+/* виділення діапазону просто по ландшафту — це і є фільтр */
+.brush{
+  position:absolute;top:-4px;bottom:-4px;pointer-events:none;border-radius:6px;
+  background:oklch(70% 0.18 295 / .09);
+  box-shadow:inset 1px 0 0 oklch(75% 0.2 295 / .5), inset -1px 0 0 oklch(75% 0.2 295 / .5);
+}
+.months{display:flex;padding:9px 0 0;pointer-events:none}
+.months span{
+  font-size:9.5px;color:var(--faint);letter-spacing:.16em;text-transform:uppercase;
+  white-space:nowrap;
+}
+
+.peek{
+  position:absolute;pointer-events:none;z-index:20;width:280px;
+  background:oklch(19% 0.03 282 / .96);backdrop-filter:blur(14px);
+  border:1px solid var(--line);border-radius:12px;padding:11px 14px;
+  box-shadow:0 24px 60px -22px oklch(3% 0.02 280);
+  opacity:0;transform:translateY(4px);transition:opacity .13s, transform .13s;
+}
+.peek.on{opacity:1;transform:translateY(0)}
+.peek b{display:block;font-size:13.5px;font-weight:500;line-height:1.3;margin-bottom:5px}
+.peek .row{display:flex;gap:10px;font-size:11px;color:var(--faint);align-items:center}
+.peek .row em{font-style:normal;color:var(--soft)}
+.peek .fire{color:oklch(78% 0.2 40)}
+
+/* ── проєкти ────────────────────────────────────────────────────────── */
+.projects{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px;align-items:center}
+.pj{
+  display:flex;align-items:center;gap:10px;cursor:pointer;
+  padding:8px 14px 8px 12px;border-radius:11px;
+  background:oklch(16% 0.024 278);border:1px solid transparent;
+  transition:.2s;position:relative;overflow:hidden;
+}
+.pj:hover{background:oklch(19% 0.03 280)}
+.pj.on{border-color:currentColor;background:oklch(19% 0.035 280)}
+.pj.on:before{
+  content:'';position:absolute;inset:0;background:currentColor;opacity:.10;
+}
+.pj .nm{font-size:12.5px;color:var(--text);position:relative;font-weight:500}
+.pj .ct{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums;position:relative}
+/* життя проєкту — коли він жив, стисло, у його ж кольорі зі світлом */
+.pulse{display:flex;gap:1.5px;align-items:flex-end;height:15px;position:relative}
+.pulse i{width:2.5px;border-radius:1px;background:currentColor;box-shadow:0 0 5px currentColor}
+
+/* ── провалились у проєкт ───────────────────────────────────────────── */
+.inside{
+  border-radius:16px;padding:20px 22px;margin-bottom:20px;
+  background:linear-gradient(180deg, oklch(17% 0.03 280), oklch(14% 0.026 278));
+  box-shadow:inset 0 1px 0 oklch(30% 0.03 282);
+  display:none;
+}
+.inside.on{display:block}
+.inside h2{
+  font-family:Unbounded,sans-serif;font-weight:300;font-size:22px;
+  letter-spacing:-.02em;margin-bottom:3px;
+}
+.inside .state{
+  font-size:15px;line-height:1.62;color:var(--soft);max-width:70ch;margin:14px 0 18px;
+}
+.inside .state b{color:var(--text);font-weight:500}
+.pending{
+  display:inline-flex;align-items:center;gap:7px;font-size:10.5px;color:var(--faint);
+  border:1px dashed var(--line);border-radius:20px;padding:4px 11px;margin-bottom:14px;
+}
+.cols{display:grid;grid-template-columns:1fr 1fr 1fr;gap:26px}
+.cols h4{
+  font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--faint);
+  margin-bottom:9px;
+}
+.cols ul{list-style:none;display:flex;flex-direction:column;gap:7px}
+.cols li{font-size:13px;line-height:1.45;color:var(--soft);display:flex;gap:8px}
+.cols li .dot{width:5px;height:5px;border-radius:50%;background:currentColor;flex:none;margin-top:6px}
+.cols li .said{font-size:10.5px;color:var(--faint);white-space:nowrap}
+.cols li.done{color:var(--faint);text-decoration:line-through;text-decoration-thickness:1px}
+
+/* ── список ─────────────────────────────────────────────────────────── */
+.listhead{
+  display:flex;align-items:baseline;justify-content:space-between;
+  margin:0 0 8px;padding:0 2px;
+}
+.listhead h3{font-family:Unbounded,sans-serif;font-weight:300;font-size:14px;letter-spacing:-.01em}
+.listhead .n{font-size:11px;color:var(--faint)}
+.clear{
+  border:0;background:oklch(19% 0.03 280);color:var(--soft);cursor:pointer;
+  font-family:Onest,sans-serif;font-size:11px;padding:4px 10px;border-radius:7px;
+}
+.clear:hover{color:var(--text)}
+.list{display:flex;flex-direction:column}
+.item{
+  display:grid;grid-template-columns:96px 1fr auto;gap:18px;align-items:center;
+  padding:11px 14px;border-radius:10px;cursor:pointer;transition:background .14s;
+}
+.item:hover{background:oklch(17% 0.026 278)}
+.item .t{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+.item .ttl{font-size:13.5px;display:flex;align-items:center;gap:11px;min-width:0}
+.item .ttl .k{width:3px;height:16px;border-radius:2px;flex:none;box-shadow:0 0 7px currentColor}
+.item .ttl span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .r{display:flex;gap:11px;align-items:center;font-size:11px;color:var(--faint)}
+.todo{
+  border-radius:20px;padding:2px 9px;font-size:10.5px;font-weight:500;
+  color:oklch(82% 0.19 40);background:oklch(82% 0.19 40 / .13);
+}
+.empty{padding:40px 14px;text-align:center;color:var(--faint);font-size:12.5px}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <div>
+    <h1>Ландшафт</h1>
+    <div class="lede" id="lede">Вісь вниз — година доби. Протягніть по полю, щоб узяти відрізок.</div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <div class="seek" id="seek">
+      <input placeholder="назва, слово, ім'я…">
+      <button class="ico" id="seekBtn" title="Знайти">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      </button>
+    </div>
+    <div class="zoom" id="zoom">
+      <button data-d="14">2 тижні</button>
+      <button data-d="30">місяць</button>
+      <button data-d="90" class="on">квартал</button>
+      <button data-d="182">пів року</button>
+      <button data-d="365">рік</button>
+    </div>
+  </div>
+</div>
+
+<div class="land">
+  <div class="grid" id="grid">
+    <div class="hours" id="hours"></div>
+    <div class="days" id="days"></div>
+  </div>
+  <div class="months" id="months"></div>
+  <div class="peek" id="peek"></div>
+</div>
+
+<div class="projects" id="projects"></div>
+
+<div class="inside" id="inside"></div>
+
+<div class="listhead">
+  <h3 id="listTitle">Наради</h3>
+  <div style="display:flex;gap:10px;align-items:center">
+    <span class="n" id="listCount"></span>
+    <button class="clear" id="clear" style="display:none">зняти відрізок</button>
+  </div>
+</div>
+<div class="list" id="list"></div>
+
+<script>
+/* ── дані ───────────────────────────────────────────────────────────── */
+const P = [
+  {id:'p1', name:'VF-AIA',              c:'var(--p1)', raw:'oklch(83% 0.17 197)'},
+  {id:'p2', name:'Архітектура сховища', c:'var(--p2)', raw:'oklch(72% 0.26 342)'},
+  {id:'p3', name:'Операційка',          c:'var(--p3)', raw:'oklch(89% 0.21 128)'},
+  {id:'p4', name:'Дослідження',         c:'var(--p4)', raw:'oklch(83% 0.17 68)'},
+  {id:'p0', name:'Поза проєктами',      c:'var(--p0)', raw:'oklch(60% 0.075 268)'},
+]
+const NAMES = [
+  'Статуси трьох агентів і блокери','Інтеграція нового апікачника',
+  'Пайплайн у blob storage та парсинг','Рефайнмент рольової моделі',
+  'Статуси задач і третій агент','Обговорення демо та шорта',
+  'Уточнення назви Софіївської','Ретро спринту','Дзвінок із безпекою',
+  'Планування на тиждень','Розбір багів і якість','Демо для замовника',
+]
+const WHO = ['Я','Dima','Olena','Serhii','Tanya','Diatlenko Bohdan']
+const TODAY = new Date('2026-09-07T00:00:00')
+const H0 = 8, H1 = 21
+
+let seed = 20260907
+const rnd = () => (seed = (seed*1103515245 + 12345) & 0x7fffffff) / 0x80000000
+
+const MEETINGS = []
+for(let d = 364; d >= 0; d--){
+  const date = new Date(TODAY); date.setDate(date.getDate() - d)
+  const wknd = date.getDay()===0 || date.getDay()===6
+  // Проєкти живуть шматками, а не рівномірно — інакше ландшафт бреше.
+  const era = d > 250 ? [3,3,4]      : d > 150 ? [1,1,3,4] :
+              d > 60  ? [1,0,0,4]  : [0,0,2,2,4]
+  const n = wknd ? (rnd() < .16 ? 1 : 0) : 1 + Math.floor(rnd()*rnd()*4.4)
+  for(let k = 0; k < n; k++){
+    const hour = H0 + 0.8 + rnd()*11.4
+    const mins = 4 + rnd()*rnd()*85
+    const pid  = era[Math.floor(rnd()*era.length)]
+    const open = rnd() < .3 ? Math.ceil(rnd()*6) : 0
+    MEETINGS.push({
+      date, day:date.toISOString().slice(0,10), hour, mins,
+      p:P.find(x=>x.id===pid), open,
+      title:NAMES[Math.floor(rnd()*NAMES.length)],
+      who:[...new Set(Array.from({length:1+Math.floor(rnd()*rnd()*5)},
+            ()=>WHO[Math.floor(rnd()*WHO.length)]))],
+    })
+  }
+}
+
+/* ── стан ───────────────────────────────────────────────────────────── */
+let span = 90, picked = null, brush = null, hover = null
+
+const grid = document.getElementById('grid')
+const daysEl = document.getElementById('days')
+const peek = document.getElementById('peek')
+
+/* шкала годин + смуга робочого дня — малюється раз */
+const hoursEl = document.getElementById('hours')
+const y = h => ((h-H0)/(H1-H0))*100
+const band = document.createElement('div')
+band.className = 'band'
+band.style.top = y(9.5)+'%'; band.style.height = (y(18.5)-y(9.5))+'%'
+grid.appendChild(band)
+for(let h = H0+1; h <= H1; h += 2){
+  const l = document.createElement('div'); l.className='hline'; l.style.top = y(h)+'%'
+  grid.appendChild(l)
+  const i = document.createElement('i'); i.textContent = String(h).padStart(2,'0')
+  i.style.top = y(h)+'%'; hoursEl.appendChild(i)
+}
+
+/* ── малювання ──────────────────────────────────────────────────────── */
+function visible(){
+  const from = new Date(TODAY); from.setDate(from.getDate() - span + 1)
+  return MEETINGS.filter(m => m.date >= from)
+}
+
+function draw(){
+  const from = new Date(TODAY); from.setDate(from.getDate() - span + 1)
+  daysEl.innerHTML = ''
+  const cols = []
+  for(let i = 0; i < span; i++){
+    const date = new Date(from); date.setDate(date.getDate() + i)
+    const key = date.toISOString().slice(0,10)
+    const el = document.createElement('div')
+    el.className = 'day'
+      + ((date.getDay()===0||date.getDay()===6) ? ' wknd' : '')
+      + (key === TODAY.toISOString().slice(0,10) ? ' now' : '')
+    el.dataset.day = key
+    daysEl.appendChild(el); cols.push({key, el, date})
+  }
+  const thin = span > 140          // за пів року день тонший за волосину
+  MEETINGS.forEach(m => {
+    const col = cols.find(c => c.key === m.day)
+    if(!col) return
+    const b = document.createElement('div')
+    b.className = 'm'
+    b.style.top = y(m.hour)+'%'
+    b.style.height = Math.max((m.mins/60)/(H1-H0)*100, thin ? 1.9 : 1.5)+'%'
+    b.style.background = m.p.raw
+    // Ширина — скільки голосів: сам із собою це скіпка, вп'ятьох — блок.
+    b.style.width = Math.min(30 + m.who.length * 18, 100) + '%'
+    // Світиться тим сильніше, чим більше по ній лишилось незакритого.
+    const fire = m.open ? Math.min(m.open, 6) : 0
+    b.style.boxShadow = fire
+      ? `0 0 ${5 + fire*3}px ${m.p.raw}, 0 0 ${16 + fire*7}px color-mix(in oklch, ${m.p.raw} 70%, transparent)`
+      : `0 0 8px color-mix(in oklch, ${m.p.raw} 60%, transparent)`
+    b.style.opacity = m.open ? 1 : .68
+    b._m = m
+    col.el.appendChild(b)
+  })
+  months(from)
+  showBrush()
+  paint()
+  list()
+}
+
+function months(from){
+  const el = document.getElementById('months'); el.innerHTML = ''
+  const seen = new Set()
+  for(let i = 0; i < span; i++){
+    const d = new Date(from); d.setDate(d.getDate()+i)
+    const s = document.createElement('span')
+    s.style.flex = '1'
+    const key = d.getFullYear()+'-'+d.getMonth()
+    if(!seen.has(key) && (d.getDate() <= 1 || i === 0) && i < span - 6){
+      seen.add(key)
+      s.textContent = d.toLocaleDateString('uk',{month:'short'}).replace('.','')
+    }
+    el.appendChild(s)
+  }
+}
+
+/* приглушення: вибраний проєкт і вибраний відрізок */
+function paint(){
+  document.querySelectorAll('.m').forEach(b => {
+    const m = b._m
+    b.classList.toggle('mute', picked && m.p.id !== picked)
+    b.classList.toggle('out', !!brush && !inBrush(m))
+  })
+  document.querySelectorAll('.pj').forEach(c => c.classList.toggle('on', c.dataset.p === picked))
+  const ins = document.getElementById('inside')
+  ins.classList.toggle('on', !!picked && picked !== 'p0')
+  if(picked && picked !== 'p0') dossier(P.find(p => p.id === picked))
+  document.getElementById('clear').style.display = brush ? '' : 'none'
+}
+
+const inBrush = m => !brush || (m.day >= brush.a && m.day <= brush.b)
+
+const plural = n => {
+  const t = n % 10, h = n % 100
+  if(t === 1 && h !== 11) return 'нарада'
+  if(t >= 2 && t <= 4 && (h < 12 || h > 14)) return 'наради'
+  return 'нарад'
+}
+
+/* ── список ─────────────────────────────────────────────────────────── */
+function list(){
+  const rows = visible()
+    .filter(m => !picked || m.p.id === picked)
+    .filter(inBrush)
+    .sort((a,b) => b.date - a.date || b.hour - a.hour)
+    .slice(0, 14)
+  const el = document.getElementById('list')
+  el.innerHTML = rows.length ? '' : '<div class="empty">Тут порожньо. Відпустіть відрізок або візьміть ширший проміжок.</div>'
+  rows.forEach(m => {
+    const d = document.createElement('div'); d.className = 'item'
+    d.innerHTML = `
+      <span class="t">${m.date.toLocaleDateString('uk',{day:'numeric',month:'short'})} ·
+        ${String(Math.floor(m.hour)).padStart(2,'0')}:${String(Math.floor(m.hour%1*60)).padStart(2,'0')}</span>
+      <span class="ttl"><span class="k" style="background:${m.p.raw};color:${m.p.raw}"></span>
+        <span>${m.title}</span></span>
+      <span class="r">${m.open ? `<span class="todo">${m.open} відкрито</span>` : ''}
+        <span>${Math.round(m.mins)} хв</span><span>${m.who.length} ${m.who.length===1?'голос':'голоси'}</span></span>`
+    el.appendChild(d)
+  })
+  const total = visible().filter(m => (!picked || m.p.id === picked) && inBrush(m)).length
+  document.getElementById('listCount').textContent = total + ' ' + plural(total)
+  document.getElementById('listTitle').textContent =
+    picked ? P.find(p=>p.id===picked).name : brush ? 'Вибраний відрізок' : 'Наради'
+}
+
+/* ── картка проєкту: тут житиме те, що веде LLM ─────────────────────── */
+function dossier(p){
+  const mine = visible().filter(m => m.p.id === p.id)
+  const open = mine.reduce((s,m) => s + m.open, 0)
+  document.getElementById('inside').innerHTML = `
+    <h2 style="color:${p.raw}">${p.name}</h2>
+    <div class="pending">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/></svg>
+      стан проєкту веде модель · оновлено після останньої наради
+    </div>
+    <div class="state">
+      Міграцію узгоджено, чекає на рев'ю безпеки. Доступ лишається через VPN —
+      <b>рішення від 5 вересня</b> скасувало попереднє. Дві речі прострочені, і
+      обидві на боці безпеки. За ${mine.length} ${mine.length===1?'нараду':'нарад'} проєкт
+      набрав <b>${open} незакритих зобовʼязань</b>.
+    </div>
+    <div class="cols" style="color:${p.raw}">
+      <div>
+        <h4>Робота</h4>
+        <ul>
+          <li><span class="dot"></span><span>Узгодити перелік ролей із безпекою <span class="said">· казано тричі</span></span></li>
+          <li><span class="dot"></span><span>Підготувати матеріали <span class="said">· Olena, прострочено</span></span></li>
+          <li class="done"><span class="dot"></span><span>Закрити доступ ззовні</span></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Вирішено</h4>
+        <ul>
+          <li><span class="dot"></span><span>Доступ лишається через VPN <span class="said">· 5 вер</span></span></li>
+          <li class="done"><span class="dot"></span><span>Відкрити назовні <span class="said">· скасовано</span></span></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Досі відкрите</h4>
+        <ul>
+          <li><span class="dot"></span><span>Які IP-діапазони віддаємо <span class="said">· питано ×3</span></span></li>
+        </ul>
+      </div>
+    </div>`
+}
+
+/* ── проєкти ────────────────────────────────────────────────────────── */
+const pjEl = document.getElementById('projects')
+P.forEach(p => {
+  const n = MEETINGS.filter(m => m.p.id === p.id).length
+  const bars = Array.from({length:16}, (_,i) => {
+    const share = MEETINGS.filter(m => m.p.id===p.id &&
+      +m.date > +TODAY - (16-i)*22*864e5 && +m.date <= +TODAY - (15-i)*22*864e5).length
+    return `<i style="height:${Math.min(2 + share*2.4, 15)}px"></i>`
+  }).join('')
+  const c = document.createElement('div')
+  c.className = 'pj'; c.dataset.p = p.id; c.style.color = p.raw
+  c.innerHTML = `<span class="nm">${p.name}</span><span class="ct">${n}</span>
+                 <span class="pulse">${bars}</span>`
+  c.onclick = () => { picked = picked === p.id ? null : p.id; paint(); list() }
+  c.onmouseenter = () => { if(!picked) document.querySelectorAll('.m')
+    .forEach(b => b.classList.toggle('mute', b._m.p.id !== p.id)) }
+  c.onmouseleave = () => { if(!picked) document.querySelectorAll('.m')
+    .forEach(b => b.classList.remove('mute')) }
+  pjEl.appendChild(c)
+})
+
+/* ── зум ────────────────────────────────────────────────────────────── */
+document.getElementById('zoom').onclick = e => {
+  const b = e.target.closest('button'); if(!b) return
+  document.querySelectorAll('.zoom button').forEach(x => x.classList.remove('on'))
+  b.classList.add('on'); span = +b.dataset.d; brush = null; draw()
+}
+
+/* ── відрізок протягуванням: сам ландшафт і є фільтр ────────────────── */
+let dragFrom = null
+grid.onpointerdown = e => {
+  const d = e.target.closest('.day'); if(!d) return
+  dragFrom = d.dataset.day
+  grid.setPointerCapture(e.pointerId)
+}
+grid.onpointermove = e => {
+  if(!dragFrom) return
+  const el = document.elementFromPoint(e.clientX, e.clientY)?.closest('.day')
+  if(!el) return
+  const a = dragFrom < el.dataset.day ? dragFrom : el.dataset.day
+  const b = dragFrom < el.dataset.day ? el.dataset.day : dragFrom
+  brush = {a, b}
+  showBrush(); paint(); list()
+}
+grid.onpointerup = () => {
+  if(dragFrom && !brush){ brush = null; showBrush(); paint(); list() }
+  dragFrom = null
+}
+function showBrush(){
+  document.querySelector('.brush')?.remove()
+  if(!brush) return
+  const a = daysEl.querySelector(`[data-day="${brush.a}"]`)
+  const b = daysEl.querySelector(`[data-day="${brush.b}"]`)
+  if(!a || !b) return
+  const box = grid.getBoundingClientRect()
+  const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect()
+  const s = document.createElement('div'); s.className = 'brush'
+  s.style.left = (ra.left - box.left) + 'px'
+  s.style.width = (rb.right - ra.left) + 'px'
+  grid.appendChild(s)
+}
+document.getElementById('clear').onclick = () => { brush = null; showBrush(); paint(); list() }
+
+/* ── картка при наведенні ───────────────────────────────────────────── */
+document.addEventListener('pointermove', e => {
+  const b = e.target.closest('.m')
+  if(!b){ peek.classList.remove('on'); return }
+  const m = b._m
+  peek.classList.add('on')
+  peek.innerHTML = `<b>${m.title}</b><div class="row">
+    <em>${m.date.toLocaleDateString('uk',{day:'numeric',month:'long'})},
+    ${String(Math.floor(m.hour)).padStart(2,'0')}:${String(Math.floor(m.hour%1*60)).padStart(2,'0')}</em>
+    <span>${Math.round(m.mins)} хв</span>
+    ${m.open ? `<span class="fire">${m.open} відкрито</span>` : ''}
+    </div><div class="row" style="margin-top:4px"><span>${m.who.join(' · ')}</span></div>`
+  const box = document.querySelector('.land').getBoundingClientRect()
+  peek.style.left = Math.max(8, Math.min(e.clientX - box.left + 16, box.width - 292)) + 'px'
+  peek.style.top  = Math.min(e.clientY - box.top + 18, box.height - 90) + 'px'
+})
+
+/* пошук */
+document.getElementById('seekBtn').onclick = () => {
+  const s = document.getElementById('seek')
+  s.classList.toggle('open')
+  if(s.classList.contains('open')) s.querySelector('input').focus()
+}
+
+draw()
+</script>
+</body>
+</html>

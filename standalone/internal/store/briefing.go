@@ -22,6 +22,8 @@ type Briefing struct {
 	Overdue  []Outstanding `json:"overdue"`  // open, and their deadline has passed
 	Nagging  []Nagging     `json:"nagging"`  // asked in more than one meeting and still open
 	Voices   []string      `json:"voices"`   // who was in them
+	Skipped  int           `json:"skipped"`  // recordings the listener threw away
+	Spared   int           `json:"spared"`   // minutes it did not have to transcribe
 }
 
 // Said is one line from a summary, and the meeting it came from.
@@ -109,6 +111,8 @@ func (d *DB) Brief(days int) (*Briefing, error) {
 	}
 
 	b.Minutes = int(seconds / 60)
+	skipped, spared := d.Saved(since)
+	b.Skipped, b.Spared = skipped, int(spared/60)
 	for who := range heard {
 		b.Voices = append(b.Voices, who)
 	}

@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>B — Стіна</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,500;12..96,700&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ═════════════════════════════════════════════════════════════════════════
+   B — СТІНА
+   Час не як пряма, а як ПЛОЩИНА. Місяці висять поруч, як аркуші на стіні;
+   тиждень — рядок, день — клітинка, а всередині клітинки нарада стоїть на
+   своїй годині. Форма місяця видно цілком: важкі вівторки, порожні пʼятниці.
+
+   Палітра тепла й густа — цитрус і коштовне каміння на графіті, без неону.
+   Провалювання в проєкт: стіна ЗʼЇЖДЖАЄ вгору й лишається смужкою, а її
+   місце займає повна картка проєкту.
+   ═════════════════════════════════════════════════════════════════════════ */
+:root{
+  --ink:oklch(13% 0.012 60);
+  --ink2:oklch(16.5% 0.014 60);
+  --card:oklch(19% 0.014 60);
+  --edge:oklch(27% 0.014 60);
+  --text:oklch(96% 0.008 70);
+  --soft:oklch(76% 0.014 65);
+  --faint:oklch(56% 0.016 65);
+  --hot:oklch(72% 0.20 35);      /* мандарин */
+  --gold:oklch(84% 0.16 88);     /* золото */
+  --jade:oklch(76% 0.15 165);    /* нефрит */
+  --lapis:oklch(66% 0.17 262);   /* лазурит */
+  --none:oklch(46% 0.02 65);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:
+    radial-gradient(80% 60% at 15% 0%, oklch(20% 0.03 55) 0%, transparent 60%),
+    var(--ink);
+  color:var(--text);font-family:Manrope,system-ui,sans-serif;font-size:13px;
+  -webkit-font-smoothing:antialiased;padding:22px 26px 50px;
+}
+
+/* ── шапка ──────────────────────────────────────────────────────────── */
+.bar{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:18px}
+h1{font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:26px;letter-spacing:-.035em}
+h1 small{font-weight:300;color:var(--faint);font-size:26px}
+.tools{display:flex;gap:8px;align-items:center}
+.seg{display:flex;background:var(--ink2);border-radius:10px;padding:3px;gap:2px}
+.seg button{
+  border:0;background:none;color:var(--faint);cursor:pointer;padding:6px 12px;
+  border-radius:8px;font-family:Manrope,sans-serif;font-size:11.5px;font-weight:600;
+  transition:.16s;
+}
+.seg button.on{background:var(--text);color:var(--ink)}
+.seg button:not(.on):hover{color:var(--soft)}
+.ico{
+  width:32px;height:32px;border-radius:9px;border:0;background:var(--ink2);
+  color:var(--faint);cursor:pointer;display:grid;place-items:center;transition:.16s;
+}
+.ico:hover{color:var(--text);background:var(--card)}
+
+/* ── СТІНА ──────────────────────────────────────────────────────────── */
+.wall{
+  display:flex;gap:14px;overflow:hidden;
+  transition:max-height .5s cubic-bezier(.16,1,.3,1), opacity .35s, filter .35s;
+  max-height:420px;margin-bottom:18px;
+}
+.wall.shrunk{max-height:74px;filter:saturate(.75)}
+.mon{
+  flex:1;min-width:0;background:var(--ink2);border-radius:14px;padding:12px 13px 14px;
+  box-shadow:inset 0 1px 0 oklch(30% 0.02 60);
+}
+.mon h3{
+  font-family:'Bricolage Grotesque',sans-serif;font-weight:500;font-size:12px;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:9px;
+  display:flex;justify-content:space-between;align-items:baseline;
+}
+.mon h3 b{font-family:Manrope,sans-serif;font-weight:600;font-size:11px;color:var(--soft)}
+.dow{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px}
+.dow span{font-size:9px;color:var(--faint);text-align:center;letter-spacing:.06em}
+.cells{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cell{
+  position:relative;aspect-ratio:1;border-radius:6px;background:oklch(15% 0.012 60);
+  overflow:hidden;cursor:pointer;transition:transform .16s, box-shadow .16s;
+}
+.cell.pad{background:none;pointer-events:none}
+.cell.wknd{background:oklch(13.5% 0.01 60)}
+.cell:hover{transform:scale(1.16);z-index:5;box-shadow:0 8px 22px -8px oklch(5% 0.02 60)}
+.cell.now{box-shadow:inset 0 0 0 1.5px var(--gold)}
+.cell .d{
+  position:absolute;left:4px;top:2px;font-size:8.5px;color:oklch(40% 0.012 60);
+  font-variant-numeric:tabular-nums;pointer-events:none;
+}
+/* нарада стоїть на своїй годині всередині дня */
+.ev{
+  position:absolute;left:2px;right:2px;border-radius:2px;
+  transition:opacity .25s, filter .25s;
+}
+.ev.mute{opacity:.09;filter:saturate(.2)}
+
+/* коли стіна стиснута — місяці стають смужками */
+.wall.shrunk .dow,.wall.shrunk .mon h3 b{display:none}
+.wall.shrunk .cells{grid-template-columns:repeat(31,1fr);gap:1.5px}
+.wall.shrunk .cell{aspect-ratio:auto;height:26px;border-radius:3px}
+.wall.shrunk .cell .d{display:none}
+.wall.shrunk .cell.pad{display:none}
+.wall.shrunk .mon{padding:8px 10px}
+.wall.shrunk .mon h3{margin-bottom:5px;font-size:9.5px}
+
+/* ── проєкти ────────────────────────────────────────────────────────── */
+.rail{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:20px}
+.pj{
+  position:relative;cursor:pointer;border-radius:13px;padding:11px 15px 11px 13px;
+  background:var(--ink2);display:flex;align-items:center;gap:12px;overflow:hidden;
+  transition:.2s;border:1px solid transparent;
+}
+.pj:hover{background:var(--card)}
+.pj.on{border-color:currentColor}
+.pj.on:after{content:'';position:absolute;inset:0;background:currentColor;opacity:.12}
+.pj .sq{
+  width:26px;height:26px;border-radius:8px;background:currentColor;flex:none;
+  position:relative;box-shadow:0 4px 14px -4px currentColor;
+}
+.pj .tx{position:relative;line-height:1.25}
+.pj .nm{font-size:13px;font-weight:600;color:var(--text)}
+.pj .mt{font-size:10.5px;color:var(--faint)}
+
+/* ── КАРТКА ПРОЄКТУ ─────────────────────────────────────────────────── */
+.dash{display:none;animation:rise .45s cubic-bezier(.16,1,.3,1)}
+.dash.on{display:block}
+@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+
+.crown{display:flex;align-items:flex-start;gap:18px;margin-bottom:20px}
+.crown .blob{
+  width:64px;height:64px;border-radius:19px;background:currentColor;flex:none;
+  box-shadow:0 14px 40px -12px currentColor;
+}
+.crown h2{
+  font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:30px;
+  letter-spacing:-.035em;background:none;border:0;color:var(--text);outline:0;
+  padding:2px 6px;margin-left:-6px;border-radius:8px;width:100%;
+}
+.crown h2:hover{background:var(--ink2)}
+.crown h2:focus{background:var(--card)}
+.crown .facts{display:flex;gap:22px;margin-top:7px;color:var(--faint);font-size:12px}
+.crown .facts b{color:var(--text);font-weight:600}
+.crown .acts{display:flex;gap:6px;margin-left:auto;flex:none}
+
+.grid3{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;margin-bottom:16px}
+.box{
+  background:var(--ink2);border-radius:15px;padding:16px 18px;
+  box-shadow:inset 0 1px 0 oklch(28% 0.018 60);
+}
+.box h4{
+  font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);
+  margin-bottom:11px;display:flex;justify-content:space-between;align-items:center;
+}
+.state{font-size:15px;line-height:1.65;color:var(--soft)}
+.state b{color:var(--text);font-weight:600}
+.by{
+  display:inline-flex;gap:6px;align-items:center;font-size:9.5px;color:var(--faint);
+  border:1px dashed var(--edge);border-radius:20px;padding:3px 9px;
+  letter-spacing:.04em;text-transform:none;
+}
+
+/* люди — не список, а «хто скільки важить» */
+.folk{display:flex;flex-direction:column;gap:9px}
+.who{display:grid;grid-template-columns:26px 1fr auto;gap:11px;align-items:center}
+.who .av{
+  width:26px;height:26px;border-radius:50%;display:grid;place-items:center;
+  font-size:10.5px;font-weight:700;color:var(--ink);
+}
+.who .nb{min-width:0}
+.who .nn{font-size:12.5px;font-weight:500;line-height:1.2}
+.who .mm{font-size:10px;color:var(--faint)}
+.who .lv{width:74px;height:5px;border-radius:3px;background:oklch(24% 0.014 60);overflow:hidden}
+.who .lv i{display:block;height:100%;border-radius:3px;background:currentColor}
+.who.gone{opacity:.45}
+
+/* робота */
+.work{display:flex;flex-direction:column;gap:3px}
+.task{
+  display:grid;grid-template-columns:16px 1fr auto;gap:10px;align-items:baseline;
+  padding:7px 9px;border-radius:9px;cursor:pointer;transition:background .14s;
+}
+.task:hover{background:var(--card)}
+.task .bx{
+  width:13px;height:13px;border-radius:4px;border:1.5px solid var(--edge);
+  transform:translateY(2px);
+}
+.task.done .bx{background:currentColor;border-color:currentColor}
+.task.done .tx{color:var(--faint);text-decoration:line-through;text-decoration-thickness:1px}
+.task .tx{font-size:13px;line-height:1.4}
+.task .mt{font-size:10px;color:var(--faint);white-space:nowrap}
+.task .mt.late{color:var(--hot)}
+
+/* налаштування */
+.set{display:flex;flex-direction:column;gap:12px}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.opt .l{font-size:12.5px}
+.opt .h{font-size:10.5px;color:var(--faint);margin-top:2px;max-width:34ch;line-height:1.4}
+.sw{
+  width:34px;height:19px;border-radius:20px;background:var(--edge);position:relative;
+  cursor:pointer;flex:none;transition:background .2s;
+}
+.sw.on{background:currentColor}
+.sw:after{
+  content:'';position:absolute;top:2.5px;left:2.5px;width:14px;height:14px;
+  border-radius:50%;background:var(--text);transition:transform .22s cubic-bezier(.16,1,.3,1);
+}
+.sw.on:after{transform:translateX(15px);background:var(--ink)}
+.swatches{display:flex;gap:6px}
+.swatches i{
+  width:19px;height:19px;border-radius:6px;cursor:pointer;display:block;
+  transition:transform .15s;
+}
+.swatches i:hover{transform:scale(1.22)}
+.swatches i.on{box-shadow:0 0 0 2px var(--ink),0 0 0 3.5px var(--text)}
+.danger{
+  margin-top:4px;border:0;background:none;color:var(--hot);cursor:pointer;
+  font-family:Manrope,sans-serif;font-size:11.5px;font-weight:600;
+  padding:6px 0;text-align:left;
+}
+
+/* список нарад */
+.mlist{display:flex;flex-direction:column}
+.mrow{
+  display:grid;grid-template-columns:92px 1fr auto;gap:16px;align-items:center;
+  padding:10px 12px;border-radius:10px;cursor:pointer;transition:background .14s;
+}
+.mrow:hover{background:var(--ink2)}
+.mrow .dt{font-size:11px;color:var(--faint)}
+.mrow .tt{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mrow .rr{display:flex;gap:10px;font-size:10.5px;color:var(--faint);align-items:center}
+.pill{border-radius:20px;padding:2px 8px;font-size:10px;font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <h1>Стіна <small id="crumb">· усе</small></h1>
+  <div class="tools">
+    <button class="ico" title="Знайти">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    </button>
+    <div class="seg" id="seg">
+      <button data-n="2">2 місяці</button>
+      <button data-n="4" class="on">4 місяці</button>
+      <button data-n="6">пів року</button>
+      <button data-n="12">рік</button>
+    </div>
+  </div>
+</div>
+
+<div class="wall" id="wall"></div>
+
+<div class="rail" id="rail"></div>
+
+<div class="dash" id="dash"></div>
+
+<div id="plain">
+  <div class="box">
+    <h4>Останні наради</h4>
+    <div class="mlist" id="mlist"></div>
+  </div>
+</div>
+
+<script>
+const P=[
+ {id:'p1',n:'VF-AIA',            c:'oklch(66% 0.17 262)'},
+ {id:'p2',n:'Архітектура сховища',c:'oklch(72% 0.20 35)'},
+ {id:'p3',n:'Операційка',        c:'oklch(76% 0.15 165)'},
+ {id:'p4',n:'Дослідження',       c:'oklch(84% 0.16 88)'},
+ {id:'p0',n:'Поза проєктами',    c:'oklch(46% 0.02 65)'},
+]
+const TITLES=['Статуси трьох агентів і блокери','Інтеграція нового апікачника',
+ 'Пайплайн у blob storage та парсинг','Рефайнмент рольової моделі','Ретро спринту',
+ 'Статуси задач і третій агент','Демо для замовника','Дзвінок із безпекою',
+ 'Розбір багів і якість','Планування на тиждень']
+const FOLK=['Olena','Dima','Serhii','Tanya','Diatlenko Bohdan','Maryna']
+const TODAY=new Date('2026-09-07T00:00:00')
+let seed=424242; const rnd=()=>(seed=(seed*1103515245+12345)&0x7fffffff)/0x80000000
+
+const MS=[]
+for(let d=364;d>=0;d--){
+  const date=new Date(TODAY); date.setDate(date.getDate()-d)
+  const wk=date.getDay()===0||date.getDay()===6
+  const era = d>250?[3,3,4]: d>150?[1,1,3,4]:
+              d>60 ?[1,0,0,4]:[0,0,2,2,4]
+  const n = wk ? (rnd()<.15?1:0) : 1+Math.floor(rnd()*rnd()*4)
+  for(let k=0;k<n;k++){
+    const hour=9+rnd()*10, mins=5+rnd()*rnd()*80
+    MS.push({date,day:date.toISOString().slice(0,10),hour,mins,
+      p:P[era[Math.floor(rnd()*era.length)]],
+      open:rnd()<.28?Math.ceil(rnd()*5):0,
+      t:TITLES[Math.floor(rnd()*TITLES.length)],
+      who:[...new Set(Array.from({length:1+Math.floor(rnd()*rnd()*5)},
+        ()=>FOLK[Math.floor(rnd()*FOLK.length)]))]})
+  }
+}
+
+let months=4, picked=null
+const wall=document.getElementById('wall')
+
+function drawWall(){
+  wall.innerHTML=''
+  const cut=new Date(TODAY); cut.setMonth(cut.getMonth()-months+1); cut.setDate(1)
+  for(let i=0;i<months;i++){
+    const m=new Date(cut); m.setMonth(m.getMonth()+i)
+    const first=new Date(m.getFullYear(),m.getMonth(),1)
+    const last=new Date(m.getFullYear(),m.getMonth()+1,0).getDate()
+    const lead=(first.getDay()+6)%7
+    const mine=MS.filter(x=>x.date.getMonth()===m.getMonth()&&x.date.getFullYear()===m.getFullYear())
+    const hrs=Math.round(mine.reduce((s,x)=>s+x.mins,0)/60)
+    const el=document.createElement('div'); el.className='mon'
+    el.innerHTML=`<h3>${m.toLocaleDateString('uk',{month:'long'})}<b>${hrs} год</b></h3>
+      <div class="dow"><span>пн</span><span>вт</span><span>ср</span><span>чт</span>
+      <span>пт</span><span>сб</span><span>нд</span></div><div class="cells"></div>`
+    const cells=el.querySelector('.cells')
+    for(let z=0;z<lead;z++){const p=document.createElement('div');p.className='cell pad';cells.appendChild(p)}
+    for(let d=1;d<=last;d++){
+      const date=new Date(m.getFullYear(),m.getMonth(),d)
+      const key=date.toISOString().slice(0,10)
+      const c=document.createElement('div')
+      c.className='cell'+((date.getDay()===0||date.getDay()===6)?' wknd':'')
+        +(key===TODAY.toISOString().slice(0,10)?' now':'')
+      c.innerHTML=`<span class="d">${d}</span>`
+      MS.filter(x=>x.day===key).forEach(x=>{
+        const e=document.createElement('div'); e.className='ev'; e._p=x.p.id
+        e.style.top=((x.hour-8)/12*100)+'%'
+        e.style.height=Math.max(x.mins/60/12*100,7)+'%'
+        e.style.background=x.p.c
+        e.style.boxShadow=x.open?`0 0 ${3+x.open*2}px ${x.p.c}`:'none'
+        e.style.opacity=x.open?1:.72
+        c.appendChild(e)
+      })
+      cells.appendChild(c)
+    }
+    wall.appendChild(el)
+  }
+  mute()
+}
+
+function mute(){
+  document.querySelectorAll('.ev').forEach(e=>e.classList.toggle('mute',picked&&e._p!==picked))
+}
+
+/* ── проєкти ──────────────────────────────────────────────────────── */
+const rail=document.getElementById('rail')
+P.forEach(p=>{
+  const mine=MS.filter(m=>m.p.id===p.id)
+  const hrs=Math.round(mine.reduce((s,m)=>s+m.mins,0)/60)
+  const c=document.createElement('div'); c.className='pj'; c.style.color=p.c; c.dataset.p=p.id
+  c.innerHTML=`<span class="sq"></span><span class="tx">
+     <span class="nm">${p.n}</span><br><span class="mt">${mine.length} нарад · ${hrs} год</span></span>`
+  c.onclick=()=>open_(p.id)
+  rail.appendChild(c)
+})
+
+function open_(id){
+  picked = picked===id ? null : id
+  document.querySelectorAll('.pj').forEach(c=>c.classList.toggle('on',c.dataset.p===picked))
+  wall.classList.toggle('shrunk',!!picked)
+  document.getElementById('dash').classList.toggle('on',!!picked)
+  document.getElementById('plain').style.display=picked?'none':''
+  document.getElementById('crumb').textContent = picked ? '· '+P.find(p=>p.id===picked).n : '· усе'
+  mute()
+  if(picked) dash(P.find(p=>p.id===picked))
+}
+
+/* ── картка проєкту ───────────────────────────────────────────────── */
+function dash(p){
+  const mine=MS.filter(m=>m.p.id===p.id)
+  const hrs=(mine.reduce((s,m)=>s+m.mins,0)/60)
+  const open=mine.reduce((s,m)=>s+m.open,0)
+  const first=mine[0].date, last=mine[mine.length-1].date
+
+  // хто взагалі колись був — і скільки з ним прожито
+  const tally={}
+  mine.forEach(m=>m.who.forEach(w=>tally[w]=(tally[w]||0)+m.mins))
+  const folk=Object.entries(tally).sort((a,b)=>b[1]-a[1])
+  const top=folk[0]?.[1]||1
+  const seen=new Set(mine.slice(-8).flatMap(m=>m.who))
+
+  document.getElementById('dash').innerHTML=`
+  <div class="crown" style="color:${p.c}">
+    <span class="blob"></span>
+    <div style="flex:1;min-width:0">
+      <input class="h2" value="${p.n}" spellcheck="false"
+        style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:30px;
+        letter-spacing:-.035em;background:none;border:0;color:var(--text);outline:0;
+        padding:2px 6px;margin-left:-6px;border-radius:8px;width:100%">
+      <div class="facts">
+        <span><b>${mine.length}</b> нарад</span>
+        <span><b>${hrs.toFixed(1)}</b> годин</span>
+        <span><b>${folk.length}</b> людей</span>
+        <span><b style="color:${open?'var(--hot)':'var(--text)'}">${open}</b> незакрито</span>
+        <span>з ${first.toLocaleDateString('uk',{day:'numeric',month:'long'})}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <div class="box">
+      <h4>Де воно стоїть <span class="by">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M12 2v3M12 19v3M5 12H2M22 12h-3M4.9 4.9l2.1 2.1M16.9 16.9l2.2 2.2M4.9 19.1l2.1-2.1M16.9 7.1l2.2-2.2"/></svg>
+        веде модель</span></h4>
+      <div class="state">
+        Міграцію узгоджено, чекає на ревʼю безпеки. Доступ лишається через VPN —
+        <b>рішення від 5 вересня</b> скасувало попереднє. Дві речі прострочені,
+        обидві на боці безпеки. Востаннє щось рухалось
+        <b>${last.toLocaleDateString('uk',{day:'numeric',month:'long'})}</b>.
+      </div>
+      <h4 style="margin-top:18px">Робота</h4>
+      <div class="work" style="color:${p.c}">
+        <div class="task"><span class="bx"></span><span class="tx">Узгодити перелік ролей із безпекою</span><span class="mt">казано ×3</span></div>
+        <div class="task"><span class="bx"></span><span class="tx">Підготувати матеріали для замовника</span><span class="mt late">Olena · −4 дн</span></div>
+        <div class="task"><span class="bx"></span><span class="tx">Віддати IP-діапазони</span><span class="mt">Serhii</span></div>
+        <div class="task done"><span class="bx"></span><span class="tx">Закрити доступ ззовні</span><span class="mt">29 сер</span></div>
+      </div>
+      <h4 style="margin-top:18px">Вирішено</h4>
+      <div class="work" style="color:${p.c}">
+        <div class="task"><span class="bx" style="border-radius:50%"></span><span class="tx">Доступ лишається через VPN</span><span class="mt">5 вер</span></div>
+        <div class="task done"><span class="bx" style="border-radius:50%"></span><span class="tx">Відкрити назовні</span><span class="mt">скасовано</span></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="box" style="color:${p.c}">
+        <h4>Хто тут був <span style="text-transform:none;letter-spacing:0">${folk.length}</span></h4>
+        <div class="folk">
+          ${folk.map(([w,mins])=>`
+            <div class="who${seen.has(w)?'':' gone'}">
+              <span class="av" style="background:${p.c}">${w[0]}</span>
+              <span class="nb"><span class="nn">${w}</span>
+                <span class="mm">${(mins/60).toFixed(1)} год${seen.has(w)?'':' · давно не чути'}</span></span>
+              <span class="lv"><i style="width:${Math.round(mins/top*100)}%"></i></span>
+            </div>`).join('')}
+        </div>
+      </div>
+
+      <div class="box" style="color:${p.c}">
+        <h4>Проєкт</h4>
+        <div class="set">
+          <div class="opt"><div><div class="l">Колір</div></div>
+            <span class="swatches">${P.filter(x=>x.id!=='p0').map(x=>
+              `<i style="background:${x.c}" class="${x.c===p.c?'on':''}"></i>`).join('')}
+              <i style="background:oklch(72% 0.18 320)"></i><i style="background:oklch(80% 0.17 130)"></i></span>
+          </div>
+          <div class="opt"><div><div class="l">Саммарі для кожної наради</div>
+            <div class="h">Інакше — лише коли натиснете вручну</div></div>
+            <span class="sw on"></span></div>
+          <div class="opt"><div><div class="l">Тримати аудіо</div>
+            <div class="h">Після 90 днів лишається тільки текст</div></div>
+            <span class="sw"></span></div>
+          <div class="opt"><div><div class="l">Стежити за дублікатами задач</div>
+            <div class="h">Те саме, сказане двічі, не стає двома пунктами</div></div>
+            <span class="sw on"></span></div>
+          <button class="danger">Розформувати проєкт — наради лишаться</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box">
+    <h4>Наради проєкту <span style="text-transform:none;letter-spacing:0">${mine.length}</span></h4>
+    <div class="mlist">${mine.slice(-9).reverse().map(m=>`
+      <div class="mrow">
+        <span class="dt">${m.date.toLocaleDateString('uk',{day:'numeric',month:'short'})} ·
+          ${String(Math.floor(m.hour)).padStart(2,'0')}:${String(Math.floor(m.hour%1*60)).padStart(2,'0')}</span>
+        <span class="tt">${m.t}</span>
+        <span class="rr">${m.open?`<span class="pill" style="background:${p.c};color:var(--ink)">${m.open} відкрито</span>`:''}
+          <span>${Math.round(m.mins)} хв</span><span>${m.who.join(' · ')}</span></span>
+      </div>`).join('')}</div>
+  </div>`
+
+  document.querySelectorAll('.sw').forEach(s=>s.onclick=()=>s.classList.toggle('on'))
+  document.querySelectorAll('.swatches i').forEach(i=>i.onclick=e=>{
+    document.querySelectorAll('.swatches i').forEach(x=>x.classList.remove('on'))
+    e.target.classList.add('on')
+    const col=e.target.style.background
+    document.querySelector('.crown').style.color=col
+    document.querySelectorAll('.box[style]').forEach(b=>b.style.color=col)
+  })
+  document.querySelectorAll('.task').forEach(t=>t.onclick=()=>t.classList.toggle('done'))
+}
+
+/* ── список без проєкту ───────────────────────────────────────────── */
+function plain(){
+  document.getElementById('mlist').innerHTML=MS.slice(-12).reverse().map(m=>`
+    <div class="mrow">
+      <span class="dt">${m.date.toLocaleDateString('uk',{day:'numeric',month:'short'})} ·
+        ${String(Math.floor(m.hour)).padStart(2,'0')}:${String(Math.floor(m.hour%1*60)).padStart(2,'0')}</span>
+      <span class="tt">${m.t}</span>
+      <span class="rr">${m.open?`<span class="pill" style="background:${m.p.c};color:var(--ink)">${m.open} відкрито</span>`:''}
+        <span>${Math.round(m.mins)} хв</span><span>${m.who.length} у кімнаті</span></span>
+    </div>`).join('')
+}
+
+document.getElementById('seg').onclick=e=>{
+  const b=e.target.closest('button'); if(!b) return
+  document.querySelectorAll('.seg button').forEach(x=>x.classList.remove('on'))
+  b.classList.add('on'); months=+b.dataset.n; drawWall()
+}
+
+drawWall(); plain()
+</script>
+</body>
+</html>

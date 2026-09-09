@@ -1,0 +1,230 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Кольори людей і проєктів — три варіанти</title>
+<style>
+:root{
+  --ink:oklch(13% .008 268); --surface:oklch(17.5% .010 268); --raised:oklch(22.5% .012 268);
+  --line:oklch(29% .014 268); --text:oklch(97% .003 268); --soft:oklch(75% .012 268);
+  --faint:oklch(56% .015 268);
+  --accent:oklch(69% .22 295); --warn:oklch(70% .220 30); --good:oklch(78% .190 150);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ink);color:var(--text);
+  font:13px/1.55 Geologica,Inter,-apple-system,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:40px 28px 90px}
+h1{font-size:23px;font-weight:600;letter-spacing:-.02em;margin:0 0 6px}
+h2{font-size:15px;font-weight:600;margin:0 0 3px}
+.lede{color:var(--soft);max-width:70ch;margin:0 0 34px}
+.rule{border:0;border-top:1px solid var(--line);margin:38px 0 30px}
+.tag{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.note{color:var(--faint);font-size:11.5px;max-width:62ch;margin:5px 0 0}
+
+/* ── the fault, stated in numbers ─────────────────────────────── */
+.clash{display:grid;grid-template-columns:repeat(auto-fit,minmax(255px,1fr));gap:11px;margin-top:16px}
+.clash div{background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:13px 15px}
+.pair{display:flex;align-items:center;gap:9px;margin:9px 0 0}
+.chip{width:15px;height:15px;border-radius:5px;flex:none}
+.eq{color:var(--faint);font-size:11px}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:var(--soft)}
+
+/* ── an option ────────────────────────────────────────────────── */
+.opt{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:20px 22px 24px;margin-bottom:20px}
+.opt.pick{border-color:color-mix(in oklch,var(--accent) 60%,var(--line))}
+.head{display:flex;align-items:baseline;gap:11px;margin-bottom:3px}
+.swatches{display:flex;gap:6px;margin:15px 0 20px;flex-wrap:wrap}
+.sw{width:31px;height:31px;border-radius:8px;border:1px solid #ffffff14}
+.demo{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:22px;align-items:start}
+@media(max-width:820px){.demo{grid-template-columns:minmax(0,1fr)}}
+
+/* the speaker ribbon, the thing that is a barcode today */
+.ribbon{display:flex;height:7px;border-radius:3px;overflow:hidden;margin:0 0 14px}
+.ribbon i{display:block;height:100%}
+/* a transcript line */
+.turn{display:flex;gap:10px;padding:3.5px 0;font-size:12.5px;align-items:baseline}
+.turn .at{color:var(--faint);font-size:10px;width:30px;flex:none;text-align:right;font-variant-numeric:tabular-nums}
+.turn b{font-weight:500;font-size:11.5px}
+.dot{width:5px;height:5px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
+/* the people panel */
+.who{padding:8px 0;border-bottom:1px solid color-mix(in oklch,var(--line) 60%,transparent)}
+.who .top{display:flex;justify-content:space-between;align-items:baseline;font-size:11.5px}
+.bar{height:3px;border-radius:2px;margin-top:5px}
+.avatar{width:21px;height:21px;border-radius:6px;display:inline-grid;place-items:center;
+  font-size:10px;font-weight:600;color:var(--ink);margin-right:7px;vertical-align:-5px}
+/* the dock */
+.dock{display:flex;gap:6px;align-items:center;background:var(--ink);border:1px solid var(--line);
+  border-radius:13px;padding:6px 8px;width:max-content;margin-top:16px}
+.tile{width:33px;height:34px;border-radius:8px;display:grid;place-items:center;
+  font-size:13px;font-weight:600;color:var(--ink);border:1px solid #ffffff14}
+/* statuses, to prove identity never borrows their colour */
+.states{display:flex;gap:14px;margin-top:16px;font-size:11px;flex-wrap:wrap}
+.states span{display:flex;align-items:center;gap:6px;color:var(--soft)}
+
+.verdict{background:var(--raised);border:1px solid var(--line);border-radius:11px;padding:13px 16px;margin-top:18px}
+.verdict p{margin:0;font-size:12px;color:var(--soft)}
+.verdict b{color:var(--text);font-weight:500}
+</style>
+
+<div class="wrap">
+<h1>Кольори людей і проєктів</h1>
+<p class="lede">Три варіанти. Нічого з цього ще не в апці — скажи, який брати, або що поміняти.
+Усі відтінки нижче — з тих 30, які ти обрав; жоден не з відкинутих родин (рожеві&nbsp;320–350,
+бірюза&nbsp;185–215, лимон&nbsp;90).</p>
+
+<span class="tag">Спершу — чому зараз погано, у числах</span>
+<div class="clash">
+  <div>
+    <h2>Ідентичність позичила семантику</h2>
+    <p class="note">Колесо людей містить рівно ті відтінки, якими апп уже позначає стан.</p>
+    <div class="pair"><span class="chip" style="background:oklch(78% .19 30)"></span>
+      <span>Me</span><span class="eq">— це той самий</span>
+      <span class="chip" style="background:var(--warn)"></span><span class="eq">прострочено</span></div>
+    <div class="pair"><span class="chip" style="background:oklch(78% .19 150)"></span>
+      <span>Olena</span><span class="eq">— це той самий</span>
+      <span class="chip" style="background:var(--good)"></span><span class="eq">зроблено</span></div>
+    <p class="note"><code>warn = 30</code> · <code>good = 150</code> · у колесі є і 30, і 150.</p>
+  </div>
+  <div>
+    <h2>Половина колеса — зелена</h2>
+    <p class="note">110, 130, 150, 170 з дев’яти. Сусіди по хешу виглядають однаково.</p>
+    <div class="pair">
+      <span class="chip" style="background:oklch(78% .19 150)"></span><span>Olena</span>
+      <span class="eq">і</span>
+      <span class="chip" style="background:oklch(78% .19 170)"></span><span>SPEAKER_00</span>
+    </div>
+    <div class="pair">
+      <span class="chip" style="background:oklch(78% .19 130)"></span><span>Diatlenko&nbsp;Bohdan</span>
+      <span class="eq">і</span>
+      <span class="chip" style="background:oklch(78% .19 130)"></span><span>Олена</span>
+      <span class="eq">— точний збіг</span>
+    </div>
+  </div>
+  <div>
+    <h2>Хеш не вміє не збігатися</h2>
+    <p class="note">Колір рахується з імені, тож два імені можуть впасти в один відтінок
+      і залишитись там назавжди. Жодна палітра цього не лікує.</p>
+    <p class="note"><b style="color:var(--text)">Тому в усіх трьох варіантах нижче колір
+      <u>видається при першій зустрічі й запам’ятовується</u></b>, а не рахується з імені.
+      Стабільно назавжди, і збігу не буде, поки є вільні місця.</p>
+  </div>
+</div>
+
+<hr class="rule">
+<span class="tag">Варіант A — два ряди одного кола</span>
+
+<div class="opt" id="A"></div>
+
+<span class="tag">Варіант B — люди холодні, проєкти теплі</span>
+<div class="opt" id="B"></div>
+
+<span class="tag">Варіант C — колір лише там, де він щось означає</span>
+<div class="opt" id="C"></div>
+
+</div>
+
+<script>
+const PEOPLE = ["Diatlenko Bohdan","Me","Dima","Olena","SPEAKER_03"];
+const SHARE  = [44, 22, 22, 8, 4];
+const TURNS = [
+  [30,"Olena","вкідували середину, а за жаль значить в цьому казному реві"],
+  [111,null,"тобто їх все одно більше, але вони там практично повністю 184 людини"],
+  [119,null,"що працюють доспосередньо на водофонду"],
+  [143,"SPEAKER_03","вроді вроді вродово риве в кубать"],
+  [166,"Dima","і от тут треба уточнити, хто саме це підписує"],
+  [190,"Diatlenko Bohdan","я подивлюся приклади на DEV і скажу, які потрібні"],
+];
+const PROJECTS = ["VF-AIA","Крадобанк","Рольова модель"];
+
+/* Every option is the same three contexts, so they can be compared honestly:
+   the speaker ribbon, four transcript lines, and the people panel. */
+function render(el, {title, why, palette, people, projects, ribbon, name, avatar}) {
+  const seg = [];
+  // A ribbon with the real shape of a five-person meeting: many short turns.
+  let seed = 7;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  for (let i = 0; i < 46; i++) {
+    const w = 1 + rnd() * 3.2;
+    seg.push(`<i style="flex:${w};background:${ribbon(Math.floor(rnd() * 5))}"></i>`);
+  }
+  el.innerHTML = `
+    <div class="head"><h2>${title}</h2></div>
+    <p class="note">${why}</p>
+    <div class="swatches">${palette.map(c => `<span class="sw" style="background:${c}"></span>`).join("")}</div>
+    <div class="demo">
+      <div>
+        <div class="ribbon">${seg.join("")}</div>
+        ${TURNS.map(([t, who, text]) => `
+          <div class="turn">
+            <span class="at">${Math.floor(t/60)}:${String(t%60).padStart(2,"0")}</span>
+            <span>${who ? `<b style="color:${name(PEOPLE.indexOf(who))}">
+              <span class="dot" style="background:${people(PEOPLE.indexOf(who))}"></span>${who}</b> ` : ""}${text}</span>
+          </div>`).join("")}
+        <div class="dock">
+          <span class="tile" style="background:var(--raised);color:var(--soft)">≡</span>
+          ${PROJECTS.map((p,i) => `<span class="tile" style="background:${projects(i)}">${p[0]}</span>`).join("")}
+        </div>
+        <div class="states">
+          <span><i class="chip" style="width:9px;height:9px;border-radius:50%;background:var(--warn)"></i>прострочено</span>
+          <span><i class="chip" style="width:9px;height:9px;border-radius:50%;background:var(--good)"></i>зроблено</span>
+          <span><i class="chip" style="width:9px;height:9px;border-radius:50%;background:var(--accent)"></i>активне</span>
+        </div>
+      </div>
+      <div>
+        ${PEOPLE.map((p, i) => `
+          <div class="who">
+            <div class="top">
+              <span>${avatar(i, p)}${p}</span>
+              <span style="color:var(--faint);font-variant-numeric:tabular-nums">${SHARE[i]}%</span>
+            </div>
+            <div class="bar" style="width:${SHARE[i]/44*100}%;background:${people(i)}"></div>
+          </div>`).join("")}
+      </div>
+    </div>`;
+}
+
+const L = (l, c, h) => `oklch(${l}% ${c} ${h})`;
+const plain = (i, p) => `<span class="avatar" style="background:var(--raised);color:var(--soft)">${p[0]}</span>`;
+
+/* A — five safe hues at two lightnesses. Ten slots, and neighbours differ in
+   hue *and* in weight, so two people never read as one. */
+const A = [L(80,.16,60), L(62,.19,245), L(80,.13,170), L(58,.20,275), L(84,.14,110),
+           L(64,.17,60), L(80,.14,245), L(58,.16,170), L(82,.15,275), L(66,.13,110)];
+render(document.getElementById("A"), {
+  title: "Два ряди одного кола",
+  why: "П’ять безпечних відтінків × дві світлості = десять місць. Жоден не займає 30, 150 чи 295, " +
+       "тож ідентичність ніколи не виглядає як стан. Сусідні місця різняться і тоном, і вагою.",
+  palette: A,
+  people: i => A[i], projects: i => A[(i + 3) % A.length], ribbon: i => A[i],
+  name: i => A[i], avatar: (i, p) => `<span class="avatar" style="background:${A[i]}">${p[0]}</span>`,
+});
+
+/* B — two wheels that cannot be confused: a person is never the colour of a
+   project, because people are cool and projects are warm. */
+const Bp = [L(78,.15,245), L(72,.13,260), L(84,.12,230), L(66,.17,275), L(88,.09,245),
+            L(70,.15,230), L(80,.11,275), L(62,.16,260)];
+const Bg = [L(80,.16,60), L(78,.19,75), L(84,.13,110), L(76,.15,170), L(70,.18,45)];
+render(document.getElementById("B"), {
+  title: "Люди холодні, проєкти теплі",
+  why: "Дві окремі шкали. Синій завжди означає людину, теплий — проєкт, тож плитка в доку " +
+       "й імʼя в розшифровці не сплутати навіть краєм ока. Теплий бік не заходить на 30.",
+  palette: [...Bp.slice(0, 5), ...Bg],
+  people: i => Bp[i], projects: i => Bg[i], ribbon: i => Bp[i],
+  name: i => Bp[i], avatar: (i, p) => `<span class="avatar" style="background:${Bp[i]}">${p[0]}</span>`,
+});
+
+/* C — the non-obvious one. Colour is spent on projects only; people are told
+   apart by an initial in a neutral chip, and only the person you are following
+   lights up. Five hues competing in one ribbon is what made it a barcode. */
+const grey = [L(72,.02,268), L(60,.02,268), L(84,.02,268), L(48,.02,268), L(92,.02,268)];
+render(document.getElementById("C"), {
+  title: "Колір лише там, де він щось означає",
+  why: "Люди — не колір, а ініціал у нейтральній плашці й своя світлість у стрічці; кольором " +
+       "світиться тільки той, за ким ти зараз стежиш. Колір цілком віддано проєктам. " +
+       "П’ять відтінків, що змагаються в одній стрічці, — це і є той штрихкод.",
+  palette: [...grey, ...Bg],
+  people: i => (i === 3 ? "var(--accent)" : grey[i]),
+  projects: i => Bg[i],
+  ribbon: i => (i === 3 ? "var(--accent)" : grey[i]),
+  name: i => (i === 3 ? "var(--accent)" : "var(--text)"),
+  avatar: plain,
+});
+</script>

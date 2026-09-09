@@ -4,8 +4,32 @@
     {
       "name": "meeting-transcriber-ui",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "frontend", "--", "--port", "5177", "--strictPort"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "frontend",
+        "--",
+        "--port",
+        "5177",
+        "--strictPort"
+      ],
       "port": 5177
+    },
+    {
+      "name": "meeting-transcriber-design",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "vite",
+        "--port",
+        "5178",
+        "--strictPort"
+      ],
+      "cwd": "frontend",
+      "env": {
+        "VITE_DESIGN": "1"
+      },
+      "port": 5178
     }
   ]
 }

@@ -244,3 +244,23 @@ func TestAForcedRecordingStillCannotRunForEver(t *testing.T) {
 		t.Fatalf("transitions %v; the hard cap must still apply", got)
 	}
 }
+
+// The button in the corner must stop whatever is being recorded, however it
+// began. It used to stop only recordings that had been forced on, so for every
+// meeting the app started by itself — which is almost all of them — pressing
+// Stop did nothing at all.
+func TestStopEndsARecordingTheAppStartedByItself(t *testing.T) {
+	d := NewDetector()
+	if got := feed(d, StartSpeech+time.Second, true, true); len(got) == 0 || got[0] != Started {
+		t.Fatalf("the meeting did not start on its own: %v", got)
+	}
+
+	d.Force(false)
+	got := feed(d, 200*time.Millisecond, true, true)
+	if len(got) == 0 || got[len(got)-1] != Ended {
+		t.Fatalf("Stop did not end it: %v", got)
+	}
+	if on, _ := d.Recording(); on {
+		t.Fatal("still recording after Stop")
+	}
+}

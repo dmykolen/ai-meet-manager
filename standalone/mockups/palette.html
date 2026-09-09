@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Палітра — оберіть свої кольори</title>
+<style>
+:root{
+  --bg:#191a1c; --panel:#1c1d20; --raised:#212225; --line:#303135;
+  --text:#dedfe2; --muted:#909298; --dim:#676a71;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--text);
+  font:13px/1.5 -apple-system,system-ui,sans-serif;
+  padding:22px 26px 140px;-webkit-font-smoothing:antialiased;
+}
+h1{font-size:19px;font-weight:600;letter-spacing:-.03em}
+.lede{color:var(--muted);font-size:12.5px;margin:6px 0 4px;max-width:78ch;line-height:1.7}
+.lede b{color:var(--text);font-weight:500}
+kbd{background:var(--raised);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font:11px ui-monospace,monospace}
+
+h2{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:26px 0 9px}
+
+/* ── сітка ────────────────────────────────────────────────────────── */
+.grid{display:grid;grid-template-columns:64px repeat(var(--steps),minmax(0,1fr));gap:3px;align-items:center}
+.hue{font-size:10px;color:var(--dim);text-align:right;padding-right:6px;white-space:nowrap}
+.sw{
+  height:26px;border-radius:5px;border:0;cursor:pointer;position:relative;
+  transition:transform .12s, box-shadow .12s;
+}
+.sw:hover{transform:scale(1.18);z-index:3;box-shadow:0 6px 16px #0006}
+.sw.yes{box-shadow:0 0 0 2px var(--bg),0 0 0 4px #fff}
+.sw.no{opacity:.2}
+.sw.no:after{
+  content:'';position:absolute;inset:38% 12%;background:#fff;height:2px;border-radius:2px;
+  transform:rotate(-45deg);
+}
+
+/* ── у контексті ──────────────────────────────────────────────────── */
+.stage{
+  position:sticky;top:0;z-index:9;background:linear-gradient(180deg,var(--bg) 72%,transparent);
+  padding:10px 0 16px;margin-bottom:2px;
+}
+.demo{
+  display:flex;gap:22px;align-items:center;flex-wrap:wrap;
+  background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 18px;
+}
+.demo .tile{width:38px;height:39px;border-radius:9px;display:grid;place-items:center;
+  font-size:15px;font-weight:600;color:#10121a;border:1px solid #ffffff14}
+.demo .pill{border-radius:20px;padding:3px 10px;font-size:10.5px;font-weight:600}
+.demo .name{font-size:13px;font-weight:500}
+.demo .bar{width:120px;height:6px;border-radius:4px;background:var(--raised);overflow:hidden}
+.demo .bar i{display:block;height:100%;width:62%;border-radius:4px}
+.demo .track{display:flex;gap:1px;width:150px;height:14px}
+.demo .track i{flex:1;border-radius:1px}
+.demo .glow{width:26px;height:26px;border-radius:8px}
+.demo .txt{font-size:12.5px}
+.demo small{display:block;color:var(--dim);font-size:9.5px;margin-top:4px;letter-spacing:.08em;text-transform:uppercase}
+
+/* ── кошик ────────────────────────────────────────────────────────── */
+.tray{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;
+  background:#101114f2;border-top:1px solid var(--line);backdrop-filter:blur(16px);
+  padding:11px 26px;display:flex;align-items:center;gap:14px;
+}
+.chips{display:flex;gap:5px;flex-wrap:wrap;flex:1;min-width:0;max-height:60px;overflow:auto}
+.chip{width:22px;height:22px;border-radius:6px;cursor:pointer;border:1px solid #ffffff1a;position:relative}
+.chip.no{opacity:.35}
+.chip.no:after{content:'';position:absolute;inset:45% 15%;background:#fff;height:2px;transform:rotate(-45deg)}
+.count{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.count b{color:var(--text)}
+button.act{
+  border:1px solid var(--line);background:var(--raised);color:var(--text);
+  border-radius:8px;padding:8px 14px;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap;
+}
+button.act:hover{background:#2a2b2f}
+button.act.go{background:#dedfe2;color:#17181a;border-color:#dedfe2;font-weight:600}
+button.act.go:hover{background:#fff}
+</style>
+</head>
+<body>
+
+<h1>Палітра</h1>
+<p class="lede">
+  Клік — <b>подобається</b>. <kbd>Alt</kbd>+клік або права кнопка — <b>не подобається</b>
+  (це не менш корисно). Обране одразу видно вгорі так, як воно виглядатиме в апці:
+  на плитці дока, на пігулці проєкту, іменем людини, смужкою і доріжкою голосів.
+  Коли наберете достатньо — <b>Скопіювати</b> і надішліть мені.
+</p>
+
+<div class="stage">
+  <div class="demo" id="demo"></div>
+</div>
+
+<h2>Кольорові</h2>
+<div class="grid" id="hues"></div>
+
+<h2>Приглушені</h2>
+<div class="grid" id="soft"></div>
+
+<h2>Нейтральні й майже нейтральні</h2>
+<div class="grid" id="greys"></div>
+
+<div id="out" hidden style="position:fixed;inset:auto 26px 74px 26px;z-index:25;
+     background:#101114;border:1px solid var(--line);border-radius:12px;padding:12px 14px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+    <b style="font-size:12px">Виділено — натисніть ⌘C</b>
+    <button class="act" id="hide">Закрити</button>
+  </div>
+  <textarea id="outText" readonly
+    style="width:100%;height:150px;background:#17181b;color:var(--text);border:1px solid var(--line);
+           border-radius:8px;padding:9px 11px;font:11px/1.6 ui-monospace,monospace;resize:vertical"></textarea>
+</div>
+
+<div class="tray">
+  <span class="count"><b id="nYes">0</b> подобається · <b id="nNo">0</b> ні</span>
+  <div class="chips" id="chips"></div>
+  <button class="act" id="clear">Очистити</button>
+  <button class="act go" id="copy">Скопіювати</button>
+</div>
+
+<script>
+const HUES = [
+  [15,'червоний'],[30,'кораловий'],[45,'помаранч'],[60,'бурштин'],[75,'золото'],
+  [90,'лимон'],[110,'лайм'],[130,'зелений'],[150,'нефрит'],[170,'мʼята'],
+  [185,'бірюза'],[200,'ціан'],[215,'блакить'],[230,'лазур'],[245,'синій'],
+  [260,'індиго'],[275,'фіалка'],[290,'фіолет'],[305,'бузок'],[320,'орхідея'],
+  [335,'магента'],[350,'малина'],
+]
+// Kept, so that a reload does not throw away forty clicks.
+const KEEP = 'palette-picks'
+const picked = new Map(JSON.parse(localStorage.getItem(KEEP) || '[]'))
+
+function make(host, hue, steps, chroma){
+  host.style.setProperty('--steps', steps.length)
+  for(const [h, label] of hue){
+    const tag = document.createElement('span')
+    tag.className = 'hue'; tag.textContent = label
+    host.appendChild(tag)
+    for(const l of steps){
+      const css = `oklch(${l}% ${chroma(l)} ${h})`
+      const b = document.createElement('button')
+      b.className = 'sw' + (picked.has(css) ? ' ' + picked.get(css) : '')
+      b.style.background = css; b.title = css
+      b.onclick = e => mark(b, css, e.altKey ? 'no' : 'yes')
+      b.oncontextmenu = e => { e.preventDefault(); mark(b, css, 'no') }
+      host.appendChild(b)
+    }
+  }
+}
+
+function mark(el, css, how){
+  const was = picked.get(css)
+  if(was === how){ picked.delete(css); el.className = 'sw' }
+  else { picked.set(css, how); el.className = 'sw ' + how }
+  draw()
+}
+
+function draw(){
+  try { localStorage.setItem(KEEP, JSON.stringify([...picked])) } catch {}
+  const yes = [...picked].filter(([,v]) => v === 'yes').map(([k]) => k)
+  const no  = [...picked].filter(([,v]) => v === 'no').map(([k]) => k)
+  nYes.textContent = yes.length; nNo.textContent = no.length
+
+  chips.innerHTML = ''
+  for(const [css, how] of picked){
+    const c = document.createElement('span')
+    c.className = 'chip' + (how === 'no' ? ' no' : '')
+    c.style.background = css; c.title = css
+    c.onclick = () => {
+      picked.delete(css)
+      document.querySelectorAll('.sw').forEach(s => { if(s.title === css) s.className = 'sw' })
+      draw()
+    }
+    chips.appendChild(c)
+  }
+
+  // Ті самі кольори там, де вони житимуть.
+  const show = yes.length ? yes : ['oklch(72% 0.19 300)','oklch(80% 0.16 200)','oklch(78% 0.17 140)']
+  demo.innerHTML = `
+    <div><div style="display:flex;gap:7px">${show.slice(0,5).map((c,i)=>
+      `<span class="tile" style="background:${c}">${'АБВГД'[i]}</span>`).join('')}</div>
+      <small>плитки дока</small></div>
+    <div><div style="display:flex;gap:6px;flex-wrap:wrap">${show.slice(0,4).map(c=>
+      `<span class="pill" style="background:color-mix(in oklch,${c} 16%,transparent);color:${c}">VF-AIA</span>`).join('')}</div>
+      <small>проєкт на картці</small></div>
+    <div><div style="display:flex;gap:14px;align-items:center">${show.slice(0,3).map(c=>
+      `<span><span class="name" style="color:${c}">Олена</span>
+       <span class="bar"><i style="background:${c}"></i></span></span>`).join('')}</div>
+      <small>людина і її частка</small></div>
+    <div><div class="track">${Array.from({length:26},(_,i)=>
+      `<i style="background:${show[i % show.length]};opacity:.85"></i>`).join('')}</div>
+      <small>доріжка голосів</small></div>
+    <div><div style="display:flex;gap:8px">${show.slice(0,4).map(c=>
+      `<span class="glow" style="background:${c};box-shadow:0 0 14px ${c}"></span>`).join('')}</div>
+      <small>зі світлом</small></div>`
+}
+
+// Насичені: хрома тим нижча, чим світліше — інакше на краях вилазить бруд.
+make(hues, HUES, [46,54,62,70,78,84,90,95], l => (l > 88 ? 0.10 : l > 80 ? 0.15 : l > 68 ? 0.19 : 0.22).toFixed(3))
+// Приглушені — те саме коло, але спокійніше.
+make(soft, HUES, [30,40,50,60,70,80,88,94], l => (l > 85 ? 0.045 : 0.075).toFixed(3))
+// Нейтралі з ледь помітним відтінком, бо чисто сірий у природі не буває.
+make(greys, [[265,'холодний'],[85,'теплий'],[0,'чистий']],
+     [10,14,19,25,32,40,50,62,74,86,96], () => '0.012')
+
+// Opened from a file, Chrome refuses the clipboard API outright and the button
+// simply did nothing. execCommand still works there, and if even that is gone
+// the text is put on screen already selected.
+async function put(text){
+  try { await navigator.clipboard.writeText(text); return true } catch {}
+  const ta = document.createElement('textarea')
+  ta.value = text
+  ta.style.cssText = 'position:fixed;top:-1000px;opacity:0'
+  document.body.appendChild(ta)
+  ta.select()
+  let ok = false
+  try { ok = document.execCommand('copy') } catch {}
+  ta.remove()
+  return ok
+}
+
+copy.onclick = async () => {
+  const yes = [...picked].filter(([,v]) => v === 'yes').map(([k]) => k)
+  const no  = [...picked].filter(([,v]) => v === 'no').map(([k]) => k)
+  const text =
+    'ПОДОБАЄТЬСЯ (' + yes.length + '):\n' + yes.join('\n') +
+    '\n\nНЕ ПОДОБАЄТЬСЯ (' + no.length + '):\n' + no.join('\n')
+
+  if (await put(text)) {
+    copy.textContent = 'Скопійовано ✓'
+    setTimeout(() => (copy.textContent = 'Скопіювати'), 1400)
+    return
+  }
+  outText.value = text
+  out.hidden = false
+  outText.focus()
+  outText.select()
+}
+hide.onclick = () => (out.hidden = true)
+clear.onclick = () => {
+  picked.clear()
+  document.querySelectorAll('.sw').forEach(s => (s.className = 'sw'))
+  draw()
+}
+draw()
+</script>
+</body>
+</html>

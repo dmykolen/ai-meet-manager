@@ -11,10 +11,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+	_ "modernc.org/sqlite" // pure Go: no second C toolchain for a database
 	"strings"
 	"time"
+)
 
-	_ "modernc.org/sqlite" // pure Go: no second C toolchain for a database
+// When says which recordings are worth a model call.
+type When string
+
+const (
+	Always   When = "always"   // every recording, notes included
+	Meetings When = "meetings" // only the ones somebody else was in
+	Never    When = "never"    // a transcriber and nothing more
 )
 
 // Kind is what a recording turned out to be.
@@ -43,6 +52,7 @@ type Recording struct {
 	Kind     Kind      `json:"kind"`
 	Title    string    `json:"title"` // from the summary; the file name until then
 	Audio    string    `json:"audio"` // file name under recordings/, empty once deleted
+	Group    int64     `json:"group"` // which group it is filed under, 0 for none
 	Started  time.Time `json:"started"`
 	Duration float64   `json:"duration"`
 	Language string    `json:"language"`
@@ -106,7 +116,36 @@ func Open(path string) (*DB, error) {
 	// SQLite has no ADD COLUMN IF NOT EXISTS, and a database made before this
 	// column existed will not get it from CREATE TABLE IF NOT EXISTS. Failing
 	// here is the ordinary outcome — it means the column is already there.
-	_, _ = handle.Exec(`ALTER TABLE recordings ADD COLUMN voices TEXT`)
+	for _, column := range []string{
+		`voices TEXT`, `deleted INTEGER`, `folder INTEGER`,
+		`titled INTEGER NOT NULL DEFAULT 0`,
+	} {
+		_, _ = handle.Exec(`ALTER TABLE recordings ADD COLUMN ` + column)
+	}
+	for table, columns := range map[string][]string{
+		"groups": {`colour TEXT NOT NULL DEFAULT ''`, `state TEXT NOT NULL DEFAULT ''`},
+		"people": {`colour TEXT NOT NULL DEFAULT ''`, `sources TEXT NOT NULL DEFAULT '[]'`},
+	} {
+		for _, column := range columns {
+			_, _ = handle.Exec(`ALTER TABLE ` + table + ` ADD COLUMN ` + column)
+		}
+	}
+	// A recording whose file a later one overwrote must not offer to play it.
+	// The preroll used to reach back into a meeting that had already been
+	// filed, and since the file name carries the start time to the minute, the
+	// second recording was written over the first. Both fixes are in
+	// internal/listen; this is for the rows already in the database.
+	if n, err := handle.Exec(`
+		UPDATE recordings SET audio = ''
+		WHERE audio <> '' AND EXISTS (
+			SELECT 1 FROM recordings later
+			WHERE later.audio = recordings.audio AND later.id > recordings.id)`); err == nil {
+		if rows, _ := n.RowsAffected(); rows > 0 {
+			slog.Warn("recordings whose audio a later one overwrote; the sound is gone, the transcript is not",
+				"recordings", rows)
+		}
+	}
+
 	return &DB{sql: handle}, nil
 }
 
@@ -125,10 +164,17 @@ CREATE TABLE IF NOT EXISTS recordings (
   progress  REAL    NOT NULL DEFAULT 0,
   problem   TEXT    NOT NULL DEFAULT '',
   summary   TEXT,
+  -- Set when a person typed the title. The model may propose one, but it never
+  -- overwrites one somebody chose.
+  titled    INTEGER NOT NULL DEFAULT 0,
   note      TEXT    NOT NULL DEFAULT '',
   -- One voiceprint per speaker label, so that naming somebody after the fact
   -- still teaches the app what they sound like.
-  voices    TEXT
+  voices    TEXT,
+  -- When it was moved to the bin, or null while it is live.
+  deleted   INTEGER,
+  -- Which group it is filed under, or null.
+  folder    INTEGER REFERENCES groups(id) ON DELETE SET NULL
 );
 CREATE INDEX IF NOT EXISTS recordings_started ON recordings(started DESC);
 
@@ -164,10 +210,36 @@ CREATE TABLE IF NOT EXISTS passages (
   PRIMARY KEY (recording, seq)
 );
 
+-- What the listener threw away rather than transcribing. Kept as counts, not
+-- recordings: the point is to be able to say the setting is working, not to
+-- keep the thing it discarded.
+CREATE TABLE IF NOT EXISTS discarded (
+  at      INTEGER NOT NULL,
+  seconds REAL    NOT NULL,
+  why     TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS discarded_at ON discarded(at DESC);
+
+CREATE TABLE IF NOT EXISTS groups (
+  id     INTEGER PRIMARY KEY AUTOINCREMENT,
+  name   TEXT    NOT NULL UNIQUE,
+  -- Empty means the colour is derived from the name, so every project has one
+  -- without anybody having to choose. A value here is somebody overruling that.
+  colour TEXT    NOT NULL DEFAULT '',
+  -- The living document the model keeps for this project; empty until it has
+  -- run. See kept.go.
+  state  TEXT    NOT NULL DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS people (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   name        TEXT    NOT NULL UNIQUE,
-  voiceprints TEXT    NOT NULL DEFAULT '[]'
+  voiceprints TEXT    NOT NULL DEFAULT '[]',
+  colour      TEXT    NOT NULL DEFAULT '',
+  -- Where each voiceprint came from, parallel to voiceprints: one
+  -- {recording, speaker} per sample, so a saved sample can be played back
+  -- instead of being an unexaminable vector.
+  sources     TEXT    NOT NULL DEFAULT '[]'
 );
 `
 
@@ -250,7 +322,26 @@ func (d *DB) SaveSummary(id int64, s *Summary) error {
 		_, err = d.sql.Exec(`UPDATE recordings SET summary = ? WHERE id = ?`, string(blob), id)
 		return err
 	}
-	_, err = d.sql.Exec(`UPDATE recordings SET summary = ?, title = ? WHERE id = ?`, string(blob), title, id)
+	// Summarising again is a thing the user can ask for at any time, and it
+	// must not undo a title they typed.
+	_, err = d.sql.Exec(
+		`UPDATE recordings SET summary = ?, title = ? WHERE id = ? AND titled = 0`,
+		string(blob), title, id)
+	if err == nil {
+		_, err = d.sql.Exec(`UPDATE recordings SET summary = ? WHERE id = ? AND titled = 1`, string(blob), id)
+	}
+	return err
+}
+
+// Retitle is the user overruling the model. The title the model wrote is a
+// guess at what the hour was about, and it is sometimes wrong and often just
+// not what you would call it.
+func (d *DB) Retitle(id int64, title string) error {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return errors.New("a title is needed")
+	}
+	_, err := d.sql.Exec(`UPDATE recordings SET title = ?, titled = 1 WHERE id = ?`, title, id)
 	return err
 }
 
@@ -288,6 +379,14 @@ func (d *DB) Rename(id int64, from, to string) error {
 // transcript, the summary and everything derived from them stay; only the sound
 // is gone, and the interface has to be able to say so rather than offering a
 // play button that does nothing.
+// Redate moves a recording in time. Everything that orders meetings — the
+// library list, the timeline, the order the project document is replayed in —
+// reads this column.
+func (d *DB) Redate(id int64, when time.Time) error {
+	_, err := d.sql.Exec(`UPDATE recordings SET started = ? WHERE id = ?`, when, id)
+	return err
+}
+
 func (d *DB) Dropped(id int64) error {
 	_, err := d.sql.Exec(`UPDATE recordings SET audio = '' WHERE id = ?`, id)
 	return err
@@ -302,14 +401,27 @@ func (d *DB) Audio(id int64) string {
 
 // Recent lists recordings, newest first, without their transcripts.
 func (d *DB) Recent(limit int) ([]Recording, error) {
+	return d.list(`WHERE r.deleted IS NULL`, limit)
+}
+
+// In is one group's recordings.
+func (d *DB) In(group int64, limit int) ([]Recording, error) {
+	return d.list(`WHERE r.deleted IS NULL AND r.folder = ?`, limit, group)
+}
+
+// list is the one query shape every listing uses. The where clause is written
+// here and never from anything a person typed; anything variable in it is a
+// placeholder, and its values come in args ahead of the limit.
+func (d *DB) list(where string, limit int, args ...any) ([]Recording, error) {
 	if limit <= 0 {
 		limit = 100
 	}
 	rows, err := d.sql.Query(`
 		SELECT r.id, r.kind, r.title, r.audio, r.started, r.duration, r.language,
-		       r.status, r.progress, r.problem, r.summary, r.note,
+		       r.status, r.progress, r.problem, r.summary, r.note, r.folder,
 		       (SELECT COUNT(*) FROM turns t WHERE t.recording = r.id)
-		FROM recordings r ORDER BY r.started DESC LIMIT ?`, limit)
+		FROM recordings r `+where+` ORDER BY r.started DESC LIMIT ?`,
+		append(args, limit)...)
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +433,7 @@ func (d *DB) Recent(limit int) ([]Recording, error) {
 func (d *DB) Get(id int64) (*Recording, error) {
 	rows, err := d.sql.Query(`
 		SELECT r.id, r.kind, r.title, r.audio, r.started, r.duration, r.language,
-		       r.status, r.progress, r.problem, r.summary, r.note,
+		       r.status, r.progress, r.problem, r.summary, r.note, r.folder,
 		       (SELECT COUNT(*) FROM turns t WHERE t.recording = r.id)
 		FROM recordings r WHERE r.id = ?`, id)
 	if err != nil {
@@ -407,12 +519,15 @@ func scan(rows *sql.Rows) ([]Recording, error) {
 			r       Recording
 			started int64
 			summary sql.NullString
+			folder  sql.NullInt64
 		)
 		if err := rows.Scan(&r.ID, &r.Kind, &r.Title, &r.Audio, &started, &r.Duration,
-			&r.Language, &r.Status, &r.Progress, &r.Problem, &summary, &r.Note, &r.Turns); err != nil {
+			&r.Language, &r.Status, &r.Progress, &r.Problem, &summary, &r.Note,
+			&folder, &r.Turns); err != nil {
 			return nil, err
 		}
 		r.Started = time.Unix(started, 0)
+		r.Group = folder.Int64
 		if summary.Valid && summary.String != "" {
 			var s Summary
 			if err := json.Unmarshal([]byte(summary.String), &s); err == nil {

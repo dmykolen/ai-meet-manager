@@ -260,3 +260,37 @@ var errNoModel = &simpleError{"the speaker model would not load"}
 type simpleError struct{ s string }
 
 func (e *simpleError) Error() string { return e.s }
+
+// Summarising again is a button in the app, and it must not undo a title the
+// user typed. This is the one thing about renaming that is easy to break later
+// and impossible to notice until somebody loses their title.
+func TestAChosenTitleSurvivesBeingSummarisedAgain(t *testing.T) {
+	db := open(t)
+	r := add(t, db, Meeting)
+	if err := db.SaveSummary(r.ID, &Summary{Title: "Скрипти і безпека"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Retitle(r.ID, "Vodafone: доступ"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.SaveSummary(r.ID, &Summary{Title: "Щось інше", Overview: "kept"}); err != nil {
+		t.Fatal(err)
+	}
+
+	got, _ := db.Get(r.ID)
+	if got.Title != "Vodafone: доступ" {
+		t.Fatalf("the model overwrote a chosen title with %q", got.Title)
+	}
+	// The summary itself must still have been replaced.
+	if got.Summary == nil || got.Summary.Overview != "kept" {
+		t.Fatal("the new summary was not stored")
+	}
+}
+
+func TestAnEmptyTitleIsRefused(t *testing.T) {
+	db := open(t)
+	r := add(t, db, Meeting)
+	if err := db.Retitle(r.ID, "   "); err == nil {
+		t.Fatal("a meeting was allowed to have no title")
+	}
+}

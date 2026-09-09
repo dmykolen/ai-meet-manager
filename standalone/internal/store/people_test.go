@@ -31,7 +31,7 @@ func openDB(t *testing.T) *DB {
 
 func TestARememberedVoiceIsRecognisedInTheNextMeeting(t *testing.T) {
 	db := openDB(t)
-	if err := db.Remember("Tanya", voice(1, 0)); err != nil {
+	if err := db.Remember("Tanya", voice(1, 0), Source{Recording: 1, Speaker: "Tanya"}); err != nil {
 		t.Fatal(err)
 	}
 	people, err := db.People()
@@ -55,7 +55,7 @@ func TestARememberedVoiceIsRecognisedInTheNextMeeting(t *testing.T) {
 
 func TestOnePersonIsNotGivenTwoSeatsAtTheTable(t *testing.T) {
 	db := openDB(t)
-	if err := db.Remember("Olena", voice(3, 0)); err != nil {
+	if err := db.Remember("Olena", voice(3, 0), Source{Recording: 2, Speaker: "Olena"}); err != nil {
 		t.Fatal(err)
 	}
 	people, _ := db.People()
@@ -75,7 +75,7 @@ func TestOnePersonIsNotGivenTwoSeatsAtTheTable(t *testing.T) {
 func TestVoiceprintsAreCappedAndTheRedundantOneGoes(t *testing.T) {
 	db := openDB(t)
 	for i := range Keep + 4 {
-		if err := db.Remember("Dmytro", voice(uint64(100+i), 0)); err != nil {
+		if err := db.Remember("Dmytro", voice(uint64(100+i), 0), Source{Recording: int64(i + 1), Speaker: "Dmytro"}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -123,5 +123,137 @@ func TestCosineSeparatesAVoiceFromAStranger(t *testing.T) {
 	}
 	if math.Abs(Cosine(voice(7, 0), voice(7, 0))-1) > 1e-6 {
 		t.Fatal("a voice is not identical to itself")
+	}
+}
+
+// The prints and their sources are two arrays that have to be cut in the same
+// place. If they drift, the app plays back the wrong meeting when somebody asks
+// what a saved sample sounds like — which is worse than not offering it at all.
+func TestASampleKeepsTrackOfWhereItCameFrom(t *testing.T) {
+	db := openDB(t)
+	for i := range Keep + 5 {
+		if err := db.Remember("Olena", voice(uint64(500+i), 0),
+			Source{Recording: int64(i + 1), Speaker: "Olena"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	people, _ := db.People()
+	if len(people) != 1 {
+		t.Fatalf("expected one person, got %d", len(people))
+	}
+	p := people[0]
+	if len(p.Sources) != len(p.Voiceprints) {
+		t.Fatalf("%d prints against %d sources — they have drifted apart",
+			len(p.Voiceprints), len(p.Sources))
+	}
+	for i, src := range p.Sources {
+		if src.Recording == 0 {
+			t.Fatalf("sample %d has no source", i)
+		}
+	}
+	// The most recent sample is always kept: crowded drops a near-duplicate,
+	// never the arrival.
+	newest := int64(Keep + 5)
+	found := false
+	for _, src := range p.Sources {
+		if src.Recording == newest {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("the newest sample was thrown away instead of a redundant one")
+	}
+}
+
+// A person enrolled before sources existed has prints and no sources. Adding
+// one more must not shift every source onto the wrong print.
+func TestAnOlderPersonWithoutSourcesIsPaddedNotShifted(t *testing.T) {
+	db := openDB(t)
+	if err := db.Remember("Serhii", voice(11, 0), Source{}); err != nil {
+		t.Fatal(err)
+	}
+	// Simulate the pre-sources row: prints kept, sources emptied.
+	if _, err := db.sql.Exec(`UPDATE people SET sources = '[]' WHERE name = 'Serhii'`); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Remember("Serhii", voice(12, 0), Source{Recording: 7, Speaker: "Serhii"}); err != nil {
+		t.Fatal(err)
+	}
+	people, _ := db.People()
+	p := people[0]
+	if len(p.Sources) != len(p.Voiceprints) {
+		t.Fatalf("%d prints against %d sources", len(p.Voiceprints), len(p.Sources))
+	}
+	if p.Sources[len(p.Sources)-1].Recording != 7 {
+		t.Fatalf("the new source landed on the wrong print: %+v", p.Sources)
+	}
+}
+
+// The clusterer is set to split too eagerly, because no single threshold suits
+// both a meeting of two and a meeting of six. Two clusters that are the same
+// enrolled person have to come back together, or every meeting arrives with
+// twice as many speakers as it had.
+func TestTwoClustersOfOneKnownVoiceAreRejoined(t *testing.T) {
+	db := openDB(t)
+	if err := db.Remember("Olena", voice(7, 0), Source{Recording: 1, Speaker: "Olena"}); err != nil {
+		t.Fatal(err)
+	}
+	people, _ := db.People()
+
+	// Two labels that are both her, and one that is nobody the app knows.
+	prints := map[string][]float32{
+		"SPEAKER_00": voice(7, 0.04),
+		"SPEAKER_02": voice(7, 0.09),
+		"SPEAKER_01": voice(400, 0),
+	}
+	same := Same(prints, people)
+	if len(same) != 1 {
+		t.Fatalf("expected one label to be folded into another, got %v", same)
+	}
+	for from, to := range same {
+		if from == "SPEAKER_01" || to == "SPEAKER_01" {
+			t.Fatalf("a voice the app has never met was folded away: %v", same)
+		}
+		if from == to {
+			t.Fatal("a label was told to become itself")
+		}
+	}
+}
+
+// Somebody the app has not been introduced to must stay their own speaker.
+func TestStrangersAreNotFoldedTogether(t *testing.T) {
+	db := openDB(t)
+	_ = db.Remember("Olena", voice(7, 0), Source{Recording: 1, Speaker: "Olena"})
+	people, _ := db.People()
+
+	prints := map[string][]float32{
+		"SPEAKER_00": voice(500, 0),
+		"SPEAKER_01": voice(900, 0),
+	}
+	if same := Same(prints, people); len(same) != 0 {
+		t.Fatalf("two strangers were merged: %v", same)
+	}
+}
+
+// Merging on "both resemble Olena" alone is what turned a six-voice meeting
+// into two, because at Match several different people in one room clear the bar
+// for whoever they resemble most. Two clusters have to sound like each other.
+func TestTwoDifferentVoicesAreNotMergedJustForResemblingTheSamePerson(t *testing.T) {
+	db := openDB(t)
+	// Enrol somebody with a broad enough set of samples to resemble both.
+	for _, seed := range []uint64{20, 21, 22} {
+		if err := db.Remember("Olena", voice(seed, 0),
+			Source{Recording: 1, Speaker: "Olena"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	people, _ := db.People()
+
+	prints := map[string][]float32{"SPEAKER_00": voice(20, 0.02), "SPEAKER_01": voice(22, 0.02)}
+	for from, to := range Same(prints, people) {
+		if Cosine(prints[from], prints[to]) < Rejoin {
+			t.Fatalf("%s was folded into %s at a similarity of %.2f, under %.2f",
+				from, to, Cosine(prints[from], prints[to]), Rejoin)
+		}
 	}
 }

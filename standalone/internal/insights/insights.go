@@ -1,18 +1,16 @@
 // Package insights is everything the app asks a language model to do: the
 // summary of a meeting, and questions asked across all of them.
 //
-// It uses the official Go SDK against the Responses API. OpenAI's Agents SDK
-// ships only for Python and TypeScript; the Go port is at v0.1.0 and has not
-// moved in months, and what is needed here is two prompts with a fixed schema
-// rather than tools, handoffs or guardrails. Everything below goes through Ask
-// and Structured, so the day this does grow an agent loop, no caller changes.
+// The only part of the app that sends anything anywhere. Audio, transcripts and
+// voices stay on the machine; a summary sends one meeting's text, a question
+// sends the passages that match it.
 //
-// This is also the only part of the app that sends anything anywhere. Audio,
-// transcripts and voices never leave the machine; a summary sends the text of
-// one meeting, and a question sends the passages that match it.
+// Everything goes through Ask and Structured, so the day this grows an agent
+// loop no caller changes.
 package insights
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -204,7 +202,7 @@ func (c *Client) Structured(ctx context.Context, instructions, input, name strin
 func Transcript(turns []Turn) string {
 	var b strings.Builder
 	for _, t := range turns {
-		fmt.Fprintf(&b, "[%s] %s: %s\n", clock(t.Start), or(t.Speaker, "Unknown"), t.Text)
+		fmt.Fprintf(&b, "[%s] %s: %s\n", clock(t.Start), cmp.Or(t.Speaker, "Unknown"), t.Text)
 	}
 	return b.String()
 }
@@ -212,11 +210,4 @@ func Transcript(turns []Turn) string {
 func clock(seconds float64) string {
 	s := int(seconds)
 	return fmt.Sprintf("%02d:%02d:%02d", s/3600, s/60%60, s%60)
-}
-
-func or(s, fallback string) string {
-	if s == "" {
-		return fallback
-	}
-	return s
 }

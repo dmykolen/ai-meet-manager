@@ -6,16 +6,11 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/audio"
 )
 
-// Ring keeps the last few minutes of audio in memory so that a recording can
-// begin in the past.
-//
-// This is the feature the whole daemon exists for: by the time anything can
-// tell that a meeting is happening, the meeting has been going for a while.
-// Detection fires, the ring is replayed, and the first minutes are there.
-//
-// Storage is flat and preallocated — ten minutes of stereo int16 at 16 kHz is
-// 38 MB, and churning that through the garbage collector every ten minutes for
-// the life of a background daemon would be a strange thing to do.
+// Ring keeps the last few minutes in memory so a recording can begin in the
+// past — by the time anything can tell a meeting is happening it has been going
+// a while. Storage is flat and preallocated: ten minutes of stereo int16 at
+// 16 kHz is 38 MB, and churning that through the collector for the life of a
+// background daemon would be strange.
 type Ring struct {
 	frames  [][]int16
 	speech  []bool // was anybody talking during that frame

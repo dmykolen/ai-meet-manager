@@ -21,6 +21,7 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/home"
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/library"
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/listen"
+	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/media"
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/store"
 )
 
@@ -41,6 +42,15 @@ type Meetings struct {
 func (m *Meetings) Listener(r *listen.Recorder) {
 	m.ears = r
 	r.Pause(!m.config.Listen.Enabled)
+	r.Hear(m.config.Listen.System)
+}
+
+// Playing tells the listener that the app's own player is running, so that
+// pressing play does not make the app record its own playback as a meeting.
+func (m *Meetings) Playing(on bool) {
+	if m.ears != nil {
+		m.ears.Muffle(on)
+	}
 }
 
 // Listening is the state of the always-on recorder, polled by the window: a
@@ -155,11 +165,15 @@ func (m *Meetings) Rename(id int64, from, to string) error {
 		// for this meeting, it just teaches nothing.
 		return nil
 	}
-	if err := m.db.Remember(to, print); err != nil {
+	if err := m.db.Remember(to, print, store.Source{Recording: id, Speaker: to}); err != nil {
 		slog.Warn("renamed, but could not learn the voice", "name", to, "err", err)
 	}
 	return nil
 }
+
+// Retitle is the user overruling the model's guess at what the hour was about.
+// From then on summarising again leaves the title alone.
+func (m *Meetings) Retitle(id int64, title string) error { return m.db.Retitle(id, title) }
 
 // ThisIsMe puts a name to the person holding the laptop.
 //
@@ -182,7 +196,7 @@ func (m *Meetings) ThisIsMe(name string) (string, error) {
 		if len(print) == 0 {
 			continue
 		}
-		if err := m.db.Remember(name, print); err != nil {
+		if err := m.db.Remember(name, print, store.Source{Recording: r.ID, Speaker: name}); err != nil {
 			return "", err
 		}
 		if err := m.db.Rename(r.ID, library.Me, name); err != nil {
@@ -192,11 +206,21 @@ func (m *Meetings) ThisIsMe(name string) (string, error) {
 			break
 		}
 	}
-	if taught == 0 {
-		return "", errors.New("nothing recorded yet has enough of your voice in it — record something first")
+	// The name is what matters, not the voiceprints: everything the microphone
+	// hears is this person, so from now on their turns are named directly
+	// rather than recognised. The prints are still worth having — they are how
+	// they are found on somebody else's side of a call.
+	m.config.Me = name
+	m.lib.Owner(name)
+	if err := home.Save(m.dir, m.config); err != nil {
+		return "", err
 	}
-	return fmt.Sprintf("Learnt your voice from %d %s. Your turns are now named %s.",
-		taught, plural(taught, "recording"), name), nil
+	if taught == 0 {
+		return fmt.Sprintf("Your turns are named %s from now on. Nothing recorded yet has "+
+			"enough of your voice to learn it from, so that part waits for the next meeting.", name), nil
+	}
+	return fmt.Sprintf("Your turns are named %s from now on, and the voice was learnt from %d %s.",
+		name, taught, plural(taught, "recording")), nil
 }
 
 // People is everybody the app can now recognise by voice.
@@ -210,6 +234,59 @@ func (m *Meetings) People() ([]store.Person, error) {
 
 // Forget drops a person, which is how a name given to the wrong voice is undone.
 func (m *Meetings) Forget(name string) error { return m.db.Forget(name) }
+
+// PaintPerson gives somebody a colour, or an empty string to go back to the one
+// derived from their name.
+func (m *Meetings) PaintPerson(name, colour string) error { return m.db.PaintPerson(name, colour) }
+
+// Samples is what the app thinks somebody sounds like: one entry per saved
+// voiceprint, naming the meeting and the longest thing they said in it.
+//
+// This is the answer to "why does it keep calling that person Olena" — the
+// evidence is playable instead of being 512 numbers nobody can argue with.
+func (m *Meetings) Samples(name string) ([]store.Source, error) {
+	people, err := m.db.People()
+	if err != nil {
+		return nil, err
+	}
+	out := []store.Source{}
+	for _, p := range people {
+		if p.Name != name {
+			continue
+		}
+		for _, src := range p.Sources {
+			if filled, ok := m.db.Sample(src); ok {
+				out = append(out, filled)
+			}
+		}
+	}
+	return out, nil
+}
+
+// Appearances is the projects somebody has been heard in, busiest first — the
+// answer to "where does this person actually turn up".
+func (m *Meetings) Appearances(name string) ([]store.Group, error) {
+	return m.db.Appearances(name)
+}
+
+// Waveform is the loudness of a recording across its length, for the player to
+// draw. Read from the same folded copy the player is served, so what is on the
+// screen is what will be heard.
+func (m *Meetings) Waveform(id int64) ([]float32, error) {
+	name := m.db.Audio(id)
+	if name == "" {
+		return []float32{}, nil
+	}
+	listen, err := media.Listenable(filepath.Join(m.dir, "recordings", name),
+		filepath.Join(m.dir, "cache"))
+	if err != nil {
+		return []float32{}, nil
+	}
+	if shape := media.Shape(listen); shape != nil {
+		return shape, nil
+	}
+	return []float32{}, nil
+}
 
 // Analytics is the shape of a meeting: who held the floor, how fast, who asked
 // the questions. Measured from the rows, so it follows a rename immediately.
@@ -262,6 +339,111 @@ func plural(n int, word string) string {
 	return word + "s"
 }
 
+// Groups are the folders in the Library: projects, clients, teams.
+func (m *Meetings) Groups() ([]store.Group, error) { return m.db.Groups() }
+
+// NewGroup makes one, or hands back the one that already has that name.
+func (m *Meetings) NewGroup(name string) (store.Group, error) { return m.db.NewGroup(name) }
+
+// File puts a recording in a group, or takes it out of every group when the
+// group is zero.
+//
+// Filing it also moves that project's document on, so dragging a meeting onto a
+// tile updates the project there and then.
+func (m *Meetings) File(recording, group int64) error {
+	if err := m.db.Assign(recording, group); err != nil {
+		return err
+	}
+	if group != 0 {
+		go func() {
+			if err := m.lib.Advance(context.Background(), recording); err != nil {
+				slog.Warn("the project document did not move", "id", recording, "err", err)
+			}
+		}()
+	}
+	return nil
+}
+
+// RebuildProject replays every meeting into a fresh document. The answer to
+// "this has gone wrong".
+func (m *Meetings) RebuildProject(group int64) error {
+	return m.lib.Rebuild(context.Background(), group)
+}
+
+// PinItem is a person editing a line of the project document; from then on the
+// model may close it but never reword it.
+func (m *Meetings) PinItem(group int64, id int, text, owner, due string) error {
+	return m.db.Pin(group, id, text, owner, due)
+}
+
+// TickItem ticks a line of the project document off, or puts it back.
+func (m *Meetings) TickItem(group int64, id int, done bool) error {
+	return m.db.Tick(group, id, done)
+}
+
+// Span is every recording of the last `days` days, as the timeline draws them.
+func (m *Meetings) Span(days int) ([]store.Mark, error) {
+	if days <= 0 {
+		days = 365
+	}
+	return m.db.Span(time.Now().AddDate(0, 0, -days), time.Now())
+}
+
+// Moment is where in a recording something was said, so a line of the project
+// document opens the meeting at the second rather than at the top.
+func (m *Meetings) Moment(recording int64, text string) float64 {
+	return m.db.Moment(recording, text)
+}
+
+// Standing is where a project stands, gathered from its meetings.
+func (m *Meetings) Standing(group int64) (*store.Standing, error) { return m.db.Standing(group) }
+
+// Loose is how many recordings belong to no project.
+func (m *Meetings) Loose() (int, error) { return m.db.Loose() }
+
+// Paint gives a project a colour, or an empty string to go back to the one
+// derived from its name.
+func (m *Meetings) Paint(id int64, colour string) error { return m.db.Paint(id, colour) }
+
+// RenameGroup changes a project's name.
+func (m *Meetings) RenameGroup(id int64, name string) error { return m.db.RenameGroup(id, name) }
+
+// DropGroup removes a group and leaves its recordings unfiled.
+func (m *Meetings) DropGroup(id int64) error { return m.db.DropGroup(id) }
+
+// InGroup lists one group's recordings.
+func (m *Meetings) InGroup(group int64) ([]store.Recording, error) {
+	found, err := m.db.In(group, 200)
+	if err != nil || found == nil {
+		return []store.Recording{}, err
+	}
+	return found, nil
+}
+
+// Bin is what has been deleted and not yet thrown away.
+func (m *Meetings) Bin() ([]store.Recording, error) {
+	found, err := m.db.Bin()
+	if err != nil || found == nil {
+		return []store.Recording{}, err
+	}
+	return found, nil
+}
+
+// Restore takes a recording back out of the bin.
+func (m *Meetings) Restore(id int64) error { return m.lib.Restore(id) }
+
+// EmptyBin destroys everything in it, audio and all.
+func (m *Meetings) EmptyBin() (string, error) {
+	gone, err := m.lib.Empty(0)
+	if err != nil {
+		return "", err
+	}
+	if gone == 0 {
+		return "The bin was already empty.", nil
+	}
+	return fmt.Sprintf("Deleted %d %s for good.", gone, plural(gone, "recording")), nil
+}
+
 // Brief is the first screen: what happened in the last few days, what was
 // settled, what is still owed, and what keeps being asked without an answer.
 func (m *Meetings) Brief(days int) (*store.Briefing, error) { return m.db.Brief(days) }
@@ -309,7 +491,18 @@ func (m *Meetings) Import(path string) (*store.Recording, error) {
 	}
 	defer source.Close()
 
-	name := fmt.Sprintf("%s-%s", time.Now().Format("2006-01-02T15-04-05"), filepath.Base(path))
+	// When the meeting actually happened, as well as the app can tell. A file
+	// somebody downloaded or was sent carries the recording's own date in its
+	// modification time far more often than it carries today's, and the order
+	// of meetings is what the project document is built from — a file imported
+	// out of order rewrites the project's history in the wrong sequence.
+	// Redate is there for when this guess is wrong.
+	when := time.Now()
+	if info, err := source.Stat(); err == nil && info.ModTime().Before(when) {
+		when = info.ModTime()
+	}
+
+	name := fmt.Sprintf("%s-%s", when.Format("2006-01-02T15-04-05"), filepath.Base(path))
 	destination := filepath.Join(home.Recordings(m.dir), name)
 	target, err := os.Create(destination)
 	if err != nil {
@@ -322,8 +515,38 @@ func (m *Meetings) Import(path string) (*store.Recording, error) {
 	}
 	target.Close()
 
-	r, err := m.lib.Add(store.Meeting, name, time.Now(), filepath.Base(path))
+	r, err := m.lib.Add(store.Meeting, name, when, filepath.Base(path))
 	return &r, err
+}
+
+// Redate says when a meeting really happened.
+//
+// It matters more than a label. The project document is built by replaying its
+// meetings oldest first, so a recording carrying the wrong date is read into
+// the project's history at the wrong point — a decision reversed in March lands
+// after the one that reversed it. Imported files guess from the file's own
+// timestamp, and this is how the guess is corrected.
+func (m *Meetings) Redate(recording int64, when string) error {
+	at, err := time.Parse(time.RFC3339, when)
+	if err != nil {
+		return fmt.Errorf("%q is not a date the app understands: %w", when, err)
+	}
+	if err := m.db.Redate(recording, at); err != nil {
+		return err
+	}
+	// The document was folded in this meeting's old order, so it has to be
+	// built again from the beginning to be in the new one.
+	r, err := m.db.Get(recording)
+	if err != nil || r.Group == 0 {
+		return err
+	}
+	go func() {
+		if err := m.lib.Rebuild(context.Background(), r.Group); err != nil {
+			slog.Warn("the project document did not rebuild after a date changed",
+				"recording", recording, "err", err)
+		}
+	}()
+	return nil
 }
 
 // Settings is what the settings screen reads and writes.
@@ -331,10 +554,14 @@ type Settings struct {
 	Language    string `json:"language"`
 	OpenAIKey   string `json:"openaiKey"`
 	OpenAIModel string `json:"openaiModel"`
-	Summarise   bool   `json:"summarise"`
+	Summarise   string `json:"summarise"`
+	KeepNotes   bool   `json:"keepNotes"`
 	Density     string `json:"density"`
 
-	Listening   bool `json:"listening"`
+	Listening bool `json:"listening"`
+	// System captures the machine's own audio alongside the microphone. Off,
+	// the app hears only what the room hears.
+	System      bool `json:"system"`
 	StartSpeech int  `json:"startSpeech"` // seconds of talking before it records
 	QuietEnds   int  `json:"quietEnds"`   // seconds of silence that end it
 	Preroll     int  `json:"preroll"`     // seconds it reaches back when it starts
@@ -349,9 +576,11 @@ func (m *Meetings) Settings() Settings {
 		Language:      m.config.Language,
 		OpenAIKey:     m.config.OpenAIKey,
 		OpenAIModel:   m.config.OpenAIModel,
-		Summarise:     m.config.Summarise,
+		Summarise:     string(m.config.Summarise),
+		KeepNotes:     m.config.Listen.KeepNotes,
 		Density:       m.config.Density,
 		Listening:     m.config.Listen.Enabled,
+		System:        m.config.Listen.System,
 		StartSpeech:   int(m.config.Listen.StartSpeech.Seconds()),
 		QuietEnds:     int(m.config.Listen.QuietEnds.Seconds()),
 		Preroll:       int(m.config.Listen.Preroll.Seconds()),
@@ -366,15 +595,22 @@ func (m *Meetings) SaveSettings(s Settings) error {
 	m.config.Language = s.Language
 	m.config.OpenAIKey = s.OpenAIKey
 	m.config.OpenAIModel = s.OpenAIModel
-	m.config.Summarise = s.Summarise
+	m.config.Summarise = home.Choice(s.Summarise)
+	m.config.Listen.KeepNotes = s.KeepNotes
+	m.lib.Policy(store.When(s.Summarise))
+	if m.ears != nil {
+		m.ears.KeepNotes(s.KeepNotes)
+	}
 	m.config.Density = s.Density
 	m.config.Listen.Enabled = s.Listening
+	m.config.Listen.System = s.System
 	m.config.Keep.AudioDays = s.KeepAudioDays
 	// Switching listening off pauses the recorder rather than tearing it down:
 	// the devices took a permission dialog to open, and the setting is a thing
 	// people flick back and forth.
 	if m.ears != nil {
 		m.ears.Pause(!s.Listening)
+		m.ears.Hear(s.System)
 	}
 
 	// Guarded rather than trusted: a zero here would make the listener start on
@@ -467,7 +703,7 @@ func (m *Meetings) Markdown(id int64) (string, error) {
 		if who == "" {
 			who = "—"
 		}
-		fmt.Fprintf(&b, "**%s** `%s` %s\n\n", who, clock(t.Start), t.Text)
+		fmt.Fprintf(&b, "**%s** `%s` %s\n\n", who, media.Clock(t.Start), t.Text)
 	}
 	return b.String(), nil
 }
@@ -481,14 +717,6 @@ func section(b *strings.Builder, title string, lines []string) {
 		fmt.Fprintf(b, "- %s\n", l)
 	}
 	b.WriteString("\n")
-}
-
-func clock(seconds float64) string {
-	s := int(seconds)
-	if s >= 3600 {
-		return fmt.Sprintf("%d:%02d:%02d", s/3600, s/60%60, s%60)
-	}
-	return fmt.Sprintf("%d:%02d", s/60, s%60)
 }
 
 func length(seconds float64) string {

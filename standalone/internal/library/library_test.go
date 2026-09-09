@@ -25,7 +25,7 @@ type fakeEngine struct {
 	solo   bool
 }
 
-func (f *fakeEngine) Run([]float32) (engine.Result, error) {
+func (f *fakeEngine) Run(_, _ []float32) (engine.Result, error) {
 	f.calls++
 	return engine.Result{Turns: f.turns, Voices: f.voices}, f.err
 }
@@ -221,7 +221,10 @@ func TestTheQueueRunsOldestFirst(t *testing.T) {
 	}
 }
 
-func TestDeletingRemovesTheAudioToo(t *testing.T) {
+func TestDeletingIsRecoverableAndEmptyingIsNot(t *testing.T) {
+	// Deleting is one click and no dialog, which is only reasonable because it
+	// can be undone. What makes that true is that nothing is destroyed until
+	// the bin is emptied.
 	lib, db, dir := setup(t, &fakeEngine{})
 	path := silence(t, dir, "a.wav", 1)
 	r, _ := lib.Add(store.Meeting, "a.wav", time.Now(), "")
@@ -229,11 +232,60 @@ func TestDeletingRemovesTheAudioToo(t *testing.T) {
 	if err := lib.Delete(r.ID); err != nil {
 		t.Fatal(err)
 	}
+	if recent, _ := db.Recent(10); len(recent) != 0 {
+		t.Fatal("a deleted recording is still in the Library")
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Fatal("the audio was destroyed before the bin was emptied")
+	}
+	if binned, _ := db.Bin(); len(binned) != 1 {
+		t.Fatalf("the bin holds %d recordings, want 1", len(binned))
+	}
+
+	if err := lib.Restore(r.ID); err != nil {
+		t.Fatal(err)
+	}
+	if recent, _ := db.Recent(10); len(recent) != 1 {
+		t.Fatal("restoring did not bring it back to the Library")
+	}
+
+	// And emptying is what really destroys it.
+	_ = lib.Delete(r.ID)
+	if gone, err := lib.Empty(0); err != nil || gone != 1 {
+		t.Fatalf("emptied %d (err %v), want 1", gone, err)
+	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		t.Fatal("the audio file is still on disk")
+		t.Fatal("the audio file survived the bin being emptied")
 	}
 	if _, err := db.Get(r.ID); err == nil {
 		t.Fatal("the recording is still in the database")
+	}
+}
+
+func TestOnlyMeetingsAreWorthAModelCall(t *testing.T) {
+	// Most of what an always-on recorder catches is half a phone call or a
+	// thought said out loud. Summarising those is money spent on nothing.
+	lib, _, dir := setup(t, &fakeEngine{})
+	silence(t, dir, "a.wav", 1)
+	note, _ := lib.Add(store.Note, "a.wav", time.Now(), "")
+	meeting, _ := lib.Add(store.Meeting, "a.wav", time.Now(), "")
+	turns := []engine.Turn{{Text: "щось"}}
+
+	lib.Policy(store.Meetings)
+	if lib.worth(note.ID, turns) {
+		t.Fatal("a note nobody else was in was sent to the model")
+	}
+	if !lib.worth(meeting.ID, turns) {
+		t.Fatal("a meeting was not summarised")
+	}
+
+	lib.Policy(store.Always)
+	if !lib.worth(note.ID, turns) {
+		t.Fatal("always should mean always")
+	}
+	lib.Policy(store.Never)
+	if lib.worth(meeting.ID, turns) {
+		t.Fatal("never should mean never")
 	}
 }
 

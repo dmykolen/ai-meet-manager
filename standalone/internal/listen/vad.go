@@ -10,16 +10,10 @@ import (
 
 // Ears is one channel's answer to "is somebody talking right now".
 //
-// Silero rather than WebRTC's detector: WebRTC's was built to find silence and
-// is weak on music, and this app's whole job is ignoring sounds that are not a
-// conversation. It runs through sherpa-onnx, which is already linked in for the
-// speaker models — the alternative was a second ONNX runtime and a 41 MB
-// library shipped beside the binary for a 600 KB model.
-//
-// Using sherpa also sidesteps the trap that cost a day in the daemon: Silero
-// does not score a bare 512-sample hop, it wants the previous hop's last 64
-// samples in front of it, and feeding it 512 makes real speech score 0.003.
-// sherpa's own wrapper carries that context, so nothing here has to.
+// Silero rather than WebRTC's: WebRTC's finds silence and is weak on music, and
+// ignoring sounds that are not a conversation is the whole job. Through
+// sherpa-onnx, already linked for the speaker models, which also carries the
+// context Silero needs — fed a bare 512-sample hop it scores real speech 0.003.
 type Ears struct {
 	vad     *sherpa.VoiceActivityDetector
 	samples []float32

@@ -86,14 +86,12 @@ def _passages(result: dict) -> list[dict]:
             speakers = dict.fromkeys([*current["speakers"].split(", "), turn.get("speaker", "")])
             current["speakers"] = ", ".join(filter(None, speakers))
         else:
-            passages.append(
-                {
-                    "start": turn["start"],
-                    "end": turn["end"],
-                    "speakers": turn.get("speaker") or "",
-                    "text": turn["text"],
-                }
-            )
+            passages.append({
+                "start": turn["start"],
+                "end": turn["end"],
+                "speakers": turn.get("speaker") or "",
+                "text": turn["text"],
+            })
     return passages
 
 

@@ -84,12 +84,233 @@ is checked with `git status --porcelain -- app/ web/ tests/ daemon/ pyproject.to
 - [x] "This is me" — one enrolment for the person holding the laptop
 - [x] Parakeet, choosable in the settings, downloaded only when chosen
 
+- [x] **The swallowing.** The first fold switched between the channels
+      outright — 272 hard changes in 26 minutes, average step 0.056 at the seam
+      against the 0.02 where a click is audible. Replaced with a ducker: the tap
+      always at full level, the microphone attenuated under it, gain continuous
+      so no seam is possible. Two settings, because the audiences disagree —
+      0.25 for a listener (2 swallowed quarter-seconds against 142), 0.10 for
+      the models (1263 words against 1192, three runs each).
+- [x] **The bin.** Deleting is one quiet click and an undo, not a coral button
+      and a confirmation. Nothing is destroyed for a fortnight.
+- [x] **Projects.** Recordings can be filed into groups and the Library filters
+      by them.
+- [x] **Junk costs nothing.** A recording nobody else was in and nobody asked
+      for is discarded when it ends — pressing Record always keeps it, which is
+      the one unambiguous signal that a note was wanted. Summaries default to
+      meetings only, so a phone call never reaches a model.
+
+- [x] **The far side.** The clustering threshold was 0.9 and gave four times too
+      many speakers on a real meeting. Measured against recordings whose answer
+      is known — one the owner said had two people in it, and one built by
+      splicing two different meetings so there are certainly at least three —
+      1.10 is right on both and 1.20 begins collapsing people together. A real
+      26-minute meeting went from 11 speakers to 2 plus an 18-second stray.
+- [x] **A name needs evidence.** A voiceprint can be computed from four seconds
+      and that is nowhere near enough to be right about whose it is; an
+      18-second fragment was handed a colleague's name. Half a minute is the
+      bar now, and the microphone side is never matched at all — it is the
+      person holding the laptop, which "This is me" settles once and for all.
+- [x] **What the listener threw away** is counted and shown on Today, so the
+      setting can be seen working rather than believed.
+
+- [x] **A waveform in the player.** Three hundred buckets of the file actually
+      being served, clickable, with the played part lit. Scrubbing was blind.
+- [x] **Echo cancellation, and the capture bug it uncovered.** NLMS against the
+      tap as the reference — four tests on synthetic rooms: 12 dB+ removed, your
+      own voice unchanged, safe through double talk. On real recordings it
+      diverged, and the trace said why: the mixer trimmed the system channel's
+      backlog in ~67 ms blocks several times a second, so the two channels were
+      never sample-locked and no fixed delay held for longer than a moment. The
+      mixer now drops one sample per frame instead — measured at 0.06 s/min of
+      correction against 22.5 s/min, a smooth drift a filter can follow. Wired
+      in behind a guard that returns the microphone untouched on any block it
+      cannot improve, so recordings made before the fix are unaffected: the same
+      meeting still transcribes to 1455 words.
+
+- [x] **A meeting can be renamed.** The title is the field — a textarea, not an
+      input, because titles wrap and an input would silently turn a two-line
+      heading into one line that scrolls. No pencil, nothing that appears only
+      on hover, no dialog. A typed title is pinned: `titled` is set, and
+      summarising again leaves it alone, which is the same rule the project page
+      will need for every item a person edits. Pinned by two store tests.
+
+- [x] **A colour that stays put — for a person and for a project.** It is derived
+      from the name rather than from a position in a list, which is what was
+      wrong before: the palette was indexed by whoever spoke first, so one
+      person was a different colour in every meeting. Twelve hues evenly spaced
+      around the wheel, with the arc around the app's own violet left out so
+      that "this is interactive" and "this is Olena" stay different signals. A
+      first attempt used fourteen hand-picked hues and had pairs 12 degrees
+      apart, which at one lightness are the same colour — the picker showed
+      duplicates. Overridable per person and per project in Settings.
+
+- [x] **A saved voice can be listened to.** Each voiceprint now carries the
+      meeting and speaker it came from, and the app plays the longest thing that
+      person said there. The claim "this is Olena" was 512 numbers nobody could
+      examine; it is now evidence. Prints saved before this are matched back to
+      their meetings on the next start by exact vector equality, so the samples
+      already collected became playable rather than being lost. Two tests pin
+      the one thing that would silently break it: prints and sources are two
+      arrays that have to be cut in the same place.
+
+- [x] **Projects can be renamed and recoloured**, in Settings alongside people.
+
+- [x] **Making a project worked nowhere.** The button called `prompt()`, which
+      the WebView this ships inside does not render, so nothing happened in the
+      packaged app — only in a browser. It is now a field in the header, which
+      is also the pattern the rest of the app uses.
+
+- [x] **The projects are one strip, and it is also where meetings are filed.**
+      The first version was a row of tabs with a coloured dot beside each name.
+      The owner rejected it outright — it is the most obvious way to attach a
+      colour to a label and the colour did no work.
+
+      What replaced it: each project is a block as wide as the number of
+      meetings it holds, so the strip is a picture of what the library is
+      actually made of, including how much of it was never filed. Nothing else
+      in the app shows that. Without colour the strip is a grey rectangle, so
+      the colour is finally load-bearing rather than decorative.
+
+      The blocks are the drop targets. Drag a meeting onto one and it is filed;
+      the block widens to meet the card before it is released, so where the
+      thing will land is visible a moment early. Dropping on Unfiled takes it
+      back out. Navigation, proportion and filing are one object.
+
+      Two things were wrong in the first build and fixed on the evidence:
+      pure proportion made a one-meeting project a 2% sliver with no room for
+      its name, so every block now starts wide enough to read and the counts
+      divide up what is left; and an empty project had no block at all, which
+      meant a project nothing could ever be dragged into.
+
+- [x] **Drag and drop does not use the HTML5 drag API.** The WebView this ships
+      inside never fires `dragstart` for page elements — the same class of trap
+      as `prompt()`. It is done with pointer events instead, which also means
+      the card being carried is drawn by the app rather than by the system.
+
+- [x] **Meetings became a workspace.** The screen that was a list of cards and
+      the screen that was one meeting are now one: a timeline, a list, a reader
+      and a dock of projects. Built on the design the owner chose after three
+      of mine were rejected; the lesson recorded in WORKSPACE.md is that every
+      one of mine was a hero chart with a list bolted underneath, and what he
+      wanted was a room to work in where the chart is a small instrument.
+
+      Landed with it: Geologica bundled into the binary rather than fetched from
+      Google, since the app has to work offline; `Span` for the timeline, which
+      draws four hundred marks without shipping four hundred summaries;
+      `Standing`, which folds a project's meetings into one document so that the
+      same commitment made three times is one line saying so.
+
+      `list()` is now variadic, which removed the one place a number was
+      concatenated into SQL text.
+
+- [x] **The reader, restructured.** Title, voice map, player, then tabs over a
+      chapter strip, with the meeting's shape and its voices on the right.
+
+      The voice map is the piece that was missing: one segment per turn, as wide
+      as the turn was long, in that person's colour. The app has had the data
+      since diarization worked and never drew it. An hour where one person
+      speaks in three long blocks looks nothing like an hour of real
+      back-and-forth, and the difference is now visible at a glance. Hovering a
+      voice dims every turn that is not theirs.
+
+      Nothing was written twice: `Shape` became the right rail rather than a new
+      speaker panel, and the chapter list moved out of the summary into the
+      strip instead of appearing in both.
+
+- [x] **Stop stops.** The button in the corner did nothing for every meeting the
+      app started by itself — which is almost all of them. `Force(false)` only
+      set `stopping` when the recording had been forced *on*, so an automatic
+      recording ignored it entirely. Two tests now cover both ways in.
+
+- [x] **The echo, properly this time.** Ducking was a fixed fraction of the
+      microphone, which says nothing about how loud the echo lands next to the
+      voice it echoes. Measured on a real meeting: the microphone ran at 0.053
+      against the tap's 0.028, so a duck to a quarter left the room's copy only
+      6 dB under the far side — the worst tenth sat at −4.5 dB, plainly audible
+      215 ms late. Ducking is now relative to the tap (`Under`), which holds it
+      at a steady −18.4 dB however loud the speakers were.
+
+      A second hole came out of the test that pinned it: with the speakers very
+      loud the room copy exceeded four times the tap, the level test read that
+      as "he must be talking" and stopped ducking — exactly where the echo is
+      worst. Level cannot tell a loud echo from a voice, so the fold now asks
+      whether the microphone *looks like* the tap arriving late, reusing the
+      alignment already written for the canceller. Bounded by `Reach`, because a
+      tap forty times quieter cannot be echoing at that volume — without which a
+      notification chime read as an echo and ducked somebody mid-word.
+
+      Cached playback copies carry a version in their name now. A stale cache is
+      how a fixed echo goes on being heard.
+
+- [x] **Diarization: split freely, rejoin by identity.** Measured on two real
+      recordings whose answers are known, and they do not meet: the meeting of
+      two needs 1.10, the meeting of six needs 0.90, and 1.10 finds three of the
+      six. There is no threshold that serves both.
+
+      Rejoining by identity alone was the first attempt and it was worse than
+      the disease: `Match` at 0.55 asks "could this be Olena", and in a room of
+      six the answer is yes four times over. That meeting came back as two
+      people with the owner folded in among them. Two clusters must also sound
+      like *each other* — `Rejoin` at 0.75, measured, where the four candidates
+      sat at 0.686 to 0.737 — and the owner's own label is never the one folded
+      away, because the microphone channel is the one thing the app is sure of.
+
+      Result on that meeting: five speakers where there had been three, with
+      Dima, who had been missing altogether, back at five minutes of speech.
+
+      So the choice is which mistake to make, and only one is recoverable.
+      Splitting one voice in two can be undone afterwards — the app knows what
+      Olena sounds like. Folding two people into one cannot. The threshold is
+      back to 0.90 and `store.Same` rejoins whatever clusters match the same
+      enrolled person; anybody the app has never been introduced to stays a
+      speaker of their own, which is the honest answer for the three people in
+      that meeting who are not enrolled yet.
+
 ## Now
 
-- [ ] The far side of a call is still whatever the clusterer says. Measured:
-      cluster voiceprints of six genuinely different people sit at 0.49–0.80,
-      the same range as one person split in three, so a merge pass on them
-      cannot work. Fixing it needs a better embedding, not a better threshold.
+- [ ] **Echo cancellation does not earn its place, and the owner should decide
+      whether it goes.** Now measured on a recording made after the mixer was
+      sample-locked, and on all 21 real meetings.
+
+      The mixer fix worked: the delay between the channels holds at -213 to
+      -224 ms across a whole minute where it used to jump. Alignment finds it
+      correctly. Everything downstream of that is the problem.
+
+      On the probe recording the filter *diverges* — at the shipped step of 0.5
+      it makes the block 3.4 and 9.1 dB louder, and only the guard saves it.
+      Sweeping the step: 0.1 -> +0.4 dB, 0.02 -> +0.8, 0.005 -> +0.7/+0.8,
+      0.001 -> +0.7/+1.4. The ceiling is about 1.4 dB, which is inaudible.
+
+      Across every meeting the guard accepts 26 of 1092 blocks — 2.4% — and on
+      every meeting longer than a few minutes the best block improves by 0.0 to
+      0.9 dB. The two figures above 4 dB are both on recordings of three and six
+      blocks, which is noise.
+
+      The reason is physical rather than a bug: the coherence between the
+      microphone and the tap is 0.17-0.41, so roughly 90% of what the microphone
+      hears is not linearly predictable from the tap, and NLMS on that material
+      is guaranteed to wander. macOS appears to cancel the echo before we ever
+      see it — on the probe the microphone drops 17 dB at the 30-second mark
+      while the tap holds level, which is a voice-processing filter converging.
+      What is left is the non-linear residue, which is exactly the part a linear
+      filter cannot touch.
+
+      So `Cancel` costs about 26 seconds of alignment per meeting and returns
+      the microphone unchanged 97.6% of the time. The recommendation is to
+      delete `internal/media/echo.go` and keep the ducking in `Fold`, which the
+      owner confirmed fixed the audible echo. Left in place pending that call,
+      since it was an explicit request.
+- [ ] An 18-second stray survives on a 26-minute meeting. Absorbing it would
+      mean a threshold relative to the recording's length, and one file is not
+      enough to fit that on.
+- [ ] **1.10 may under-count a crowded meeting.** On two 65-minute recordings it
+      finds 3 speakers where 0.9 found 8 and 9 — and pyannote says one of them
+      has 6 people in it. Neither number is ground truth and pyannote
+      over-segments the same way 0.9 does, but the direction is a real risk:
+      the threshold was fitted on meetings of two and three. It is the right
+      default for the meetings this app actually records; an all-hands may come
+      back short. Settling it needs a recording where somebody counted.
 - [ ] Several people in one room are one voice, because they arrive on one
       channel. The same limitation the Python edition has.
 
@@ -158,6 +379,25 @@ is checked with `git status --porcelain -- app/ web/ tests/ daemon/ pyproject.to
   Parakeet wrote Russian — sherpa's transducer takes no language argument, so
   there is nothing to set that stops it. It is in the settings so the numbers
   can be checked rather than believed.
+- **A settings file must never stop the app.** Changing `summarise` from a bool
+  to a string made every machine that had already written the old file refuse to
+  start: the decode failed, Load returned the error, and the window never opened.
+  Worse, the reason was invisible — the log file is closed by `run`'s defers
+  before `main` gets the error, so the one message that mattered went to a closed
+  file. The logger now lives in `main` and writes to stderr as well, an
+  unreadable key costs that key and not the app, and `home.Choice` reads the old
+  bool as what it meant. `home_test.go` pins all of it.
+- **A stronger speaker embedding is not the fix, and this was measured.** Every
+  candidate sherpa publishes was tried on 26 seconds of three known, obviously
+  different people: WeSpeaker resnet221_LM and resnet293_LM both return **one**
+  speaker, CAM++_LM and ERes2NetV2 return two, and the CAM++ that ships returns
+  two. The ResNets look excellent on recordings whose answer is 1 or 2 precisely
+  because they merge everything. The threshold, not the model, was the lever.
+- **Long recordings need a looser threshold than short ones.** A person's voice
+  drifts further across half an hour — distance from the microphone, a cold, a
+  headset swapped — than two people differ in a clean thirty-second clip. That
+  is why 1.10 is right for meetings and wrong for studio clips, and why no
+  single number can serve both.
 - **Run it from the bundle, never as a bare binary.** macOS attributes the
   microphone and system-audio grants to the responsible application; started
   from a terminal, the grant goes to the terminal.
