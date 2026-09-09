@@ -1,6 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, useState, type Ref } from "react"
 import { Pause, Play, Rewind, Volume2 } from "lucide-react"
-import { clock } from "../api"
+import { Meetings, clock } from "../api"
 
 /** What the transcript needs from the player: jump here, and where are we. */
 export type Controls = { play: (seconds: number) => void }
@@ -16,10 +16,12 @@ export type Controls = { play: (seconds: number) => void }
  * an hour-long recording starts playing at once rather than after 230 MB.
  */
 export default function Player({
+  id,
   file,
   onTime,
   ref,
 }: {
+  id: number
   file: string
   onTime: (seconds: number) => void
   ref: Ref<Controls>
@@ -30,6 +32,17 @@ export default function Player({
   const [length, setLength] = useState(0)
   const [rate, setRate] = useState(1)
   const [broken, setBroken] = useState(false)
+  const [shape, setShape] = useState<number[]>([])
+
+  // Closing the reader mid-sentence unmounts this without a pause event, and a
+  // listener left deaf would never record another meeting.
+  useEffect(() => () => void Meetings.Playing(false), [])
+
+  useEffect(() => {
+    Meetings.Waveform(id)
+      .then((s) => setShape((s as number[]) ?? []))
+      .catch(() => {})
+  }, [id])
 
   useImperativeHandle(ref, () => ({
     play(seconds: number) {
@@ -67,8 +80,18 @@ export default function Player({
         ref={audio}
         src={`/audio/${encodeURIComponent(file)}`}
         preload="metadata"
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
+        // The always-on listener cannot tell this player from a meeting: the
+        // system-audio tap hears it, decides somebody is talking, and records
+        // the playback back into the library. It is told to go deaf instead.
+        onPlay={() => {
+          setPlaying(true)
+          Meetings.Playing(true)
+        }}
+        onPause={() => {
+          setPlaying(false)
+          Meetings.Playing(false)
+        }}
+        onEnded={() => Meetings.Playing(false)}
         onError={() => setBroken(true)}
         onLoadedMetadata={(e) => setLength(e.currentTarget.duration || 0)}
         onTimeUpdate={(e) => {
@@ -99,18 +122,30 @@ export default function Player({
 
       <span className="w-11 shrink-0 text-right text-[11px] tabular-nums text-soft">{clock(at)}</span>
 
-      <input
-        type="range"
-        min={0}
-        max={length || 1}
-        step={0.5}
-        value={at}
-        onChange={(e) => audio.current && (audio.current.currentTime = Number(e.target.value))}
-        className="h-1 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-raised accent-accent"
-        style={{
-          background: `linear-gradient(to right, var(--color-accent) ${(at / (length || 1)) * 100}%, var(--color-raised) 0%)`,
+      {/* A seek bar with no waveform is a blind scrub. The bars are the loudness
+          of the file actually being played, so what is on screen is what will
+          be heard, and the ones already played are lit. */}
+      <div
+        onClick={(e) => {
+          const box = e.currentTarget.getBoundingClientRect()
+          const to = ((e.clientX - box.left) / box.width) * (length || 0)
+          if (audio.current) audio.current.currentTime = to
         }}
-      />
+        className="group/bar flex h-7 min-w-0 flex-1 cursor-pointer items-center gap-px"
+      >
+        {(shape.length ? shape : Array(60).fill(0.25)).map((v, i, all) => {
+          const played = (i + 1) / all.length <= at / (length || 1)
+          return (
+            <span
+              key={i}
+              style={{ height: `${Math.max(v * 100, 6)}%` }}
+              className={`min-w-0 flex-1 rounded-[1px] transition-colors ${
+                played ? "bg-accent" : "bg-raised group-hover/bar:bg-line"
+              }`}
+            />
+          )
+        })}
+      </div>
 
       <span className="w-11 shrink-0 text-[11px] tabular-nums text-faint">{clock(length)}</span>
 

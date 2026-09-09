@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
+import Head from "../components/Head"
 import { AnimatePresence, motion } from "motion/react"
 import { Check, ListChecks } from "lucide-react"
 import NeedsKey from "../components/NeedsKey"
@@ -31,28 +32,19 @@ export default function Todo({ onOpen }: { onOpen: (id: number) => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="no-drag flex items-baseline justify-between px-6 pb-3 pt-2">
-        <h1 className="text-[24px] font-semibold tracking-[-0.02em]">To do</h1>
-        <button
-          onClick={() => setShowDone((v) => !v)}
-          className={`rounded-lg px-2.5 py-1 text-[11.5px] transition-colors ${
-            showDone ? "bg-raised text-text" : "text-faint hover:bg-raised hover:text-soft"
-          }`}
-        >
-          {showDone ? "Hiding nothing" : "Show finished"}
-        </button>
-      </header>
+      <Head title="Зобовʼязання" />
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-10">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-10">
+        <div className="mx-auto w-full max-w-[78ch]">
         {items === null ? null : items.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center pb-16 text-center">
             <ListChecks size={26} className="text-faint" />
-            <h2 className="mt-4 text-[14px] font-medium">Nothing outstanding</h2>
+            <h2 className="mt-4 text-[14px] font-medium">Нічого не висить</h2>
             <p className="mt-1 max-w-xs text-[12.5px] leading-relaxed text-soft">
               Anything anybody commits to in a meeting turns up here on its own.
             </p>
             <div className="mt-5 max-w-sm text-left">
-              <NeedsKey what="Reading action items out of a meeting" />
+              <NeedsKey what="Читаю зобовʼязання з наради" />
             </div>
           </div>
         ) : (
@@ -108,6 +100,7 @@ export default function Todo({ onOpen }: { onOpen: (id: number) => void }) {
             </ul>
           </>
         )}
+        </div>
       </div>
     </div>
   )

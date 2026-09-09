@@ -58,6 +58,11 @@ export class Meeting {
      * file name under recordings/, empty once deleted
      */
     "audio": string;
+
+    /**
+     * which group it is filed under, 0 for none
+     */
+    "group": number;
     "started": string;
     "duration": number;
     "language": string;
@@ -83,6 +88,9 @@ export class Meeting {
         }
         if (!("audio" in $$source)) {
             this["audio"] = "";
+        }
+        if (!("group" in $$source)) {
+            this["group"] = 0;
         }
         if (!("started" in $$source)) {
             this["started"] = "0001-01-01T00:00:00.000Z";
@@ -113,18 +121,18 @@ export class Meeting {
      * Creates a new Meeting instance from a string or object.
      */
     static createFrom($$source: any = {}): Meeting {
-        const $$createField10_0 = $$createType3;
-        const $$createField11_0 = $$createType4;
-        const $$createField14_0 = $$createType6;
+        const $$createField11_0 = $$createType3;
+        const $$createField12_0 = $$createType4;
+        const $$createField15_0 = $$createType6;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("summary" in $$parsedSource) {
-            $$parsedSource["summary"] = $$createField10_0($$parsedSource["summary"]);
+            $$parsedSource["summary"] = $$createField11_0($$parsedSource["summary"]);
         }
         if ("speakers" in $$parsedSource) {
-            $$parsedSource["speakers"] = $$createField11_0($$parsedSource["speakers"]);
+            $$parsedSource["speakers"] = $$createField12_0($$parsedSource["speakers"]);
         }
         if ("transcript" in $$parsedSource) {
-            $$parsedSource["transcript"] = $$createField14_0($$parsedSource["transcript"]);
+            $$parsedSource["transcript"] = $$createField15_0($$parsedSource["transcript"]);
         }
         return new Meeting($$parsedSource as Partial<Meeting>);
     }
@@ -137,9 +145,16 @@ export class Settings {
     "language": string;
     "openaiKey": string;
     "openaiModel": string;
-    "summarise": boolean;
+    "summarise": string;
+    "keepNotes": boolean;
     "density": string;
     "listening": boolean;
+
+    /**
+     * System captures the machine's own audio alongside the microphone. Off,
+     * the app hears only what the room hears.
+     */
+    "system": boolean;
 
     /**
      * seconds of talking before it records
@@ -174,13 +189,19 @@ export class Settings {
             this["openaiModel"] = "";
         }
         if (!("summarise" in $$source)) {
-            this["summarise"] = false;
+            this["summarise"] = "";
+        }
+        if (!("keepNotes" in $$source)) {
+            this["keepNotes"] = false;
         }
         if (!("density" in $$source)) {
             this["density"] = "";
         }
         if (!("listening" in $$source)) {
             this["listening"] = false;
+        }
+        if (!("system" in $$source)) {
+            this["system"] = false;
         }
         if (!("startSpeech" in $$source)) {
             this["startSpeech"] = 0;

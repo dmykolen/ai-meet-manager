@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./fonts.css";
 
 /* One palette, defined once. Semantic names rather than colour names, so a
    token is never wrong about what it is for.
@@ -23,16 +24,28 @@
   --color-soft: oklch(75% 0.012 268);
   --color-faint: oklch(56% 0.015 268);
 
-  --color-accent: oklch(69% 0.235 295);
+  /* Chroma pulled to 0.22, the highest the owner picked anywhere. The hue sits
+     between two he chose (290 and 305) so it stays; the saturation did not. */
+  --color-accent: oklch(69% 0.22 295);
   --color-accent-soft: oklch(32% 0.13 295);
-  --color-warn: oklch(70% 0.215 22);
-  --color-good: oklch(80% 0.215 152);
-  --color-cool: oklch(78% 0.155 205);
+  --color-warn: oklch(70% 0.220 30);    /* his coral */
+  --color-good: oklch(78% 0.190 150);   /* his, exactly */
+  /* Moved off 205. The owner rejected the whole turquoise-to-cyan band when he
+     went through three hundred colours; 230 at this lightness is one of the
+     thirty he chose. */
 
-  --font-sans: "Inter var", ui-sans-serif, -apple-system, system-ui, sans-serif;
+  /* Geologica, bundled. It carries Cyrillic properly — most grotesques treat
+     it as an afterthought — and its figures are tabular, which is why there is
+     no second monospaced family here just to set numbers. */
+  --font-sans: Geologica, ui-sans-serif, -apple-system, system-ui, sans-serif;
   --font-serif: ui-serif, "Iowan Old Style", "Palatino", Georgia, serif;
 
   --radius-panel: 0.875rem;
+
+  /* The workspace is a tool that stays open all day, so its furniture is
+     small and fixed. These are the heights the panes align to. */
+  --spacing-bar: 2.3125rem;   /* pane header */
+  --spacing-dock: 3.3125rem;  /* the project dock */
 }
 
 html,
@@ -95,12 +108,44 @@ body {
   animation: breathe 2.4s ease-in-out infinite;
 }
 
-/* Respect the setting. Everything below moves; nothing below has to. */
+/* The model is working.
+   A light travelling across a placeholder, at reading pace: fast enough to say
+   something is happening, slow enough not to nag. One class, because every
+   place in this app that waits on the model should wait the same way. */
+@keyframes sweep {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.thinking {
+  background: linear-gradient(
+    100deg,
+    var(--color-raised) 42%,
+    color-mix(in oklch, var(--color-accent) 26%, var(--color-raised)) 50%,
+    var(--color-raised) 58%
+  );
+  background-size: 200% 100%;
+  animation: sweep 1.7s linear infinite;
+}
+
+/* A menu arriving. Native popovers start in the top layer with display:none,
+   so a plain transition has nothing to run from — @starting-style is what gives
+   the first frame a value to leave. Safari 26 has it, and it means the reader's
+   menu opens without a single line of JavaScript behind it. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Respect the setting. Everything below moves; nothing below has to — and an
+   animation that repeats for ever does not stop just because it is fast, hence
+   the iteration count. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

@@ -5,12 +5,12 @@ import Ear from "./Ear"
 export type Screen = "today" | "library" | "search" | "todo" | "ask" | "settings"
 
 const screens = [
-  { id: "today", label: "Today", Icon: Sunrise, key: "1" },
-  { id: "library", label: "Meetings", Icon: AudioLines, key: "2" },
-  { id: "search", label: "Search", Icon: Search, key: "3" },
-  { id: "todo", label: "To do", Icon: ListChecks, key: "4" },
-  { id: "ask", label: "Ask", Icon: Sparkles, key: "5" },
-  { id: "settings", label: "Settings", Icon: Settings2, key: "," },
+  { id: "today", label: "Сьогодні", Icon: Sunrise, key: "1" },
+  { id: "library", label: "Записи", Icon: AudioLines, key: "2" },
+  { id: "search", label: "Пошук", Icon: Search, key: "3" },
+  { id: "todo", label: "Зобовʼязання", Icon: ListChecks, key: "4" },
+  { id: "ask", label: "Запитати", Icon: Sparkles, key: "5" },
+  { id: "settings", label: "Налаштування", Icon: Settings2, key: "," },
 ] as const satisfies readonly { id: Screen; label: string; Icon: typeof Search; key: string }[]
 
 /**
@@ -21,7 +21,7 @@ const screens = [
  */
 export default function Rail({ screen, onChange }: { screen: Screen; onChange: (s: Screen) => void }) {
   return (
-    <nav className="no-drag flex w-[72px] shrink-0 flex-col items-center gap-0.5 border-r border-line/60 px-2 pt-2">
+    <nav className="no-drag flex w-[78px] shrink-0 flex-col items-center gap-0.5 border-r border-line/60 px-2 pt-2">
       {screens.map(({ id, label, Icon, key }) => {
         const active = id === screen
         return (
@@ -46,7 +46,7 @@ export default function Rail({ screen, onChange }: { screen: Screen; onChange: (
               }`}
             />
             <span
-              className={`relative z-10 text-[10px] font-medium transition-colors ${
+              className={`relative z-10 w-full truncate text-center text-[9.5px] font-medium transition-colors ${
                 active ? "text-text" : "text-faint group-hover:text-soft"
               }`}
             >

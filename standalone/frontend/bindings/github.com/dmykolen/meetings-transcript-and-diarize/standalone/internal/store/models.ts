@@ -181,6 +181,16 @@ export class Briefing {
      */
     "voices": string[];
 
+    /**
+     * recordings the listener threw away
+     */
+    "skipped": number;
+
+    /**
+     * minutes it did not have to transcribe
+     */
+    "spared": number;
+
     /** Creates a new Briefing instance. */
     constructor($$source: Partial<Briefing> = {}) {
         if (!("since" in $$source)) {
@@ -206,6 +216,12 @@ export class Briefing {
         }
         if (!("voices" in $$source)) {
             this["voices"] = [];
+        }
+        if (!("skipped" in $$source)) {
+            this["skipped"] = 0;
+        }
+        if (!("spared" in $$source)) {
+            this["spared"] = 0;
         }
 
         Object.assign(this, $$source);
@@ -274,6 +290,86 @@ export class Chapter {
 }
 
 /**
+ * A Face is somebody heard in the project, ever.
+ */
+export class Face {
+    "name": string;
+    "seconds": number;
+    "meetings": number;
+    "last": string;
+
+    /** Creates a new Face instance. */
+    constructor($$source: Partial<Face> = {}) {
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("seconds" in $$source)) {
+            this["seconds"] = 0;
+        }
+        if (!("meetings" in $$source)) {
+            this["meetings"] = 0;
+        }
+        if (!("last" in $$source)) {
+            this["last"] = "0001-01-01T00:00:00.000Z";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Face instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Face {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Face($$parsedSource as Partial<Face>);
+    }
+}
+
+/**
+ * A Group is a folder for recordings: a project, a team, a client.
+ *
+ * Manual, not clever. The app could try to guess which project a meeting
+ * belongs to, and would be wrong often enough that every card would need
+ * checking — which is more work than dragging it once.
+ */
+export class Group {
+    "id": number;
+    "name": string;
+    "count": number;
+
+    /**
+     * empty means derived from the name
+     */
+    "colour": string;
+
+    /** Creates a new Group instance. */
+    constructor($$source: Partial<Group> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = 0;
+        }
+        if (!("name" in $$source)) {
+            this["name"] = "";
+        }
+        if (!("count" in $$source)) {
+            this["count"] = 0;
+        }
+        if (!("colour" in $$source)) {
+            this["colour"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Group instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Group {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Group($$parsedSource as Partial<Group>);
+    }
+}
+
+/**
  * Hit is one passage that matched a search.
  */
 export class Hit {
@@ -329,6 +425,51 @@ export enum Kind {
      */
     Note = "note",
 };
+
+/**
+ * A Mark is one recording as the timeline draws it: enough to place a tick and
+ * colour it, and nothing else.
+ *
+ * The timeline shows a year at a time. Reusing list() there would send every
+ * transcript, summary and note for four hundred recordings to draw four hundred
+ * three-pixel marks.
+ */
+export class Mark {
+    "id": number;
+    "kind": Kind;
+    "started": string;
+    "duration": number;
+    "folder": number;
+
+    /** Creates a new Mark instance. */
+    constructor($$source: Partial<Mark> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = 0;
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = Kind.$zero;
+        }
+        if (!("started" in $$source)) {
+            this["started"] = "0001-01-01T00:00:00.000Z";
+        }
+        if (!("duration" in $$source)) {
+            this["duration"] = 0;
+        }
+        if (!("folder" in $$source)) {
+            this["folder"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Mark instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Mark {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Mark($$parsedSource as Partial<Mark>);
+    }
+}
 
 /**
  * A Moment is one slice of the timeline and how much was said in it, so the
@@ -462,6 +603,12 @@ export class Person {
     "samples": number;
     "meetings": number;
 
+    /**
+     * empty means derived from the name
+     */
+    "colour": string;
+    "sources": Source[];
+
     /** Creates a new Person instance. */
     constructor($$source: Partial<Person> = {}) {
         if (!("id" in $$source)) {
@@ -476,6 +623,12 @@ export class Person {
         if (!("meetings" in $$source)) {
             this["meetings"] = 0;
         }
+        if (!("colour" in $$source)) {
+            this["colour"] = "";
+        }
+        if (!("sources" in $$source)) {
+            this["sources"] = [];
+        }
 
         Object.assign(this, $$source);
     }
@@ -484,7 +637,11 @@ export class Person {
      * Creates a new Person instance from a string or object.
      */
     static createFrom($$source: any = {}): Person {
+        const $$createField5_0 = $$createType14;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sources" in $$parsedSource) {
+            $$parsedSource["sources"] = $$createField5_0($$parsedSource["sources"]);
+        }
         return new Person($$parsedSource as Partial<Person>);
     }
 }
@@ -505,6 +662,11 @@ export class Recording {
      * file name under recordings/, empty once deleted
      */
     "audio": string;
+
+    /**
+     * which group it is filed under, 0 for none
+     */
+    "group": number;
     "started": string;
     "duration": number;
     "language": string;
@@ -529,6 +691,9 @@ export class Recording {
         }
         if (!("audio" in $$source)) {
             this["audio"] = "";
+        }
+        if (!("group" in $$source)) {
+            this["group"] = 0;
         }
         if (!("started" in $$source)) {
             this["started"] = "0001-01-01T00:00:00.000Z";
@@ -556,14 +721,14 @@ export class Recording {
      * Creates a new Recording instance from a string or object.
      */
     static createFrom($$source: any = {}): Recording {
-        const $$createField10_0 = $$createType14;
-        const $$createField11_0 = $$createType12;
+        const $$createField11_0 = $$createType16;
+        const $$createField12_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("summary" in $$parsedSource) {
-            $$parsedSource["summary"] = $$createField10_0($$parsedSource["summary"]);
+            $$parsedSource["summary"] = $$createField11_0($$parsedSource["summary"]);
         }
         if ("speakers" in $$parsedSource) {
-            $$parsedSource["speakers"] = $$createField11_0($$parsedSource["speakers"]);
+            $$parsedSource["speakers"] = $$createField12_0($$parsedSource["speakers"]);
         }
         return new Recording($$parsedSource as Partial<Recording>);
     }
@@ -602,6 +767,151 @@ export class Said {
     static createFrom($$source: any = {}): Said {
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         return new Said($$parsedSource as Partial<Said>);
+    }
+}
+
+/**
+ * A Source is where one voiceprint was taken from. Without it a saved sample is
+ * a vector nobody can examine; with it, "this is what I think Olena sounds
+ * like" is one click from being played and disagreed with.
+ */
+export class Source {
+    "recording": number;
+    "speaker": string;
+    "title": string;
+    "audio": string;
+    "start": number;
+    "finish": number;
+
+    /** Creates a new Source instance. */
+    constructor($$source: Partial<Source> = {}) {
+        if (!("recording" in $$source)) {
+            this["recording"] = 0;
+        }
+        if (!("speaker" in $$source)) {
+            this["speaker"] = "";
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("audio" in $$source)) {
+            this["audio"] = "";
+        }
+        if (!("start" in $$source)) {
+            this["start"] = 0;
+        }
+        if (!("finish" in $$source)) {
+            this["finish"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Source instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Source {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Source($$parsedSource as Partial<Source>);
+    }
+}
+
+/**
+ * Standing is where a project stands, gathered from the meetings in it.
+ *
+ * This is the mechanical version of what PROJECTS.md describes: no model, no
+ * judgement, only what the summaries already say, folded together so that the
+ * same commitment made in three meetings is one line saying it was made three
+ * times rather than three lines pretending to be different work.
+ *
+ * It is deliberately useful on its own. A project page that needs an API key to
+ * show anything at all would be a page most days show nothing.
+ */
+export class Standing {
+    "meetings": number;
+    "hours": number;
+    "first": string;
+    "last": string;
+    "work": Thread[];
+    "decisions": Thread[];
+    "questions": Thread[];
+    "people": Face[];
+
+    /**
+     * One paragraph on where the project stands, and whether a model wrote it
+     * rather than the mechanical fold below.
+     */
+    "status": string;
+    "written": boolean;
+
+    /**
+     * How many of these meetings the model has folded in. During a rebuild it
+     * climbs, which is the only honest progress bar available: the document
+     * itself counts what it has read.
+     */
+    "folded": number;
+
+    /** Creates a new Standing instance. */
+    constructor($$source: Partial<Standing> = {}) {
+        if (!("meetings" in $$source)) {
+            this["meetings"] = 0;
+        }
+        if (!("hours" in $$source)) {
+            this["hours"] = 0;
+        }
+        if (!("first" in $$source)) {
+            this["first"] = "0001-01-01T00:00:00.000Z";
+        }
+        if (!("last" in $$source)) {
+            this["last"] = "0001-01-01T00:00:00.000Z";
+        }
+        if (!("work" in $$source)) {
+            this["work"] = [];
+        }
+        if (!("decisions" in $$source)) {
+            this["decisions"] = [];
+        }
+        if (!("questions" in $$source)) {
+            this["questions"] = [];
+        }
+        if (!("people" in $$source)) {
+            this["people"] = [];
+        }
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("written" in $$source)) {
+            this["written"] = false;
+        }
+        if (!("folded" in $$source)) {
+            this["folded"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Standing instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Standing {
+        const $$createField4_0 = $$createType18;
+        const $$createField5_0 = $$createType18;
+        const $$createField6_0 = $$createType18;
+        const $$createField7_0 = $$createType20;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("work" in $$parsedSource) {
+            $$parsedSource["work"] = $$createField4_0($$parsedSource["work"]);
+        }
+        if ("decisions" in $$parsedSource) {
+            $$parsedSource["decisions"] = $$createField5_0($$parsedSource["decisions"]);
+        }
+        if ("questions" in $$parsedSource) {
+            $$parsedSource["questions"] = $$createField6_0($$parsedSource["questions"]);
+        }
+        if ("people" in $$parsedSource) {
+            $$parsedSource["people"] = $$createField7_0($$parsedSource["people"]);
+        }
+        return new Standing($$parsedSource as Partial<Standing>);
     }
 }
 
@@ -666,10 +976,10 @@ export class Summary {
      * Creates a new Summary instance from a string or object.
      */
     static createFrom($$source: any = {}): Summary {
-        const $$createField2_0 = $$createType16;
+        const $$createField2_0 = $$createType22;
         const $$createField3_0 = $$createType12;
         const $$createField4_0 = $$createType12;
-        const $$createField5_0 = $$createType18;
+        const $$createField5_0 = $$createType24;
         const $$createField6_0 = $$createType12;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("chapters" in $$parsedSource) {
@@ -688,6 +998,87 @@ export class Summary {
             $$parsedSource["open_questions"] = $$createField6_0($$parsedSource["open_questions"]);
         }
         return new Summary($$parsedSource as Partial<Summary>);
+    }
+}
+
+/**
+ * A Thread is one thing the project's meetings keep saying: the text, how many
+ * meetings said it, and where it was said last. Owner and Due are empty for
+ * anything that is not a commitment.
+ */
+export class Thread {
+    /**
+     * The line's id in the kept document, or zero when this came from the fold.
+     */
+    "item": number;
+    "state": string;
+    "by": string;
+    "pinned": boolean;
+    "text": string;
+    "owner": string;
+    "due": string;
+    "done": boolean;
+    "times": number;
+
+    /**
+     * the meeting that said it last
+     */
+    "from": number;
+
+    /**
+     * its place in that meeting's action items
+     */
+    "index": number;
+    "when": string;
+
+    /** Creates a new Thread instance. */
+    constructor($$source: Partial<Thread> = {}) {
+        if (!("item" in $$source)) {
+            this["item"] = 0;
+        }
+        if (!("state" in $$source)) {
+            this["state"] = "";
+        }
+        if (!("by" in $$source)) {
+            this["by"] = "";
+        }
+        if (!("pinned" in $$source)) {
+            this["pinned"] = false;
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+        if (!("owner" in $$source)) {
+            this["owner"] = "";
+        }
+        if (!("due" in $$source)) {
+            this["due"] = "";
+        }
+        if (!("done" in $$source)) {
+            this["done"] = false;
+        }
+        if (!("times" in $$source)) {
+            this["times"] = 0;
+        }
+        if (!("from" in $$source)) {
+            this["from"] = 0;
+        }
+        if (!("index" in $$source)) {
+            this["index"] = 0;
+        }
+        if (!("when" in $$source)) {
+            this["when"] = "0001-01-01T00:00:00.000Z";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Thread instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Thread {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Thread($$parsedSource as Partial<Thread>);
     }
 }
 
@@ -802,9 +1193,15 @@ const $$createType9 = $Create.Array($$createType8);
 const $$createType10 = Nagging.createFrom;
 const $$createType11 = $Create.Array($$createType10);
 const $$createType12 = $Create.Array($Create.Any);
-const $$createType13 = Summary.createFrom;
-const $$createType14 = $Create.Nullable($$createType13);
-const $$createType15 = Chapter.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = Action.createFrom;
+const $$createType13 = Source.createFrom;
+const $$createType14 = $Create.Array($$createType13);
+const $$createType15 = Summary.createFrom;
+const $$createType16 = $Create.Nullable($$createType15);
+const $$createType17 = Thread.createFrom;
 const $$createType18 = $Create.Array($$createType17);
+const $$createType19 = Face.createFrom;
+const $$createType20 = $Create.Array($$createType19);
+const $$createType21 = Chapter.createFrom;
+const $$createType22 = $Create.Array($$createType21);
+const $$createType23 = Action.createFrom;
+const $$createType24 = $Create.Array($$createType23);

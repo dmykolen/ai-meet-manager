@@ -1,4 +1,5 @@
 import { useState } from "react"
+import Head from "../components/Head"
 import { AnimatePresence, motion } from "motion/react"
 import { Sparkles } from "lucide-react"
 import { Meetings, clock, type Answer } from "../api"
@@ -33,19 +34,17 @@ export default function Ask({ onOpen }: { onOpen: (id: number) => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="no-drag px-6 pb-3 pt-2">
-        <h1 className="flex items-center gap-2 text-[24px] font-semibold tracking-[-0.02em]"><Sparkles size={19} className="text-accent" /> Ask</h1>
-        <p className="mt-1 text-[13px] text-soft">Anything from any meeting you have recorded.</p>
-      </header>
+      <Head title="Запитати" />
 
-      <div className="no-drag px-6">
-        <NeedsKey what="Ask" />
-        <div className="mt-2 flex items-center gap-2 rounded-panel border border-line/60 bg-surface/60 px-4 py-3 transition-colors focus-within:border-accent/50">
+      <div className="no-drag px-4">
+        <div className="mx-auto w-full max-w-[78ch]">
+          <NeedsKey what="Ask" />
+        <div className="mt-2 flex items-center gap-2 rounded-lg border border-line/60 bg-surface/60 px-3 py-2.5 transition-colors focus-within:border-accent/50">
           <input
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="What did we decide about the migration?"
+            placeholder="Що ми вирішили щодо міграції?"
             className="min-w-0 flex-1 bg-transparent text-[14px] outline-none placeholder:text-faint"
           />
           <button
@@ -53,12 +52,14 @@ export default function Ask({ onOpen }: { onOpen: (id: number) => void }) {
             disabled={thinking || !question.trim()}
             className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-[12px] font-medium text-ink transition-opacity disabled:opacity-30"
           >
-            {thinking ? "Thinking…" : "Ask"}
+            {thinking ? "Думаю…" : "Ask"}
           </button>
+        </div>
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-10 pt-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-10 pt-5">
+        <div className="mx-auto w-full max-w-[78ch]">
         <AnimatePresence mode="wait">
           {thinking && (
             <motion.div key="wait" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
@@ -121,6 +122,7 @@ export default function Ask({ onOpen }: { onOpen: (id: number) => void }) {
             </motion.div>
           )}
         </AnimatePresence>
+        </div>
       </div>
     </div>
   )

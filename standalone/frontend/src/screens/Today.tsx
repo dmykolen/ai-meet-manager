@@ -8,13 +8,14 @@ import {
   RefreshCw,
   Users,
 } from "lucide-react"
-import { Meetings, length, when, type Briefing, type Outstanding } from "../api"
+import Head from "../components/Head"
+import { Meetings, length, many, when, type Briefing, type Outstanding } from "../api"
 import NeedsKey from "../components/NeedsKey"
 
 const windows = [
-  { days: 1, label: "Today" },
-  { days: 7, label: "This week" },
-  { days: 30, label: "This month" },
+  { days: 1, label: "Сьогодні" },
+  { days: 7, label: "Цей тиждень" },
+  { days: 30, label: "Цей місяць" },
 ] as const
 
 /**
@@ -51,11 +52,8 @@ export default function Today({ onOpen }: { onOpen: (id: number) => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <header className="no-drag flex items-center justify-between px-6 pb-3 pt-2">
-        <h1 className="text-[24px] font-semibold tracking-[-0.02em]">
-          {windows.find((w) => w.days === days)?.label ?? "Today"}
-        </h1>
-        <div className="flex rounded-lg bg-raised p-0.5">
+      <Head title={windows.find((w) => w.days === days)?.label ?? "Сьогодні"}>
+        <div className="flex rounded-md bg-raised p-0.5">
           {windows.map((w) => (
             <button
               key={w.days}
@@ -75,9 +73,9 @@ export default function Today({ onOpen }: { onOpen: (id: number) => void }) {
             </button>
           ))}
         </div>
-      </header>
+      </Head>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-10">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-10">
         {!brief ? null : empty ? (
           <Quiet />
         ) : (
@@ -86,10 +84,10 @@ export default function Today({ onOpen }: { onOpen: (id: number) => void }) {
 
             {brief.overdue.length > 0 && (
               <Block
-                title="Past its date"
+                title="Строк минув"
                 Icon={AlarmClock}
                 tone="text-warn"
-                hint="Committed to, with a deadline that has been and gone."
+                hint="Обіцяне, чий строк уже минув."
               >
                 {brief.overdue.map((a, i) => (
                   <Item key={i} action={a} overdue onOpen={onOpen} />
@@ -99,9 +97,9 @@ export default function Today({ onOpen }: { onOpen: (id: number) => void }) {
 
             {brief.nagging.length > 0 && (
               <Block
-                title="Keeps coming back"
+                title="Повертається знову"
                 Icon={RefreshCw}
-                hint="Asked in more than one meeting and still not answered. Nobody notices this, because each meeting only remembers itself."
+                hint="Питали не на одній нараді, і відповіді досі немає. Цього ніхто не помічає, бо кожна нарада памʼятає лише себе."
               >
                 {brief.nagging.map((n, i) => (
                   <button
@@ -124,7 +122,7 @@ export default function Today({ onOpen }: { onOpen: (id: number) => void }) {
             )}
 
             {brief.mine.length > 0 && (
-              <Block title="Still open" Icon={CircleCheck} hint="Everything anybody committed to and has not ticked off.">
+              <Block title="Досі відкрите" Icon={CircleCheck} hint="Усе, що хтось пообіцяв і не закрив.">
                 {brief.mine.slice(0, 12).map((a, i) => (
                   <Item key={i} action={a} onOpen={onOpen} />
                 ))}
@@ -132,7 +130,7 @@ export default function Today({ onOpen }: { onOpen: (id: number) => void }) {
             )}
 
             {brief.decided.length > 0 && (
-              <Block title="Decided" Icon={Gavel} hint="Settled in this window.">
+              <Block title="Вирішено" Icon={Gavel} hint="Вирішене за цей проміжок.">
                 {brief.decided.map((d, i) => (
                   <button
                     key={i}
@@ -147,7 +145,7 @@ export default function Today({ onOpen }: { onOpen: (id: number) => void }) {
             )}
 
             {brief.meetings.length > 0 && (
-              <Block title="Recorded" Icon={CalendarRange} hint="">
+              <Block title="Записано" Icon={CalendarRange} hint="">
                 {brief.meetings.map((m) => (
                   <button
                     key={m.id}
@@ -163,7 +161,7 @@ export default function Today({ onOpen }: { onOpen: (id: number) => void }) {
               </Block>
             )}
 
-            <NeedsKey what="Everything on this screen" />
+            <NeedsKey what="Усе на цьому екрані" />
           </div>
         )}
       </div>
@@ -173,14 +171,29 @@ export default function Today({ onOpen }: { onOpen: (id: number) => void }) {
 
 /** The four numbers worth a glance before any list. */
 function Numbers({ brief }: { brief: Briefing }) {
-  const cells = [
-    { n: brief.meetings.length, of: brief.meetings.length === 1 ? "meeting" : "meetings" },
-    { n: brief.minutes, of: "minutes in them" },
-    { n: brief.mine.length, of: "still open", tone: brief.mine.length ? "text-text" : "" },
-    { n: brief.overdue.length, of: "past its date", tone: brief.overdue.length ? "text-warn" : "" },
+  const cells: { n: number; of: string; tone?: string }[] = [
+    { n: brief.meetings.length, of: many(brief.meetings.length, "нарада", "наради", "нарад") },
+    { n: brief.minutes, of: "хвилин у них" },
+    { n: brief.mine.length, of: "не закрито", tone: brief.mine.length ? "text-text" : "" },
+    { n: brief.overdue.length, of: "прострочено", tone: brief.overdue.length ? "text-warn" : "" },
   ]
+  // Only when it has actually done something. A row saying "0 discarded" is a
+  // setting asking for credit it has not earned.
+  if (brief.skipped > 0) {
+    cells.push({
+      n: brief.skipped,
+      of: `відкинуто, ${brief.spared} хв заощаджено`,
+      tone: "text-good",
+    })
+  }
+  // auto-fit rather than a fixed count: there are four of these most days and
+  // five once the listener has thrown something away, and a lone cell on a
+  // second row looks like a mistake.
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div
+      className="grid gap-2"
+      style={{ gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))" }}
+    >
       {cells.map((c, i) => (
         <motion.div
           key={c.of}

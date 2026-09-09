@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from "react"
 import { motion } from "motion/react"
 import { Meetings, Status, type Density, type Settings, type SetupState } from "./api"
+import Palette from "./components/Palette"
 import Setup from "./screens/Setup"
 import Today from "./screens/Today"
-import Library from "./screens/Library"
+import Workspace from "./screens/Meetings"
 import Search from "./screens/Search"
 import Todo from "./screens/Todo"
 import Ask from "./screens/Ask"
 import SettingsScreen from "./screens/Settings"
-import Transcript from "./screens/Transcript"
 import Rail, { type Screen } from "./components/Rail"
 
 export default function App() {
@@ -17,6 +17,7 @@ export default function App() {
   const [open, setOpen] = useState<number | null>(null)
   const [density, setDensity] = useState<Density>("compact")
   const [refresh, setRefresh] = useState(0)
+  const [project, setProject] = useState<number | null>(null)
 
   // Polled rather than pushed: one small object once a second, and an event
   // channel for it would be more machinery than the thing it carries.
@@ -86,7 +87,23 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col bg-ink/80">
-      <div className="titlebar shrink-0" />
+      {/* The title bar was forty-two pixels of nothing but the traffic lights.
+          The one line that reaches anything in the app lives there now, which is
+          how a command palette exists here without a panel thrown over the
+          middle of the screen. */}
+      <div className="titlebar flex shrink-0 items-center gap-3 pl-[86px] pr-4">
+        <Palette
+          onOpenMeeting={show}
+          onOpenProject={(id) => {
+            setProject(id)
+            setScreen("library")
+          }}
+          onScreen={(s) => {
+            setOpen(null)
+            setScreen(s)
+          }}
+        />
+      </div>
 
       {/* No AnimatePresence around this one. It switches once per launch, and
           mode="wait" holds the incoming screen until every animation in the
@@ -119,30 +136,27 @@ export default function App() {
               new screen animating in is the whole effect anyway. */}
           <main className="min-w-0 flex-1">
               <motion.div
-                key={open !== null ? `meeting-${open}` : screen}
+                key={screen}
                 className="h-full"
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
               >
-                {open !== null ? (
-                  <Transcript
-                    id={open}
+                {screen === "today" && <Today onOpen={show} />}
+                {screen === "library" && (
+                  <Workspace
+                    pick={open}
+                    onPicked={() => setOpen(null)}
+                    project={project}
+                    onProject={setProject}
                     density={density}
                     onDensity={changeDensity}
-                    onBack={() => setOpen(null)}
-                    onChanged={() => setRefresh((n) => n + 1)}
                   />
-                ) : (
-                  <>
-                    {screen === "today" && <Today onOpen={show} />}
-                    {screen === "library" && <Library key={refresh} onOpen={setOpen} />}
-                    {screen === "search" && <Search onOpen={show} />}
-                    {screen === "todo" && <Todo onOpen={show} />}
-                    {screen === "ask" && <Ask onOpen={show} />}
-                    {screen === "settings" && <SettingsScreen onDensity={setDensity} />}
-                  </>
                 )}
+                {screen === "search" && <Search onOpen={show} />}
+                {screen === "todo" && <Todo onOpen={show} />}
+                {screen === "ask" && <Ask onOpen={show} />}
+                {screen === "settings" && <SettingsScreen onDensity={setDensity} />}
               </motion.div>
           </main>
         </motion.div>

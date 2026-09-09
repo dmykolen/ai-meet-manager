@@ -50,11 +50,30 @@ export function Analytics(id: number): $CancellablePromise<store$0.Analytics | n
 }
 
 /**
+ * Appearances is the projects somebody has been heard in, busiest first — the
+ * answer to "where does this person actually turn up".
+ */
+export function Appearances(name: string): $CancellablePromise<store$0.Group[]> {
+    return $Call.ByID(1939080865, name).then(($result: any) => {
+        return $$createType5($result);
+    });
+}
+
+/**
  * Ask answers a question from the transcripts.
  */
 export function Ask(question: string): $CancellablePromise<$models.Answer | null> {
     return $Call.ByID(1500112095, question).then(($result: any) => {
-        return $$createType5($result);
+        return $$createType7($result);
+    });
+}
+
+/**
+ * Bin is what has been deleted and not yet thrown away.
+ */
+export function Bin(): $CancellablePromise<store$0.Recording[]> {
+    return $Call.ByID(820010799).then(($result: any) => {
+        return $$createType9($result);
     });
 }
 
@@ -64,7 +83,7 @@ export function Ask(question: string): $CancellablePromise<$models.Answer | null
  */
 export function Brief(days: number): $CancellablePromise<store$0.Briefing | null> {
     return $Call.ByID(690406538, days).then(($result: any) => {
-        return $$createType7($result);
+        return $$createType11($result);
     });
 }
 
@@ -76,10 +95,44 @@ export function Delete(id: number): $CancellablePromise<void> {
 }
 
 /**
+ * DropGroup removes a group and leaves its recordings unfiled.
+ */
+export function DropGroup(id: number): $CancellablePromise<void> {
+    return $Call.ByID(974174766, id);
+}
+
+/**
+ * EmptyBin destroys everything in it, audio and all.
+ */
+export function EmptyBin(): $CancellablePromise<string> {
+    return $Call.ByID(1597412084);
+}
+
+/**
+ * File puts a recording in a group, or takes it out of every group when the
+ * group is zero.
+ *
+ * Filing it also moves that project's document on, so dragging a meeting onto a
+ * tile updates the project there and then.
+ */
+export function File(recording: number, group: number): $CancellablePromise<void> {
+    return $Call.ByID(4262653172, recording, group);
+}
+
+/**
  * Forget drops a person, which is how a name given to the wrong voice is undone.
  */
 export function Forget(name: string): $CancellablePromise<void> {
     return $Call.ByID(3211396467, name);
+}
+
+/**
+ * Groups are the folders in the Library: projects, clients, teams.
+ */
+export function Groups(): $CancellablePromise<store$0.Group[]> {
+    return $Call.ByID(3017561026).then(($result: any) => {
+        return $$createType5($result);
+    });
 }
 
 /**
@@ -89,6 +142,15 @@ export function Forget(name: string): $CancellablePromise<void> {
  */
 export function Import(path: string): $CancellablePromise<store$0.Recording | null> {
     return $Call.ByID(2393183823, path).then(($result: any) => {
+        return $$createType12($result);
+    });
+}
+
+/**
+ * InGroup lists one group's recordings.
+ */
+export function InGroup(group: number): $CancellablePromise<store$0.Recording[]> {
+    return $Call.ByID(2924641732, group).then(($result: any) => {
         return $$createType9($result);
     });
 }
@@ -106,7 +168,7 @@ export function Listener(r: listen$0.Recorder | null): $CancellablePromise<void>
  */
 export function Listening(): $CancellablePromise<listen$0.Status> {
     return $Call.ByID(2744938035).then(($result: any) => {
-        return $$createType10($result);
+        return $$createType13($result);
     });
 }
 
@@ -116,8 +178,15 @@ export function Listening(): $CancellablePromise<listen$0.Status> {
  */
 export function Live(): $CancellablePromise<listen$0.Line[]> {
     return $Call.ByID(2531093944).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType15($result);
     });
+}
+
+/**
+ * Loose is how many recordings belong to no project.
+ */
+export function Loose(): $CancellablePromise<number> {
+    return $Call.ByID(3074855652);
 }
 
 /**
@@ -130,12 +199,45 @@ export function Markdown(id: number): $CancellablePromise<string> {
 }
 
 /**
+ * Moment is where in a recording something was said, so a line of the project
+ * document opens the meeting at the second rather than at the top.
+ */
+export function Moment(recording: number, text: string): $CancellablePromise<number> {
+    return $Call.ByID(1538936198, recording, text);
+}
+
+/**
+ * NewGroup makes one, or hands back the one that already has that name.
+ */
+export function NewGroup(name: string): $CancellablePromise<store$0.Group> {
+    return $Call.ByID(2951344047, name).then(($result: any) => {
+        return $$createType4($result);
+    });
+}
+
+/**
  * Open is a whole meeting, ready to read.
  */
 export function Open(id: number): $CancellablePromise<$models.Meeting | null> {
     return $Call.ByID(3169510906, id).then(($result: any) => {
-        return $$createType14($result);
+        return $$createType17($result);
     });
+}
+
+/**
+ * Paint gives a project a colour, or an empty string to go back to the one
+ * derived from its name.
+ */
+export function Paint(id: number, colour: string): $CancellablePromise<void> {
+    return $Call.ByID(2169964894, id, colour);
+}
+
+/**
+ * PaintPerson gives somebody a colour, or an empty string to go back to the one
+ * derived from their name.
+ */
+export function PaintPerson(name: string, colour: string): $CancellablePromise<void> {
+    return $Call.ByID(1523618083, name, colour);
 }
 
 /**
@@ -143,8 +245,32 @@ export function Open(id: number): $CancellablePromise<$models.Meeting | null> {
  */
 export function People(): $CancellablePromise<store$0.Person[]> {
     return $Call.ByID(3465037041).then(($result: any) => {
-        return $$createType16($result);
+        return $$createType19($result);
     });
+}
+
+/**
+ * PinItem is a person editing a line of the project document; from then on the
+ * model may close it but never reword it.
+ */
+export function PinItem(group: number, id: number, text: string, owner: string, due: string): $CancellablePromise<void> {
+    return $Call.ByID(1162602530, group, id, text, owner, due);
+}
+
+/**
+ * Playing tells the listener that the app's own player is running, so that
+ * pressing play does not make the app record its own playback as a meeting.
+ */
+export function Playing(on: boolean): $CancellablePromise<void> {
+    return $Call.ByID(1269014556, on);
+}
+
+/**
+ * RebuildProject replays every meeting into a fresh document. The answer to
+ * "this has gone wrong".
+ */
+export function RebuildProject(group: number): $CancellablePromise<void> {
+    return $Call.ByID(3236221742, group);
 }
 
 /**
@@ -152,7 +278,7 @@ export function People(): $CancellablePromise<store$0.Person[]> {
  */
 export function Recent(limit: number): $CancellablePromise<store$0.Recording[]> {
     return $Call.ByID(1420283577, limit).then(($result: any) => {
-        return $$createType17($result);
+        return $$createType9($result);
     });
 }
 
@@ -163,6 +289,19 @@ export function Recent(limit: number): $CancellablePromise<store$0.Recording[]> 
  */
 export function Record(): $CancellablePromise<void> {
     return $Call.ByID(2466039479);
+}
+
+/**
+ * Redate says when a meeting really happened.
+ *
+ * It matters more than a label. The project document is built by replaying its
+ * meetings oldest first, so a recording carrying the wrong date is read into
+ * the project's history at the wrong point — a decision reversed in March lands
+ * after the one that reversed it. Imported files guess from the file's own
+ * timestamp, and this is how the guess is corrected.
+ */
+export function Redate(recording: number, when: string): $CancellablePromise<void> {
+    return $Call.ByID(2426394395, recording, when);
 }
 
 /**
@@ -186,11 +325,46 @@ export function Rename(id: number, $from: string, to: string): $CancellablePromi
 }
 
 /**
+ * RenameGroup changes a project's name.
+ */
+export function RenameGroup(id: number, name: string): $CancellablePromise<void> {
+    return $Call.ByID(3567885487, id, name);
+}
+
+/**
+ * Restore takes a recording back out of the bin.
+ */
+export function Restore(id: number): $CancellablePromise<void> {
+    return $Call.ByID(2469582744, id);
+}
+
+/**
+ * Retitle is the user overruling the model's guess at what the hour was about.
+ * From then on summarising again leaves the title alone.
+ */
+export function Retitle(id: number, title: string): $CancellablePromise<void> {
+    return $Call.ByID(1977650231, id, title);
+}
+
+/**
  * RevealFolder opens ~/MeetingTranscriber in the file manager, which is the
  * answer to "where are my recordings".
  */
 export function RevealFolder(): $CancellablePromise<void> {
     return $Call.ByID(4141902131);
+}
+
+/**
+ * Samples is what the app thinks somebody sounds like: one entry per saved
+ * voiceprint, naming the meeting and the longest thing they said in it.
+ *
+ * This is the answer to "why does it keep calling that person Olena" — the
+ * evidence is playable instead of being 512 numbers nobody can argue with.
+ */
+export function Samples(name: string): $CancellablePromise<store$0.Source[]> {
+    return $Call.ByID(1556926209, name).then(($result: any) => {
+        return $$createType21($result);
+    });
 }
 
 /**
@@ -213,13 +387,31 @@ export function SaveSettings(s: $models.Settings): $CancellablePromise<void> {
  */
 export function Search(query: string): $CancellablePromise<store$0.Hit[]> {
     return $Call.ByID(1634764442, query).then(($result: any) => {
-        return $$createType19($result);
+        return $$createType23($result);
     });
 }
 
 export function Settings(): $CancellablePromise<$models.Settings> {
     return $Call.ByID(4203116247).then(($result: any) => {
-        return $$createType20($result);
+        return $$createType24($result);
+    });
+}
+
+/**
+ * Span is every recording of the last `days` days, as the timeline draws them.
+ */
+export function Span(days: number): $CancellablePromise<store$0.Mark[]> {
+    return $Call.ByID(3717387314, days).then(($result: any) => {
+        return $$createType26($result);
+    });
+}
+
+/**
+ * Standing is where a project stands, gathered from its meetings.
+ */
+export function Standing(group: number): $CancellablePromise<store$0.Standing | null> {
+    return $Call.ByID(1016657098, group).then(($result: any) => {
+        return $$createType28($result);
     });
 }
 
@@ -259,6 +451,13 @@ export function Tick(id: number, index: number, done: boolean): $CancellableProm
 }
 
 /**
+ * TickItem ticks a line of the project document off, or puts it back.
+ */
+export function TickItem(group: number, id: number, done: boolean): $CancellablePromise<void> {
+    return $Call.ByID(929529136, group, id, done);
+}
+
+/**
  * Tidy deletes audio older than the setting, now. The same sweep runs daily on
  * its own; this is the button for somebody who has just noticed the folder is
  * twelve gigabytes.
@@ -267,25 +466,45 @@ export function Tidy(): $CancellablePromise<string> {
     return $Call.ByID(2386150514);
 }
 
+/**
+ * Waveform is the loudness of a recording across its length, for the player to
+ * draw. Read from the same folded copy the player is served, so what is on the
+ * screen is what will be heard.
+ */
+export function Waveform(id: number): $CancellablePromise<number[]> {
+    return $Call.ByID(1962206177, id).then(($result: any) => {
+        return $$createType29($result);
+    });
+}
+
 // Private type creation functions
 const $$createType0 = store$0.Outstanding.createFrom;
 const $$createType1 = $Create.Array($$createType0);
 const $$createType2 = store$0.Analytics.createFrom;
 const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $models.Answer.createFrom;
-const $$createType5 = $Create.Nullable($$createType4);
-const $$createType6 = store$0.Briefing.createFrom;
+const $$createType4 = store$0.Group.createFrom;
+const $$createType5 = $Create.Array($$createType4);
+const $$createType6 = $models.Answer.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
 const $$createType8 = store$0.Recording.createFrom;
-const $$createType9 = $Create.Nullable($$createType8);
-const $$createType10 = listen$0.Status.createFrom;
-const $$createType11 = listen$0.Line.createFrom;
-const $$createType12 = $Create.Array($$createType11);
-const $$createType13 = $models.Meeting.createFrom;
-const $$createType14 = $Create.Nullable($$createType13);
-const $$createType15 = store$0.Person.createFrom;
-const $$createType16 = $Create.Array($$createType15);
-const $$createType17 = $Create.Array($$createType8);
-const $$createType18 = store$0.Hit.createFrom;
+const $$createType9 = $Create.Array($$createType8);
+const $$createType10 = store$0.Briefing.createFrom;
+const $$createType11 = $Create.Nullable($$createType10);
+const $$createType12 = $Create.Nullable($$createType8);
+const $$createType13 = listen$0.Status.createFrom;
+const $$createType14 = listen$0.Line.createFrom;
+const $$createType15 = $Create.Array($$createType14);
+const $$createType16 = $models.Meeting.createFrom;
+const $$createType17 = $Create.Nullable($$createType16);
+const $$createType18 = store$0.Person.createFrom;
 const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = $models.Settings.createFrom;
+const $$createType20 = store$0.Source.createFrom;
+const $$createType21 = $Create.Array($$createType20);
+const $$createType22 = store$0.Hit.createFrom;
+const $$createType23 = $Create.Array($$createType22);
+const $$createType24 = $models.Settings.createFrom;
+const $$createType25 = store$0.Mark.createFrom;
+const $$createType26 = $Create.Array($$createType25);
+const $$createType27 = store$0.Standing.createFrom;
+const $$createType28 = $Create.Nullable($$createType27);
+const $$createType29 = $Create.Array($Create.Any);

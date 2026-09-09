@@ -76,6 +76,7 @@ export type Recording = {
   duration: number
   language: string
   audio: string // file name; empty once the audio has been deleted
+  group: number // which group it is filed under, 0 for none
   status: "queued" | "transcribing" | "summarising" | "done" | "failed"
   progress: number
   problem?: string
@@ -126,7 +127,69 @@ export type Analytics = {
   busiest: { at: number; words: number }[] | null
 }
 
-export type Person = { id: number; name: string; samples: number; meetings: number }
+// `colour` is empty when nobody has chosen one; colourOf then derives it from
+// the name, which is what keeps somebody the same colour everywhere.
+export type Person = {
+  id: number
+  name: string
+  samples: number
+  meetings: number
+  colour: string
+  sources: Source[]
+}
+export type Source = {
+  recording: number
+  speaker: string
+  title: string
+  audio: string
+  start: number
+  finish: number
+}
+export type Group = { id: number; name: string; count: number; colour: string }
+
+/** One recording as the timeline draws it — no transcript, no summary. */
+export type Mark = {
+  id: number
+  kind: "meeting" | "note"
+  started: string
+  duration: number
+  folder: number
+}
+
+/** One thing a project's meetings keep saying, and how often they said it. */
+export type Thread = {
+  /** Its id in the kept document, or 0 when this came from the mechanical fold. */
+  item: number
+  state: string
+  by: string
+  pinned: boolean
+  text: string
+  owner: string
+  due: string
+  done: boolean
+  times: number
+  from: number
+  index: number
+  when: string
+}
+
+export type Face = { name: string; seconds: number; meetings: number; last: string }
+
+export type Standing = {
+  meetings: number
+  hours: number
+  first: string
+  last: string
+  work: Thread[]
+  decisions: Thread[]
+  questions: Thread[]
+  people: Face[]
+  /** One paragraph on where the project stands, when a model has written one. */
+  status: string
+  written: boolean
+  /** How many of these meetings the model has folded in; climbs on a rebuild. */
+  folded: number
+}
 
 export type Said = { recording: number; title: string; started: string; text: string }
 export type Nagging = { text: string; times: number; said: Said[] }
@@ -140,6 +203,8 @@ export type Briefing = {
   overdue: Outstanding[]
   nagging: Nagging[]
   voices: string[]
+  skipped: number
+  spared: number
 }
 
 export type Density = "compact" | "comfortable"
@@ -149,9 +214,12 @@ export type Settings = {
   transcriber: "whisper" | "parakeet"
   openaiKey: string
   openaiModel: string
-  summarise: boolean
+  summarise: "always" | "meetings" | "never"
+  keepNotes: boolean
   density: Density
   listening: boolean
+  /** Capture the machine's own audio alongside the microphone. */
+  system: boolean
   startSpeech: number
   quietEnds: number
   preroll: number
@@ -168,6 +236,15 @@ export function clock(seconds: number): string {
   const pad = (n: number) => String(n).padStart(2, "0")
   return h > 0 ? `${h}:${pad(m)}:${pad(rest)}` : `${m}:${pad(rest)}`
 }
+
+/**
+ * Ukrainian counts three ways — 1 нарада, 2 наради, 5 нарад — and the app said
+ * "2 нарад" everywhere it counted anything. Intl knows which form a number
+ * takes; the words are the only part worth writing down.
+ */
+const rule = new Intl.PluralRules("uk")
+export const many = (n: number, one: string, few: string, rest: string): string =>
+  ({ one, few } as Record<string, string>)[rule.select(n)] ?? rest
 
 /** "18 minutes", "1 hr 4 min" — a length, not a timestamp. */
 export function length(seconds: number): string {

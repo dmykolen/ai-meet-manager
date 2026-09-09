@@ -1,12 +1,18 @@
 import { useEffect, useState } from "react"
-import { motion } from "motion/react"
-import { Brain, Check, Ear, FolderOpen, Mic, Rows2, Sparkles, Trash2, UserRound, X } from "lucide-react"
-import { Meetings, type Density, type Person, type Settings as Values } from "../api"
+import { AnimatePresence, motion } from "motion/react"
+import {
+  Brain, Check, ChevronRight, Ear, FolderOpen, Mic, Rows2, Sparkles, Trash2, UserRound, X,
+} from "lucide-react"
+import { Meetings, type Density, type Group, type Person, type Settings as Values, type Source } from "../api"
+import { colourOf, picked, tone, wash } from "../colours"
+import Paint from "../components/Paint"
+import Snippet from "../components/Snippet"
 
 export default function Settings({ onDensity }: { onDensity: (d: Density) => void }) {
   const [values, setValues] = useState<Values | null>(null)
   const [saved, setSaved] = useState(false)
   const [people, setPeople] = useState<Person[]>([])
+  const [projects, setProjects] = useState<Group[]>([])
   const [busy, setBusy] = useState("")
   const [said, setSaid] = useState("")
   const [me, setMe] = useState("")
@@ -34,10 +40,12 @@ export default function Settings({ onDensity }: { onDensity: (d: Density) => voi
   }
 
   const voices = () => Meetings.People().then((p) => setPeople((p as Person[]) ?? []))
+  const folders = () => Meetings.Groups().then((g) => setProjects((g as Group[]) ?? []))
 
   useEffect(() => {
     Meetings.Settings().then((v) => setValues(v as Values))
     voices().catch(() => {})
+    folders().catch(() => {})
   }, [])
 
   if (!values) return null
@@ -71,6 +79,23 @@ export default function Settings({ onDensity }: { onDensity: (d: Density) => voi
               <Toggle on={values.listening} onChange={(on) => save({ ...values, listening: on })} />
             </Row>
             <Row
+              label="What it listens to"
+              hint={
+                values.system
+                  ? "The microphone and whatever the machine is playing, kept apart. Speech on the second one is how it knows somebody is talking to you rather than that you are thinking aloud — and it is what gives the other side of a call cleanly instead of through the room."
+                  : "The microphone only, like a voice recorder. Without headphones that already contains everybody, once. It can still hear when a second voice is in the room and call that a meeting, but not reliably enough to throw anything away on — so in this mode nothing it records is ever discarded, whatever “Keep notes” says below."
+              }
+            >
+              <Choice
+                options={[
+                  { id: "both", label: "Mic + system" },
+                  { id: "mic", label: "Mic only" },
+                ]}
+                value={values.system ? "both" : "mic"}
+                onChange={(id) => save({ ...values, system: id === "both" })}
+              />
+            </Row>
+            <Row
               label="Start after"
               hint="How much talking there has to be before it decides this is a meeting."
             >
@@ -90,6 +115,12 @@ export default function Settings({ onDensity }: { onDensity: (d: Density) => voi
                 max={1800}
                 onChange={(n) => save({ ...values, quietEnds: n })}
               />
+            </Row>
+            <Row
+              label="Keep notes it records by itself"
+              hint="A recording nobody else was in and nobody asked for is usually a phone call or thinking aloud. Off, those are discarded when they end and cost nothing. Pressing Record always keeps the note, whatever this says."
+            >
+              <Toggle on={values.keepNotes} onChange={(on) => save({ ...values, keepNotes: on })} />
             </Row>
             <Row
               label="Reach back"
@@ -171,39 +202,35 @@ export default function Settings({ onDensity }: { onDensity: (d: Density) => voi
                 learns what they sound like and names them by itself from then on.
               </p>
             ) : (
-              people.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center justify-between gap-4 border-b border-line/40 px-4 py-2.5 last:border-b-0"
-                >
-                  <div className="min-w-0">
-                    <h3 className="text-[13px] font-medium">{p.name}</h3>
-                    <p className="mt-0.5 text-[11px] text-faint">
-                      {p.samples} {p.samples === 1 ? "voiceprint" : "voiceprints"} ·{" "}
-                      {p.meetings} {p.meetings === 1 ? "meeting" : "meetings"}
-                    </p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      await Meetings.Forget(p.name)
-                      voices()
-                    }}
-                    title="Forget this voice. Transcripts keep the name; new meetings stop guessing it."
-                    className="shrink-0 rounded-lg p-1.5 text-faint transition-colors hover:bg-raised hover:text-warn"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))
+              people.map((p) => <Face key={p.id} person={p} onChanged={voices} />)
+            )}
+          </Group>
+
+          <Group title="Projects" Icon={FolderOpen}>
+            {projects.length === 0 ? (
+              <p className="px-4 py-3 text-[12px] leading-relaxed text-faint">
+                No projects yet. Make one from the Meetings screen, then file meetings
+                under it — a project is just a folder you named.
+              </p>
+            ) : (
+              projects.map((g) => <Folder key={g.id} group={g} onChanged={folders} />)
             )}
           </Group>
 
           <Group title="Summaries" Icon={Sparkles}>
             <Row
-              label="Summarise every meeting"
-              hint="Off makes this a transcriber and nothing more."
+              label="What is worth a summary"
+              hint="Most of what an always-on recorder catches is half a phone call or a thought said out loud, and summarising those costs money for nothing. The Summarise button on a meeting always works, whatever this says."
             >
-              <Toggle on={values.summarise} onChange={(on) => save({ ...values, summarise: on })} />
+              <Choice
+                options={[
+                  { id: "meetings", label: "Meetings" },
+                  { id: "always", label: "Everything" },
+                  { id: "never", label: "Nothing" },
+                ]}
+                value={values.summarise}
+                onChange={(id) => save({ ...values, summarise: id as Values["summarise"] })}
+              />
             </Row>
             <Row
               label="OpenAI key"
@@ -420,6 +447,238 @@ function Choice({
           <span className={`relative z-10 ${value === o.id ? "text-text" : "text-faint"}`}>{o.label}</span>
         </button>
       ))}
+    </div>
+  )
+}
+
+/**
+ * One person the app has learnt.
+ *
+ * Closed it says the same three things it always did. Open it answers the two
+ * questions the old row could not: *why* does the app think this is Olena —
+ * here are the samples, play them — and *where* does she actually turn up.
+ *
+ * It expands in place rather than opening a panel over the list, so the row you
+ * clicked stays where you clicked it.
+ */
+function Face({ person, onChanged }: { person: Person; onChanged: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [samples, setSamples] = useState<Source[] | null>(null)
+  const [seen, setSeen] = useState<Group[]>([])
+  const colour = colourOf(person.name, person.colour)
+
+  // Fetched when the row is opened, not with the list: forty people would
+  // otherwise mean forty queries for rows nobody looked at.
+  useEffect(() => {
+    if (!open || samples !== null) return
+    Meetings.Samples(person.name).then((s) => setSamples((s as Source[]) ?? []))
+    Meetings.Appearances(person.name).then((g) => setSeen((g as Group[]) ?? []))
+  }, [open, samples, person.name])
+
+  const paint = async (to: string) => {
+    await Meetings.PaintPerson(person.name, to)
+    onChanged()
+  }
+
+  return (
+    <div className="border-b border-line/40 last:border-b-0">
+      <div className="flex items-center gap-3 px-4 py-2.5">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+        >
+          <motion.span animate={{ rotate: open ? 90 : 0 }} transition={{ duration: 0.18 }}>
+            <ChevronRight size={13} className="shrink-0 text-faint" />
+          </motion.span>
+          <span
+            className="size-2.5 shrink-0 rounded-full transition-transform"
+            style={{ background: colour }}
+          />
+          <span className="min-w-0">
+            <h3 className="truncate text-[13px] font-medium">{person.name}</h3>
+            <p className="mt-0.5 text-[11px] text-faint">
+              {person.samples} {person.samples === 1 ? "voiceprint" : "voiceprints"} ·{" "}
+              {person.meetings} {person.meetings === 1 ? "meeting" : "meetings"}
+            </p>
+          </span>
+        </button>
+        <button
+          onClick={async () => {
+            await Meetings.Forget(person.name)
+            onChanged()
+          }}
+          title="Forget this voice. Transcripts keep the name; new meetings stop guessing it."
+          className="shrink-0 rounded-lg p-1.5 text-faint transition-colors hover:bg-raised hover:text-warn"
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-3.5 px-4 pb-4 pl-[38px]">
+              <div>
+                <Label>Colour</Label>
+                <div className="mt-1.5">
+                  <Paint
+                    colour={colour}
+                    derived={tone(person.name)}
+                    chosen={picked(person.colour)}
+                    onPick={paint}
+                  />
+                </div>
+              </div>
+
+              {seen.length > 0 && (
+                <div>
+                  <Label>Heard in</Label>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {seen.map((g) => (
+                      <span
+                        key={g.id}
+                        style={
+                          g.id === 0
+                            ? undefined
+                            : {
+                                background: wash(colourOf(g.name, g.colour), 16),
+                                color: colourOf(g.name, g.colour),
+                              }
+                        }
+                        className={`rounded-full px-2 py-0.5 text-[10.5px] font-medium ${
+                          g.id === 0 ? "bg-raised text-faint" : ""
+                        }`}
+                      >
+                        {g.name || "No project"}
+                        <span className="ml-1.5 tabular-nums opacity-60">{g.count}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <Label>What the app thinks they sound like</Label>
+                <div className="mt-1 -ml-1">
+                  {samples === null ? (
+                    <p className="px-1 py-1 text-[11.5px] text-faint">Looking…</p>
+                  ) : samples.length === 0 ? (
+                    <p className="px-1 py-1 text-[11.5px] leading-relaxed text-faint">
+                      The samples were saved before the app kept track of where they came
+                      from. The next time this voice is recognised, one will appear here.
+                    </p>
+                  ) : (
+                    samples.map((src, i) => (
+                      <Snippet key={`${src.recording}-${i}`} source={src} colour={colour} />
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="text-[10px] font-medium uppercase tracking-[0.08em] text-faint">
+      {children}
+    </span>
+  )
+}
+
+/**
+ * One project: its name, and the colour it wears everywhere else.
+ *
+ * The name is the field, the same way a meeting's title is — a project called
+ * "vodafone2" because that is what got typed at 9am should not need a menu to
+ * become "Vodafone".
+ */
+function Folder({ group, onChanged }: { group: Group; onChanged: () => void }) {
+  const [name, setName] = useState(group.name)
+  const [picking, setPicking] = useState(false)
+  const colour = colourOf(group.name, group.colour)
+
+  useEffect(() => setName(group.name), [group.name])
+
+  const paint = async (to: string) => {
+    await Meetings.Paint(group.id, to)
+    onChanged()
+  }
+
+  return (
+    <div className="border-b border-line/40 px-4 py-2.5 last:border-b-0">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => setPicking((p) => !p)}
+          title="Change this project's colour"
+          style={{ background: colour }}
+          className="size-2.5 shrink-0 rounded-full transition-transform hover:scale-125"
+        />
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            e.stopPropagation()
+            if (e.key === "Enter") e.currentTarget.blur()
+            if (e.key === "Escape") {
+              setName(group.name)
+              e.currentTarget.blur()
+            }
+          }}
+          onBlur={async () => {
+            const to = name.trim()
+            if (!to || to === group.name) return setName(group.name)
+            await Meetings.RenameGroup(group.id, to)
+            onChanged()
+          }}
+          spellCheck={false}
+          className="-mx-1.5 min-w-0 flex-1 rounded-lg bg-transparent px-1.5 py-0.5 font-[inherit] text-[13px] font-medium text-text outline-none transition-colors hover:bg-raised/50 focus:bg-raised"
+        />
+        <span className="shrink-0 text-[11px] tabular-nums text-faint">
+          {group.count} {group.count === 1 ? "meeting" : "meetings"}
+        </span>
+        <button
+          onClick={async () => {
+            await Meetings.DropGroup(group.id)
+            onChanged()
+          }}
+          title="Remove this project. Its meetings stay, unfiled."
+          className="shrink-0 rounded-lg p-1.5 text-faint transition-colors hover:bg-raised hover:text-warn"
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      <AnimatePresence initial={false}>
+        {picking && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="pb-1 pl-[22px] pt-2.5">
+              <Paint
+                colour={colour}
+                derived={tone(group.name)}
+                chosen={picked(group.colour)}
+                onPick={paint}
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

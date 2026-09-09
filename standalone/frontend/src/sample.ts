@@ -26,23 +26,26 @@ const summary = {
   open_questions: ["Які саме IP-діапазони треба вказати для обмежень доступу?"],
 }
 
+/** How many meetings the project document has read; a rebuild walks it up. */
+let folded = 12
+
 const recordings: Recording[] = [
   {
-    id: 1, kind: "meeting", audio: "sample-1.wav", title: summary.title, started: new Date(Date.now() - 3e6).toISOString(),
+    id: 1, kind: "meeting", audio: "sample-1.wav", group: 0, title: summary.title, started: new Date(Date.now() - 3e6).toISOString(),
     duration: 1826, language: "uk", status: "done", progress: 1, turns: 153,
     speakers: ["Olena", "Tanya", "Dmytro Mykolenko"], summary,
   },
   {
-    id: 2, kind: "meeting", audio: "sample-2.wav", title: "Рефайнмент рольової моделі", started: new Date(Date.now() - 9e7).toISOString(),
+    id: 2, kind: "meeting", audio: "sample-2.wav", group: 0, title: "Рефайнмент рольової моделі", started: new Date(Date.now() - 9e7).toISOString(),
     duration: 2387, language: "uk", status: "summarising", progress: 0.9, turns: 210,
     speakers: ["Olena", "Bogdan"],
   },
   {
-    id: 3, kind: "note", audio: "sample-3.wav", title: "note 2026-09-01 08:12.wav", started: new Date(Date.now() - 1.8e8).toISOString(),
+    id: 3, kind: "note", audio: "sample-3.wav", group: 0, title: "note 2026-09-01 08:12.wav", started: new Date(Date.now() - 1.8e8).toISOString(),
     duration: 214, language: "uk", status: "transcribing", progress: 0.35, turns: 0,
   },
   {
-    id: 4, kind: "meeting", audio: "sample-4.wav", title: "meeting 2026-08-30 22:39.wav", started: new Date(Date.now() - 2.6e8).toISOString(),
+    id: 4, kind: "meeting", audio: "sample-4.wav", group: 0, title: "meeting 2026-08-30 22:39.wav", started: new Date(Date.now() - 2.6e8).toISOString(),
     duration: 0, language: "", status: "failed", progress: 0, turns: 0,
     problem: "could not read the audio: no data chunk",
   },
@@ -74,13 +77,71 @@ export const sample = {
     ],
   }),
   Rename: async () => {},
+  Paint: async () => {},
+  Loose: async () => 12,
+  Span: async () => recordings.map((r) => ({
+    id: r.id, kind: r.kind, started: r.started, duration: r.duration, folder: r.group,
+  })),
+  TickItem: async () => {},
+  PinItem: async () => {},
+  // A rebuild in design mode takes the time a real one feels like, so the
+  // waiting state is something that can actually be looked at.
+  RebuildProject: async () => {
+    for (folded = 0; folded < 12; folded++) await new Promise((r) => setTimeout(r, 600))
+  },
+  Moment: async (_id: number, text: string) => (text.length % 6) * 120 + 180,
+  Standing: async () => ({
+    written: folded > 0,
+    folded,
+    status: folded > 0 ? "Міграцію узгоджено, чекає на ревʼю безпеки. Доступ лишається через VPN — рішення від 5 вересня скасувало попереднє. Дві речі прострочені, обидві на боці безпеки." : "",
+    meetings: 12, hours: 8.4, first: recordings[3].started, last: recordings[0].started,
+    work: [
+      { item: 1, state: "open", by: "", pinned: false,
+        text: "Узгодити перелік ролей із безпекою", owner: "Dmytro", due: "", done: false,
+        times: 3, from: 1, index: -1, when: recordings[0].started },
+      { item: 2, state: "done", by: "", pinned: true,
+        text: "Закрити доступ ззовні", owner: "Tanya", due: "", done: true,
+        times: 1, from: 2, index: -1, when: recordings[1].started },
+    ],
+    decisions: [
+      { item: 3, state: "standing", by: "", pinned: false,
+        text: "Доступ лишається через VPN", owner: "", due: "", done: false,
+        times: 2, from: 1, index: -1, when: recordings[0].started },
+      { item: 4, state: "overturned", by: "Доступ лишається через VPN", pinned: false,
+        text: "Відкрити продукт назовні", owner: "", due: "", done: true,
+        times: 1, from: 2, index: -1, when: recordings[1].started },
+    ],
+    questions: [{ item: 5, state: "open", by: "", pinned: false,
+      text: "Які IP-діапазони віддаємо назовні", owner: "", due: "", done: false,
+      times: 3, from: 2, index: -1, when: recordings[1].started }],
+    people: [
+      { name: "Dmytro Mykolenko", seconds: 5400, meetings: 9, last: recordings[0].started },
+      { name: "Tanya", seconds: 2100, meetings: 4, last: recordings[2].started },
+    ],
+  }),
+  PaintPerson: async () => {},
+  RenameGroup: async () => {},
+  Samples: async () => [
+    { recording: 1, speaker: "Tanya", title: summary.title, audio: "sample-1.wav", start: 282, finish: 301 },
+    { recording: 2, speaker: "Tanya", title: "Рефайнмент рольової моделі", audio: "sample-2.wav", start: 40, finish: 66 },
+  ],
+  Appearances: async () => [
+    { id: 1, name: "Vodafone", count: 8, colour: "" },
+    { id: 0, name: "", count: 2, colour: "" },
+  ],
+  // Mutates the row so that renaming can actually be judged in design mode
+  // rather than snapping back to the model's title on the next read.
+  Retitle: async (id: number, title: string) => {
+    const r = recordings.find((x) => x.id === id)
+    if (r) r.title = title
+  },
   SaveNote: async () => {},
   Delete: async () => {},
   Import: async () => recordings[0],
   RevealFolder: async () => {},
   Settings: async (): Promise<Settings> => ({
     language: "uk", transcriber: "whisper" as const, openaiKey: "sk-demo", openaiModel: "gpt-5.4-mini",
-    summarise: true, density: "compact", listening: true,
+    summarise: "meetings" as const, keepNotes: false, density: "compact", listening: true, system: true,
     startSpeech: 20, quietEnds: 180, preroll: 300, keepAudioDays: 30,
     folder: "/Users/you/MeetingTranscriber",
   }),
@@ -104,6 +165,19 @@ export const sample = {
     problem: "",
   }),
   Summaries: () => true,
+  Waveform: async () => Array.from({ length: 300 }, (_, i) =>
+    Math.max(0, 0.35 + 0.4 * Math.sin(i / 7) + 0.25 * Math.sin(i / 2.3) * (i % 11 < 7 ? 1 : 0.2))),
+  Groups: async () => [
+    { id: 1, name: "Vodafone", count: 8 },
+    { id: 2, name: "AI platform", count: 5 },
+  ],
+  NewGroup: async (name: string) => ({ id: 3, name, count: 0 }),
+  File: async () => {},
+  DropGroup: async () => {},
+  InGroup: async () => [],
+  Bin: async () => [],
+  Restore: async () => {},
+  EmptyBin: async () => "The bin was already empty.",
   Again: async () => {},
   ThisIsMe: async (name: string) => `Learnt your voice from 6 recordings. Your turns are now named ${name}.`,
   Reindex: async () => "Indexed 12 recordings. 486 passages searchable by meaning, 0 by keyword only.",
@@ -140,6 +214,8 @@ export const sample = {
   Brief: async (days: number) => ({
     since: new Date(Date.now() - days * 864e5).toISOString(),
     minutes: 148,
+    skipped: 7,
+    spared: 63,
     meetings: [],
     voices: ["Dmytro Mykolenko", "Olena", "Tanya"],
     decided: [

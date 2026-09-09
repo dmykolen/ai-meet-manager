@@ -93,43 +93,53 @@ export default function Shape({
           </div>
         )}
 
+        {/* Stacked rather than name | bar | figures on one line. This lives in a
+            narrow rail now, and three columns of text needed 280 pixels to sit
+            in 236 — which clipped every speaker's figures. */}
         {!alone && (
-        <div className="mt-3.5 flex flex-col gap-2">
-          {a.speakers.map((v, i) => (
-            <div key={v.speaker} className="flex items-center gap-3 text-[11.5px]">
-              <span
-                className="w-28 shrink-0 truncate font-medium"
-                style={{ color: colours.get(v.speaker) }}
-                title={v.speaker}
-              >
-                {v.speaker}
-              </span>
-              <span className="h-2 flex-1 overflow-hidden rounded-full bg-raised">
-                <motion.span
-                  className="block h-full rounded-full"
-                  style={{ background: colours.get(v.speaker) ?? "var(--color-accent)" }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${v.share * 100}%` }}
-                  transition={{ delay: 0.1 + i * 0.06, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                />
-              </span>
-              <span className="w-36 shrink-0 text-right tabular-nums text-faint">
-                {Math.round(v.share * 100)}% · {v.turns} turns · {Math.round(v.pace)} wpm
-              </span>
-            </div>
-          ))}
-        </div>
+          <div className="mt-3.5 flex flex-col gap-2.5">
+            {a.speakers.map((v, i) => (
+              <div key={v.speaker} className="text-[11px]">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span
+                    className="min-w-0 truncate font-medium"
+                    style={{ color: colours.get(v.speaker) }}
+                    title={v.speaker}
+                  >
+                    {v.speaker}
+                  </span>
+                  <span className="shrink-0 tabular-nums text-soft">
+                    {Math.round(v.share * 100)}%
+                  </span>
+                </div>
+                <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-raised">
+                  <motion.span
+                    className="block h-full rounded-full"
+                    style={{ background: colours.get(v.speaker) ?? "var(--color-accent)" }}
+                    initial={{ width: 0 }}
+                    animate={{ width: `${v.share * 100}%` }}
+                    transition={{ delay: 0.1 + i * 0.06, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                </span>
+                <span className="mt-1 block text-[9.5px] tabular-nums text-faint">
+                  {v.turns} turns · {Math.round(v.pace)} wpm
+                </span>
+              </div>
+            ))}
+          </div>
         )}
 
         {!alone && a.speakers.some((v) => v.questions > 0) && (
-          <p className="mt-3 flex items-center gap-1.5 border-t border-line/40 pt-2.5 text-[11px] text-faint">
-            <MessageCircleQuestion size={11} />
-            Questions asked:{" "}
+          <p className="mt-3 flex items-start gap-1.5 border-t border-line/40 pt-2.5 text-[10.5px] leading-relaxed text-faint">
+            <MessageCircleQuestion size={11} className="mt-[3px] shrink-0" />
+            <span className="min-w-0">
+              Questions asked:{" "}
             {a.speakers
               .filter((v) => v.questions > 0)
               .sort((x, y) => y.questions - x.questions)
               .map((v) => `${v.speaker} ${v.questions}`)
               .join(" · ")}
+            </span>
           </p>
         )}
       </div>
