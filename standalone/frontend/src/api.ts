@@ -20,12 +20,15 @@ async function design() {
 const stub = <T extends object>(real: T): T =>
   designing
     ? (new Proxy(real, {
-        get: (_t, key) => async (...args: unknown[]) => {
-          const s = await design()
-          const fn = (s as Record<string, unknown>)[key as string]
-          if (typeof fn !== "function") throw new Error(`no sample for ${String(key)}`)
-          return (fn as (...a: unknown[]) => unknown)(...args)
-        },
+        get:
+          (_t, key) =>
+          async (...args: unknown[]) => {
+            const s = await design()
+            const fn = (s as Record<string, unknown>)[key as string]
+            if (typeof fn !== "function")
+              throw new Error(`no sample for ${String(key)}`)
+            return (fn as (...a: unknown[]) => unknown)(...args)
+          },
       }) as T)
     : real
 
@@ -47,7 +50,14 @@ export type SetupState = {
 
 // The always-on recorder's state, straight from Go.
 export type Listening = {
-  phase: "off" | "opening" | "listening" | "recording" | "wrapping up" | "paused" | "broken"
+  phase:
+    | "off"
+    | "opening"
+    | "listening"
+    | "recording"
+    | "wrapping up"
+    | "paused"
+    | "broken"
   kind: "meeting" | "note"
   elapsed: number
   quiet: number
@@ -86,9 +96,20 @@ export type Recording = {
   note?: string
 }
 
-export type Turn = { start: number; end: number; speaker?: string; text: string }
+export type Turn = {
+  start: number
+  end: number
+  speaker?: string
+  text: string
+}
 export type Meeting = Recording & { transcript: Turn[] }
-export type Hit = { recording: number; title: string; start: number; speaker?: string; text: string }
+export type Hit = {
+  recording: number
+  title: string
+  start: number
+  speaker?: string
+  text: string
+}
 export type Answer = { text: string; sources: Hit[] }
 
 export type Outstanding = {
@@ -173,7 +194,12 @@ export type Thread = {
   when: string
 }
 
-export type Face = { name: string; seconds: number; meetings: number; last: string }
+export type Face = {
+  name: string
+  seconds: number
+  meetings: number
+  last: string
+}
 
 export type Standing = {
   meetings: number
@@ -191,7 +217,12 @@ export type Standing = {
   folded: number
 }
 
-export type Said = { recording: number; title: string; started: string; text: string }
+export type Said = {
+  recording: number
+  title: string
+  started: string
+  text: string
+}
 export type Nagging = { text: string; times: number; said: Said[] }
 
 export type Briefing = {
@@ -243,28 +274,40 @@ export function clock(seconds: number): string {
  * takes; the words are the only part worth writing down.
  */
 const rule = new Intl.PluralRules("uk")
-export const many = (n: number, one: string, few: string, rest: string): string =>
-  ({ one, few } as Record<string, string>)[rule.select(n)] ?? rest
+export const many = (
+  n: number,
+  one: string,
+  few: string,
+  rest: string,
+): string => (({ one, few }) as Record<string, string>)[rule.select(n)] ?? rest
 
 /** "18 minutes", "1 hr 4 min" — a length, not a timestamp. */
 export function length(seconds: number): string {
   const m = Math.round(seconds / 60)
-  if (m < 1) return "under a minute"
-  if (m < 60) return `${m} min`
-  return `${Math.floor(m / 60)} hr ${m % 60} min`
+  if (m < 1) return "до хвилини"
+  if (m < 60) return `${m} хв`
+  return `${Math.floor(m / 60)} год ${m % 60} хв`
 }
 
 /** Today, Yesterday, or the date. Nobody wants a full timestamp in a list. */
 export function when(iso: string): string {
   const at = new Date(iso)
   const now = new Date()
-  const day = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
+  const day = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
   const days = Math.round((day(now) - day(at)) / 86_400_000)
-  const time = at.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
-  if (days === 0) return `Today ${time}`
-  if (days === 1) return `Yesterday ${time}`
-  if (days < 7) return at.toLocaleDateString(undefined, { weekday: "long" }) + ` ${time}`
-  return at.toLocaleDateString(undefined, { day: "numeric", month: "short" }) + ` ${time}`
+  const time = at.toLocaleTimeString("uk-UA", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+  if (days === 0) return `Сьогодні ${time}`
+  if (days === 1) return `Учора ${time}`
+  if (days < 7)
+    return at.toLocaleDateString("uk-UA", { weekday: "long" }) + ` ${time}`
+  return (
+    at.toLocaleDateString("uk-UA", { day: "numeric", month: "short" }) +
+    ` ${time}`
+  )
 }
 
 export function bytes(n: number): string {
@@ -278,3 +321,23 @@ export function bytes(n: number): string {
   }
   return `${v.toFixed(1)} ${units[i]}`
 }
+
+export type Sticky = {
+  id: number
+  recording: number
+  project: number
+  text: string
+  colour: string
+  at: number
+}
+export type KnowledgeHit = {
+  key: string
+  kind: string
+  recording: number
+  project: number
+  note: number
+  title: string
+  start: number
+  text: string
+}
+export type KnowledgeAnswer = { text: string; sources: KnowledgeHit[] }

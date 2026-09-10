@@ -1,6 +1,18 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
-import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react"
-import { FolderPlus, Layers } from "lucide-react"
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react"
+import {
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from "motion/react"
+import { FolderPlus, Layers, Grid2X2 } from "lucide-react"
 import type { Group } from "../api"
 import { colourOf, on as legible } from "../colours"
 
@@ -46,6 +58,7 @@ export default function Dock({
   onPick: (id: number | null) => void
   onNew: () => void
 }) {
+  const [query, setQuery] = useState("")
   const dock = useRef<HTMLDivElement>(null)
   const tiles = useRef<(HTMLButtonElement | null)[]>([])
   const label = useRef<HTMLSpanElement>(null)
@@ -58,15 +71,30 @@ export default function Dock({
   const leaving = useRef(0)
   const centres = useRef<number[]>([])
 
-  const items: { key: string; id: number | null; name: string; note: string; colour: string }[] = [
-    { key: "all", id: null, name: "Усі записи", note: "", colour: "var(--color-raised)" },
-    ...groups.map((g) => ({
-      key: `g${g.id}`,
-      id: g.id,
-      name: g.name,
-      note: `${g.count}`,
-      colour: colourOf(g.name, g.colour),
-    })),
+  const items: {
+    key: string
+    id: number | null
+    name: string
+    note: string
+    colour: string
+  }[] = [
+    {
+      key: "all",
+      id: null,
+      name: "Усі записи",
+      note: "",
+      colour: "var(--color-raised)",
+    },
+    ...[...groups]
+      .sort((a, b) => b.count - a.count)
+      .filter((g, i) => i < 6 || g.id === picked)
+      .map((g) => ({
+        key: `g${g.id}`,
+        id: g.id,
+        name: g.name,
+        note: `${g.count}`,
+        colour: colourOf(g.name, g.colour),
+      })),
   ]
 
   const spring = { stiffness: 420, damping: 41, mass: 1, restDelta: 0.001 }
@@ -124,7 +152,8 @@ export default function Dock({
     const local = clientX - box.left
     let best = 0
     centres.current.forEach((c, i) => {
-      if (Math.abs(local - c) < Math.abs(local - centres.current[best])) best = i
+      if (Math.abs(local - c) < Math.abs(local - centres.current[best]))
+        best = i
     })
     if (at >= 0 && best !== at) {
       const mid = (centres.current[at] + centres.current[best]) / 2
@@ -146,11 +175,15 @@ export default function Dock({
 
   const keys = (e: React.KeyboardEvent, i: number) => {
     const to =
-      e.key === "ArrowRight" ? (i + 1) % items.length
-      : e.key === "ArrowLeft" ? (i + items.length - 1) % items.length
-      : e.key === "Home" ? 0
-      : e.key === "End" ? items.length - 1
-      : -1
+      e.key === "ArrowRight"
+        ? (i + 1) % items.length
+        : e.key === "ArrowLeft"
+          ? (i + items.length - 1) % items.length
+          : e.key === "Home"
+            ? 0
+            : e.key === "End"
+              ? items.length - 1
+              : -1
     if (e.key === "Escape") return setAt(-1)
     if (to < 0) return
     e.preventDefault()
@@ -159,7 +192,7 @@ export default function Dock({
   }
 
   return (
-    <div className="no-drag pointer-events-none absolute inset-x-0 bottom-2 z-30 flex justify-center">
+    <div className="project-dock no-drag pointer-events-none absolute inset-x-0 bottom-2 z-30 flex justify-center">
       <motion.div
         ref={dock}
         onPointerMove={(e) => {
@@ -194,10 +227,14 @@ export default function Dock({
             still={!!still}
             label={it.name}
             onDown={() => setPressed(i)}
-            onFocus={(e) => e.currentTarget.matches(":focus-visible") && setAt(i)}
+            onFocus={(e) =>
+              e.currentTarget.matches(":focus-visible") && setAt(i)
+            }
             onBlur={gone}
             onKeyDown={(e) => keys(e, i)}
-            onClick={() => onPick(picked === it.id && it.id !== null ? null : it.id)}
+            onClick={() =>
+              onPick(picked === it.id && it.id !== null ? null : it.id)
+            }
             divider={i === 1}
           >
             {it.id === null ? (
@@ -216,6 +253,41 @@ export default function Dock({
           </Tile>
         ))}
 
+        <button
+          className="dock-more ui-icon"
+          aria-label="Усі проєкти"
+          popoverTarget="all-projects"
+        >
+          <Grid2X2 size={17} />
+        </button>
+        <div id="all-projects" popover="auto" className="all-projects">
+          <header>
+            <strong>Проєкти · {groups.length}</strong>
+          </header>
+          <input
+            aria-label="Знайти проєкт"
+            placeholder="Знайти проєкт…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <div>
+            {groups
+              .filter((g) => g.name.toLowerCase().includes(query.toLowerCase()))
+              .map((g) => (
+                <button
+                  key={g.id}
+                  onClick={() => {
+                    onPick(g.id)
+                    document.getElementById("all-projects")?.hidePopover()
+                  }}
+                >
+                  <i style={{ background: colourOf(g.name, g.colour) }} />
+                  {g.name}
+                  <small>{g.count}</small>
+                </button>
+              ))}
+          </div>
+        </div>
         <span className="mx-0.5 h-6 w-px shrink-0 bg-line" />
 
         <Tile
@@ -254,7 +326,9 @@ export default function Dock({
         >
           {over !== null && <span className="text-faint">Перенести в</span>}
           <span className="font-medium">{item?.name ?? ""}</span>
-          {item?.note && over === null && <span className="text-faint tabular-nums">{item.note}</span>}
+          {item?.note && over === null && (
+            <span className="text-faint tabular-nums">{item.note}</span>
+          )}
         </motion.span>
       </motion.div>
     </div>
@@ -321,10 +395,16 @@ function Tile({
             y: (hot || lit ? -6 : 0) + (down ? 2 : 0),
             scale: 1 + (lit ? 0.14 : hot ? 0.085 : 0) - (down ? 0.025 : 0),
           }}
-          transition={still ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 41 }}
+          transition={
+            still
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 420, damping: 41 }
+          }
           style={{ background: colour, transformOrigin: "center bottom" }}
           className={`absolute inset-0 grid place-items-center overflow-hidden rounded-[9px] border border-text/10 shadow-[0_2px_3px_rgba(0,0,0,0.15)] ${
-            hot || lit ? "brightness-110 shadow-[0_7px_12px_rgba(0,0,0,0.3)]" : ""
+            hot || lit
+              ? "brightness-110 shadow-[0_7px_12px_rgba(0,0,0,0.3)]"
+              : ""
           } ${lit ? "ring-2 ring-text ring-offset-2 ring-offset-ink" : ""}`}
         >
           {children}

@@ -21,6 +21,10 @@ import * as store$0 from "../store/models.js";
 // @ts-ignore: Unused imports
 import * as $models from "./models.js";
 
+export function AcceptSummary(id: number, before: store$0.Summary | null, after: store$0.Summary | null): $CancellablePromise<void> {
+    return $Call.ByID(3947130702, id, before, after);
+}
+
 /**
  * Actions is the to-do list across every meeting.
  */
@@ -68,12 +72,18 @@ export function Ask(question: string): $CancellablePromise<$models.Answer | null
     });
 }
 
+export function AskKnowledge(question: string): $CancellablePromise<$models.KnowledgeAnswer | null> {
+    return $Call.ByID(1254955373, question).then(($result: any) => {
+        return $$createType9($result);
+    });
+}
+
 /**
  * Bin is what has been deleted and not yet thrown away.
  */
 export function Bin(): $CancellablePromise<store$0.Recording[]> {
     return $Call.ByID(820010799).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
@@ -83,7 +93,7 @@ export function Bin(): $CancellablePromise<store$0.Recording[]> {
  */
 export function Brief(days: number): $CancellablePromise<store$0.Briefing | null> {
     return $Call.ByID(690406538, days).then(($result: any) => {
-        return $$createType11($result);
+        return $$createType13($result);
     });
 }
 
@@ -99,6 +109,10 @@ export function Delete(id: number): $CancellablePromise<void> {
  */
 export function DropGroup(id: number): $CancellablePromise<void> {
     return $Call.ByID(974174766, id);
+}
+
+export function EditAction(id: number, index: number, action: store$0.Action): $CancellablePromise<void> {
+    return $Call.ByID(1423411092, id, index, action);
 }
 
 /**
@@ -142,7 +156,7 @@ export function Groups(): $CancellablePromise<store$0.Group[]> {
  */
 export function Import(path: string): $CancellablePromise<store$0.Recording | null> {
     return $Call.ByID(2393183823, path).then(($result: any) => {
-        return $$createType12($result);
+        return $$createType14($result);
     });
 }
 
@@ -151,7 +165,7 @@ export function Import(path: string): $CancellablePromise<store$0.Recording | nu
  */
 export function InGroup(group: number): $CancellablePromise<store$0.Recording[]> {
     return $Call.ByID(2924641732, group).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
@@ -168,7 +182,7 @@ export function Listener(r: listen$0.Recorder | null): $CancellablePromise<void>
  */
 export function Listening(): $CancellablePromise<listen$0.Status> {
     return $Call.ByID(2744938035).then(($result: any) => {
-        return $$createType13($result);
+        return $$createType15($result);
     });
 }
 
@@ -178,7 +192,7 @@ export function Listening(): $CancellablePromise<listen$0.Status> {
  */
 export function Live(): $CancellablePromise<listen$0.Line[]> {
     return $Call.ByID(2531093944).then(($result: any) => {
-        return $$createType15($result);
+        return $$createType17($result);
     });
 }
 
@@ -215,12 +229,18 @@ export function NewGroup(name: string): $CancellablePromise<store$0.Group> {
     });
 }
 
+export function Notes(recording: number, project: number): $CancellablePromise<store$0.Sticky[]> {
+    return $Call.ByID(3870704023, recording, project).then(($result: any) => {
+        return $$createType19($result);
+    });
+}
+
 /**
  * Open is a whole meeting, ready to read.
  */
 export function Open(id: number): $CancellablePromise<$models.Meeting | null> {
     return $Call.ByID(3169510906, id).then(($result: any) => {
-        return $$createType17($result);
+        return $$createType21($result);
     });
 }
 
@@ -245,7 +265,7 @@ export function PaintPerson(name: string, colour: string): $CancellablePromise<v
  */
 export function People(): $CancellablePromise<store$0.Person[]> {
     return $Call.ByID(3465037041).then(($result: any) => {
-        return $$createType19($result);
+        return $$createType23($result);
     });
 }
 
@@ -265,6 +285,18 @@ export function Playing(on: boolean): $CancellablePromise<void> {
     return $Call.ByID(1269014556, on);
 }
 
+export function PreviewSummary(id: number): $CancellablePromise<store$0.Summary | null> {
+    return $Call.ByID(1815224778, id).then(($result: any) => {
+        return $$createType25($result);
+    });
+}
+
+export function PutNote(note: store$0.Sticky): $CancellablePromise<store$0.Sticky> {
+    return $Call.ByID(4192976983, note).then(($result: any) => {
+        return $$createType18($result);
+    });
+}
+
 /**
  * RebuildProject replays every meeting into a fresh document. The answer to
  * "this has gone wrong".
@@ -278,7 +310,7 @@ export function RebuildProject(group: number): $CancellablePromise<void> {
  */
 export function Recent(limit: number): $CancellablePromise<store$0.Recording[]> {
     return $Call.ByID(1420283577, limit).then(($result: any) => {
-        return $$createType9($result);
+        return $$createType11($result);
     });
 }
 
@@ -310,6 +342,10 @@ export function Redate(recording: number, when: string): $CancellablePromise<voi
  */
 export function Reindex(): $CancellablePromise<string> {
     return $Call.ByID(2651234501);
+}
+
+export function RemoveNote(id: number): $CancellablePromise<void> {
+    return $Call.ByID(2502196882, id);
 }
 
 /**
@@ -363,7 +399,7 @@ export function RevealFolder(): $CancellablePromise<void> {
  */
 export function Samples(name: string): $CancellablePromise<store$0.Source[]> {
     return $Call.ByID(1556926209, name).then(($result: any) => {
-        return $$createType21($result);
+        return $$createType27($result);
     });
 }
 
@@ -387,13 +423,19 @@ export function SaveSettings(s: $models.Settings): $CancellablePromise<void> {
  */
 export function Search(query: string): $CancellablePromise<store$0.Hit[]> {
     return $Call.ByID(1634764442, query).then(($result: any) => {
-        return $$createType23($result);
+        return $$createType29($result);
+    });
+}
+
+export function SearchKnowledge(query: string, semantic: boolean): $CancellablePromise<store$0.KnowledgeHit[]> {
+    return $Call.ByID(3922664222, query, semantic).then(($result: any) => {
+        return $$createType31($result);
     });
 }
 
 export function Settings(): $CancellablePromise<$models.Settings> {
     return $Call.ByID(4203116247).then(($result: any) => {
-        return $$createType24($result);
+        return $$createType32($result);
     });
 }
 
@@ -402,7 +444,7 @@ export function Settings(): $CancellablePromise<$models.Settings> {
  */
 export function Span(days: number): $CancellablePromise<store$0.Mark[]> {
     return $Call.ByID(3717387314, days).then(($result: any) => {
-        return $$createType26($result);
+        return $$createType34($result);
     });
 }
 
@@ -411,7 +453,7 @@ export function Span(days: number): $CancellablePromise<store$0.Mark[]> {
  */
 export function Standing(group: number): $CancellablePromise<store$0.Standing | null> {
     return $Call.ByID(1016657098, group).then(($result: any) => {
-        return $$createType28($result);
+        return $$createType36($result);
     });
 }
 
@@ -473,7 +515,7 @@ export function Tidy(): $CancellablePromise<string> {
  */
 export function Waveform(id: number): $CancellablePromise<number[]> {
     return $Call.ByID(1962206177, id).then(($result: any) => {
-        return $$createType29($result);
+        return $$createType37($result);
     });
 }
 
@@ -486,25 +528,33 @@ const $$createType4 = store$0.Group.createFrom;
 const $$createType5 = $Create.Array($$createType4);
 const $$createType6 = $models.Answer.createFrom;
 const $$createType7 = $Create.Nullable($$createType6);
-const $$createType8 = store$0.Recording.createFrom;
-const $$createType9 = $Create.Array($$createType8);
-const $$createType10 = store$0.Briefing.createFrom;
-const $$createType11 = $Create.Nullable($$createType10);
-const $$createType12 = $Create.Nullable($$createType8);
-const $$createType13 = listen$0.Status.createFrom;
-const $$createType14 = listen$0.Line.createFrom;
-const $$createType15 = $Create.Array($$createType14);
-const $$createType16 = $models.Meeting.createFrom;
-const $$createType17 = $Create.Nullable($$createType16);
-const $$createType18 = store$0.Person.createFrom;
+const $$createType8 = $models.KnowledgeAnswer.createFrom;
+const $$createType9 = $Create.Nullable($$createType8);
+const $$createType10 = store$0.Recording.createFrom;
+const $$createType11 = $Create.Array($$createType10);
+const $$createType12 = store$0.Briefing.createFrom;
+const $$createType13 = $Create.Nullable($$createType12);
+const $$createType14 = $Create.Nullable($$createType10);
+const $$createType15 = listen$0.Status.createFrom;
+const $$createType16 = listen$0.Line.createFrom;
+const $$createType17 = $Create.Array($$createType16);
+const $$createType18 = store$0.Sticky.createFrom;
 const $$createType19 = $Create.Array($$createType18);
-const $$createType20 = store$0.Source.createFrom;
-const $$createType21 = $Create.Array($$createType20);
-const $$createType22 = store$0.Hit.createFrom;
+const $$createType20 = $models.Meeting.createFrom;
+const $$createType21 = $Create.Nullable($$createType20);
+const $$createType22 = store$0.Person.createFrom;
 const $$createType23 = $Create.Array($$createType22);
-const $$createType24 = $models.Settings.createFrom;
-const $$createType25 = store$0.Mark.createFrom;
-const $$createType26 = $Create.Array($$createType25);
-const $$createType27 = store$0.Standing.createFrom;
-const $$createType28 = $Create.Nullable($$createType27);
-const $$createType29 = $Create.Array($Create.Any);
+const $$createType24 = store$0.Summary.createFrom;
+const $$createType25 = $Create.Nullable($$createType24);
+const $$createType26 = store$0.Source.createFrom;
+const $$createType27 = $Create.Array($$createType26);
+const $$createType28 = store$0.Hit.createFrom;
+const $$createType29 = $Create.Array($$createType28);
+const $$createType30 = store$0.KnowledgeHit.createFrom;
+const $$createType31 = $Create.Array($$createType30);
+const $$createType32 = $models.Settings.createFrom;
+const $$createType33 = store$0.Mark.createFrom;
+const $$createType34 = $Create.Array($$createType33);
+const $$createType35 = store$0.Standing.createFrom;
+const $$createType36 = $Create.Nullable($$createType35);
+const $$createType37 = $Create.Array($Create.Any);

@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import { Undo2 } from "lucide-react"
 
@@ -22,11 +22,13 @@ export default function Undo({
   onUndo: () => void
   onGone: () => void
 }) {
+  const gone = useRef(onGone)
+  gone.current = onGone
   useEffect(() => {
     if (!what) return
-    const timer = setTimeout(onGone, 10_000)
+    const timer = setTimeout(() => gone.current(), 10_000)
     return () => clearTimeout(timer)
-  }, [what, onGone])
+  }, [what])
 
   return (
     <AnimatePresence>
@@ -40,13 +42,13 @@ export default function Undo({
         >
           <div className="pointer-events-auto flex max-w-md items-center gap-3 rounded-full border border-line/70 bg-raised/95 py-2 pl-4 pr-2 shadow-[0_8px_32px_-8px_rgba(0,0,0,0.7)] backdrop-blur-xl">
             <span className="min-w-0 flex-1 truncate text-[12.5px] text-soft">
-              Moved <span className="text-text">{what}</span> to the bin
+              У кошику: <span className="text-text">{what}</span>
             </span>
             <button
               onClick={onUndo}
               className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-[12px] font-medium text-accent transition-colors hover:bg-accent/12"
             >
-              <Undo2 size={13} /> Undo
+              <Undo2 size={13} /> Скасувати
             </button>
           </div>
         </motion.div>

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState, lazy, Suspense } from "react"
 import { motion } from "motion/react"
-import { Meetings, Status, type Density, type Settings, type SetupState } from "./api"
+import { Status, type SetupState } from "./api"
 import Palette from "./components/Palette"
 import Setup from "./screens/Setup"
 import Today from "./screens/Today"
@@ -8,15 +8,16 @@ import Workspace from "./screens/Meetings"
 import Search from "./screens/Search"
 import Todo from "./screens/Todo"
 import Ask from "./screens/Ask"
-import SettingsScreen from "./screens/Settings"
 import Rail, { type Screen } from "./components/Rail"
+
+const SettingsScreen = lazy(() => import("./screens/Settings"))
 
 export default function App() {
   const [setup, setSetup] = useState<SetupState | null>(null)
   const [screen, setScreen] = useState<Screen>("today")
   const [open, setOpen] = useState<number | null>(null)
-  const [density, setDensity] = useState<Density>("compact")
-  const [refresh, setRefresh] = useState(0)
+  const [pickAt, setPickAt] = useState<number | undefined>()
+  const [origin, setOrigin] = useState<Screen | null>(null)
   const [project, setProject] = useState<number | null>(null)
 
   // Polled rather than pushed: one small object once a second, and an event
@@ -40,35 +41,21 @@ export default function App() {
     }
   }, [])
 
-  // The density lives with the rest of the settings so that it survives a
-  // reinstall and travels with the folder, rather than in browser storage.
-  useEffect(() => {
-    Meetings.Settings()
-      .then((s) => setDensity(((s as { density?: Density }).density ?? "compact") as Density))
-      .catch(() => {})
-  }, [])
-
-  const changeDensity = useCallback(async (d: Density) => {
-    setDensity(d)
-    try {
-      const current = (await Meetings.Settings()) as Settings
-      await Meetings.SaveSettings({ ...current, density: d } as never)
-    } catch {
-      // A preference that failed to save is not worth interrupting anybody for.
-    }
-  }, [])
-
   const working = setup?.stage === "ready"
 
-  // ⌘1..4 and ⌘, move between screens, ⌘K goes straight to search. Every rail
+  // ⌘1..5 and ⌘, move between screens; the palette owns ⌘K. Every rail
   // button carries its own shortcut in the tooltip.
   useEffect(() => {
     if (!working) return
     const jump = (e: KeyboardEvent) => {
       if (!e.metaKey && !e.ctrlKey) return
       const to: Record<string, Screen> = {
-        "1": "today", "2": "library", "3": "search", "4": "todo", "5": "ask",
-        ",": "settings", k: "search",
+        "1": "today",
+        "2": "library",
+        "3": "search",
+        "4": "todo",
+        "5": "ask",
+        ",": "settings",
       }
       const next = to[e.key.toLowerCase()]
       if (!next) return
@@ -80,8 +67,17 @@ export default function App() {
     return () => window.removeEventListener("keydown", jump)
   }, [working])
 
-  const show = (id: number) => {
+  const show = (id: number, at?: number) => {
+    setPickAt(at)
+    setOrigin(screen === "library" ? null : screen)
     setOpen(id)
+    setScreen("library")
+  }
+
+  const showProject = (id: number) => {
+    setOrigin(screen)
+    setOpen(null)
+    setProject(id)
     setScreen("library")
   }
 
@@ -135,29 +131,55 @@ export default function App() {
               which repeats for ever. The screen simply stopped changing. The
               new screen animating in is the whole effect anyway. */}
           <main className="min-w-0 flex-1">
-              <motion.div
-                key={screen}
-                className="h-full"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-              >
-                {screen === "today" && <Today onOpen={show} />}
-                {screen === "library" && (
-                  <Workspace
-                    pick={open}
-                    onPicked={() => setOpen(null)}
-                    project={project}
-                    onProject={setProject}
-                    density={density}
-                    onDensity={changeDensity}
-                  />
-                )}
-                {screen === "search" && <Search onOpen={show} />}
-                {screen === "todo" && <Todo onOpen={show} />}
-                {screen === "ask" && <Ask onOpen={show} />}
-                {screen === "settings" && <SettingsScreen onDensity={setDensity} />}
-              </motion.div>
+            <motion.div
+              key={screen}
+              className="h-full"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {screen === "today" && <Today onOpen={show} />}
+              {screen === "library" && (
+                <Workspace
+                  pick={open}
+                  pickAt={pickAt}
+                  onReturn={
+                    origin
+                      ? () => {
+                          setScreen(origin)
+                          setOrigin(null)
+                        }
+                      : undefined
+                  }
+                  returnLabel={
+                    origin === "ask"
+                      ? "До відповіді"
+                      : origin === "search"
+                        ? "До пошуку"
+                        : "Назад"
+                  }
+                  onPicked={() => setOpen(null)}
+                  project={project}
+                  onProject={setProject}
+                />
+              )}
+              {screen === "search" && (
+                <Search onOpen={show} onProject={showProject} />
+              )}
+              {screen === "todo" && <Todo onOpen={show} />}
+              {screen === "ask" && (
+                <Ask onOpen={show} onProject={showProject} />
+              )}
+              {screen === "settings" && (
+                <Suspense
+                  fallback={
+                    <p className="reader-loading">Відкриваю параметри…</p>
+                  }
+                >
+                  <SettingsScreen />
+                </Suspense>
+              )}
+            </motion.div>
           </main>
         </motion.div>
       )}

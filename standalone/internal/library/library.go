@@ -688,11 +688,19 @@ func (l *Library) Empty(olderThan time.Duration) (int, error) {
 	return len(buried), nil
 }
 
+// convert is the one road from the engine to the database, and it sorts.
+//
+// Everything downstream reads the rows back in the order they were written and
+// assumes that order is time: settle gives a nameless row the speaker of its
+// neighbour, store.Cut ends a passage when it has run 45 seconds, and the
+// speaker map merges a row into the bar before it. A row out of place makes all
+// three quietly wrong, and one line here is cheaper than three guards there.
 func convert(turns []engine.Turn) []store.Turn {
 	out := make([]store.Turn, len(turns))
 	for i, t := range turns {
 		out[i] = store.Turn{Start: t.Start, End: t.End, Speaker: t.Speaker, Text: t.Text}
 	}
+	sort.SliceStable(out, func(a, b int) bool { return out[a].Start < out[b].Start })
 	return out
 }
 

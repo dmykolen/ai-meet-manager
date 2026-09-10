@@ -427,6 +427,59 @@ export enum Kind {
 };
 
 /**
+ * KnowledgeHit preserves the kind and owner of a source. Only transcript
+ * sources promise a timestamp; a handwritten note is never called a quote.
+ */
+export class KnowledgeHit {
+    "key": string;
+    "kind": string;
+    "recording": number;
+    "project": number;
+    "note": number;
+    "title": string;
+    "start": number;
+    "text": string;
+
+    /** Creates a new KnowledgeHit instance. */
+    constructor($$source: Partial<KnowledgeHit> = {}) {
+        if (!("key" in $$source)) {
+            this["key"] = "";
+        }
+        if (!("kind" in $$source)) {
+            this["kind"] = "";
+        }
+        if (!("recording" in $$source)) {
+            this["recording"] = 0;
+        }
+        if (!("project" in $$source)) {
+            this["project"] = 0;
+        }
+        if (!("note" in $$source)) {
+            this["note"] = 0;
+        }
+        if (!("title" in $$source)) {
+            this["title"] = "";
+        }
+        if (!("start" in $$source)) {
+            this["start"] = 0;
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new KnowledgeHit instance from a string or object.
+     */
+    static createFrom($$source: any = {}): KnowledgeHit {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new KnowledgeHit($$parsedSource as Partial<KnowledgeHit>);
+    }
+}
+
+/**
  * A Mark is one recording as the timeline draws it: enough to place a tick and
  * colour it, and nothing else.
  *
@@ -931,6 +984,50 @@ export enum Status {
     Done = "done",
     Failed = "failed",
 };
+
+/**
+ * Sticky is a handwritten note owned by exactly one meeting or project.
+ */
+export class Sticky {
+    "id": number;
+    "recording": number;
+    "project": number;
+    "text": string;
+    "colour": string;
+    "at": number;
+
+    /** Creates a new Sticky instance. */
+    constructor($$source: Partial<Sticky> = {}) {
+        if (!("id" in $$source)) {
+            this["id"] = 0;
+        }
+        if (!("recording" in $$source)) {
+            this["recording"] = 0;
+        }
+        if (!("project" in $$source)) {
+            this["project"] = 0;
+        }
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+        if (!("colour" in $$source)) {
+            this["colour"] = "";
+        }
+        if (!("at" in $$source)) {
+            this["at"] = 0;
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new Sticky instance from a string or object.
+     */
+    static createFrom($$source: any = {}): Sticky {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new Sticky($$parsedSource as Partial<Sticky>);
+    }
+}
 
 /**
  * Summary is stored as JSON; the shape belongs to the insights package, and this

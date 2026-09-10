@@ -121,7 +121,7 @@ func (d *DB) DropGroup(id int64) error {
 // Deleting is one click and no dialog, which is only reasonable because it can
 // be undone. Everything here still has its audio and its transcript; Empty is
 // what actually destroys them.
-func (d *DB) Bin() ([]Recording, error) { return d.list(`WHERE deleted IS NOT NULL`, 200) }
+func (d *DB) Bin() ([]Recording, error) { return d.list(`WHERE deleted IS NOT NULL`, -1) }
 
 // Bury moves a recording to the bin.
 func (d *DB) Bury(id int64) error {

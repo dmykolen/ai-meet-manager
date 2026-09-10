@@ -1,113 +1,191 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import { Search as SearchIcon, Sparkles, X } from "lucide-react"
 import Head from "../components/Head"
-import { motion } from "motion/react"
-import { Search as SearchIcon, X } from "lucide-react"
-import { Meetings, clock, type Hit } from "../api"
-
-/**
- * Search across every transcript.
- *
- * Words, not meaning — that is what Ask is for. This is the tool for "where did
- * somebody say Vodafone", and it answers while you are still typing.
- */
-export default function Search({ onOpen }: { onOpen: (id: number) => void }) {
-  const [query, setQuery] = useState("")
-  const [hits, setHits] = useState<Hit[] | null>(null)
-
+import KnowledgeSource from "../components/KnowledgeSource"
+import { Meetings, type KnowledgeHit } from "../api"
+const saved = {
+  query: "",
+  semantic: false,
+  hits: null as KnowledgeHit[] | null,
+  scroll: 0,
+}
+export default function Search({
+  onOpen,
+  onProject,
+}: {
+  onOpen: (id: number, at?: number) => void
+  onProject?: (id: number) => void
+}) {
+  const [query, setQuery] = useState(saved.query),
+    [semantic, setSemantic] = useState(saved.semantic),
+    [hits, setHits] = useState(saved.hits),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState("")
+  const version = useRef(0),
+    scroll = useRef<HTMLDivElement>(null)
+  const find = async (q: string, mode: boolean) => {
+    const token = ++version.current
+    setBusy(true)
+    setError("")
+    try {
+      const rows = (await Meetings.SearchKnowledge(q, mode)) as KnowledgeHit[]
+      if (token === version.current) {
+        setHits(rows ?? [])
+        saved.hits = rows ?? []
+      }
+    } catch (e) {
+      if (token === version.current) {
+        setError(String(e))
+        setHits(null)
+      }
+    } finally {
+      if (token === version.current) setBusy(false)
+    }
+  }
   useEffect(() => {
-    const q = query.trim()
-    if (q.length < 2) {
+    saved.query = query
+    saved.semantic = semantic
+    const token = ++version.current
+    if (query.trim().length < 2) {
       setHits(null)
+      setBusy(false)
       return
     }
-    // Debounced, because every keystroke would otherwise run a query across
-    // every transcript there is.
-    const timer = setTimeout(async () => {
-      try {
-        setHits((await Meetings.Search(q)) as Hit[])
-      } catch {
-        setHits([])
-      }
-    }, 180)
-    return () => clearTimeout(timer)
-  }, [query])
-
+    if (semantic) {
+      setBusy(false)
+      return
+    }
+    const timer = setTimeout(() => void find(query, false), 180)
+    return () => {
+      clearTimeout(timer)
+      if (version.current === token) version.current++
+    }
+  }, [query, semantic])
+  useEffect(() => {
+    if (scroll.current) scroll.current.scrollTop = saved.scroll
+    return () => {
+      version.current++
+    }
+  }, [])
   return (
-    <div className="flex h-full flex-col">
-      <Head title="Пошук" />
-
-      <div className="no-drag px-4">
-        <div className="mx-auto w-full max-w-[78ch] flex items-center gap-2.5 rounded-lg border border-line/60 bg-surface/60 px-3 py-2 transition-colors focus-within:border-accent/50">
-          <SearchIcon size={15} className="shrink-0 text-faint" />
+    <div className="knowledge-screen">
+      <Head title="Пошук в архіві" />
+      <div className="knowledge-query">
+        <div className="knowledge-query-line">
+          <SearchIcon size={15} />
           <input
+            aria-label="Пошук в архіві"
             autoFocus
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Слово, яке хтось сказав, у будь-якій нараді…"
-            className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-faint"
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setHits(null)
+              saved.hits = null
+              setError("")
+            }}
+            onKeyDown={(e) => e.key === "Enter" && void find(query, semantic)}
+            placeholder="Знайти сказане, записане або вирішене…"
           />
           {query && (
-            <button onClick={() => setQuery("")} className="shrink-0 text-faint hover:text-text">
+            <button
+              className="ui-icon"
+              aria-label="Очистити запит"
+              onClick={() => {
+                setQuery("")
+                setHits(null)
+                saved.hits = null
+              }}
+            >
               <X size={14} />
             </button>
           )}
+          {semantic && (
+            <button
+              className="ui-primary"
+              disabled={busy || query.trim().length < 2}
+              onClick={() => void find(query, true)}
+            >
+              {busy ? "Шукаю…" : "Знайти"}
+            </button>
+          )}
+        </div>
+        <div className="knowledge-modes">
+          <button
+            aria-pressed={!semantic}
+            className={!semantic ? "active" : ""}
+            onClick={() => {
+              setSemantic(false)
+              setHits(null)
+              saved.hits = null
+            }}
+          >
+            Точні слова
+          </button>
+          <button
+            aria-pressed={semantic}
+            className={semantic ? "active" : ""}
+            onClick={() => {
+              setSemantic(true)
+              setHits(null)
+              saved.hits = null
+            }}
+          >
+            <Sparkles size={12} />
+            За змістом
+          </button>
+          <span>Зустрічі · проєкти · нотатки · домовленості</span>
         </div>
       </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-10 pt-4">
-        <div className="mx-auto w-full max-w-[78ch]">
-        {hits === null ? (
-          <p className="text-[12.5px] text-faint">Двох літер достатньо, щоб почати.</p>
-        ) : hits.length === 0 ? (
-          <p className="text-[12.5px] text-faint">Такого ніхто не казав.</p>
-        ) : (
-          <>
-            <p className="mb-2.5 text-[11px] text-faint">
-              {hits.length} {hits.length === 1 ? "passage" : "passages"}
-            </p>
-            <ul className="flex flex-col gap-1.5">
-              {hits.map((h, i) => (
-                <motion.li
-                  key={i}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.2, delay: Math.min(i * 0.015, 0.25) }}
-                >
-                  <button
-                    onClick={() => onOpen(h.recording)}
-                    className="w-full rounded-lg border border-line/50 bg-surface/40 px-3.5 py-2.5 text-left transition-colors hover:border-line hover:bg-raised/60"
-                  >
-                    <div className="flex items-baseline gap-2 text-[10.5px] text-faint">
-                      <span className="min-w-0 truncate">{h.title}</span>
-                      <span className="tabular-nums">{clock(h.start)}</span>
-                      {h.speaker && <span className="text-accent">{h.speaker}</span>}
-                    </div>
-                    <p className="mt-0.5 text-[12.5px] leading-relaxed text-soft">
-                      <Marked text={h.text} needle={query.trim()} />
-                    </p>
-                  </button>
-                </motion.li>
-              ))}
-            </ul>
-          </>
+      <div
+        className="knowledge-results"
+        ref={scroll}
+        onScroll={(e) => (saved.scroll = e.currentTarget.scrollTop)}
+      >
+        {error && (
+          <p className="error" role="alert">
+            {error}
+            <button
+              className="ui-chip"
+              onClick={() => void find(query, semantic)}
+            >
+              Повторити
+            </button>
+          </p>
         )}
-        </div>
+        {busy && (
+          <div className="search-working">
+            {semantic ? "Оновлюю індекс і зіставляю джерела…" : "Шукаю слова…"}
+            <i />
+          </div>
+        )}
+        {!busy && hits && (
+          <p className="result-count">
+            {hits.length}
+            {hits.length === 60 ? " перших" : ""} джерел
+          </p>
+        )}
+        {!busy && hits?.length === 0 && (
+          <p className="search-empty">
+            Збігів немає. Спробуйте інше формулювання або пошук за змістом.
+          </p>
+        )}
+        {!hits && !busy && !error && (
+          <p className="search-empty">
+            {semantic
+              ? "Введіть думку або питання й натисніть «Знайти»."
+              : "Пошук починається від двох символів."}
+          </p>
+        )}
+        {!busy &&
+          hits?.map((h) => (
+            <KnowledgeSource
+              key={h.key}
+              hit={h}
+              onOpen={onOpen}
+              onProject={onProject}
+            />
+          ))}
       </div>
     </div>
-  )
-}
-
-/** The matched word, lit up. Case-insensitive, and safe with any input. */
-function Marked({ text, needle }: { text: string; needle: string }) {
-  const last = needle.split(/\s+/).filter(Boolean).pop()
-  if (!last) return <>{text}</>
-  const at = text.toLowerCase().indexOf(last.toLowerCase())
-  if (at < 0) return <>{text}</>
-  return (
-    <>
-      {text.slice(0, at)}
-      <mark className="rounded bg-accent/25 px-0.5 text-text">{text.slice(at, at + last.length)}</mark>
-      {text.slice(at + last.length)}
-    </>
   )
 }

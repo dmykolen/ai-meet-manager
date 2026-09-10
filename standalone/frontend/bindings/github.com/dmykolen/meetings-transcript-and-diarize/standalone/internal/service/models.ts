@@ -42,6 +42,35 @@ export class Answer {
     }
 }
 
+export class KnowledgeAnswer {
+    "text": string;
+    "sources": store$0.KnowledgeHit[];
+
+    /** Creates a new KnowledgeAnswer instance. */
+    constructor($$source: Partial<KnowledgeAnswer> = {}) {
+        if (!("text" in $$source)) {
+            this["text"] = "";
+        }
+        if (!("sources" in $$source)) {
+            this["sources"] = [];
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new KnowledgeAnswer instance from a string or object.
+     */
+    static createFrom($$source: any = {}): KnowledgeAnswer {
+        const $$createField1_0 = $$createType3;
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        if ("sources" in $$parsedSource) {
+            $$parsedSource["sources"] = $$createField1_0($$parsedSource["sources"]);
+        }
+        return new KnowledgeAnswer($$parsedSource as Partial<KnowledgeAnswer>);
+    }
+}
+
 /**
  * Meeting is one recording with its transcript.
  */
@@ -121,9 +150,9 @@ export class Meeting {
      * Creates a new Meeting instance from a string or object.
      */
     static createFrom($$source: any = {}): Meeting {
-        const $$createField11_0 = $$createType3;
-        const $$createField12_0 = $$createType4;
-        const $$createField15_0 = $$createType6;
+        const $$createField11_0 = $$createType5;
+        const $$createField12_0 = $$createType6;
+        const $$createField15_0 = $$createType8;
         let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
         if ("summary" in $$parsedSource) {
             $$parsedSource["summary"] = $$createField11_0($$parsedSource["summary"]);
@@ -306,8 +335,10 @@ export class State {
 // Private type creation functions
 const $$createType0 = store$0.Hit.createFrom;
 const $$createType1 = $Create.Array($$createType0);
-const $$createType2 = store$0.Summary.createFrom;
-const $$createType3 = $Create.Nullable($$createType2);
-const $$createType4 = $Create.Array($Create.Any);
-const $$createType5 = store$0.Turn.createFrom;
-const $$createType6 = $Create.Array($$createType5);
+const $$createType2 = store$0.KnowledgeHit.createFrom;
+const $$createType3 = $Create.Array($$createType2);
+const $$createType4 = store$0.Summary.createFrom;
+const $$createType5 = $Create.Nullable($$createType4);
+const $$createType6 = $Create.Array($Create.Any);
+const $$createType7 = store$0.Turn.createFrom;
+const $$createType8 = $Create.Array($$createType7);

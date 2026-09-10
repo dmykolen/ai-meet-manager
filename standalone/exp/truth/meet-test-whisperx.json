@@ -1,0 +1,4127 @@
+{
+  "segments": [
+    {
+      "start": 0.634,
+      "end": 1.935,
+      "text": " Ну віддати залежить.",
+      "words": [
+        {
+          "word": "Ну",
+          "start": 0.634,
+          "end": 0.694,
+          "score": 0.706,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "віддати",
+          "start": 0.734,
+          "end": 1.034,
+          "score": 0.705,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "залежить.",
+          "start": 1.054,
+          "end": 1.935,
+          "score": 0.908,
+          "speaker": "SPEAKER_02"
+        }
+      ],
+      "avg_logprob": -0.1811556614421565,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "start": 1.975,
+      "end": 10.28,
+      "text": "Давай напишемо, що віддати все девопсом для середовища.",
+      "words": [
+        {
+          "word": "Давай",
+          "start": 1.975,
+          "end": 2.375,
+          "score": 0.774,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "напишемо,",
+          "start": 2.415,
+          "end": 4.016,
+          "score": 0.718,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "що",
+          "start": 4.076,
+          "end": 4.476,
+          "score": 0.784,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "віддати",
+          "start": 5.457,
+          "end": 5.797,
+          "score": 0.973,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "все",
+          "start": 5.837,
+          "end": 5.977,
+          "score": 0.984,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "девопсом",
+          "start": 6.017,
+          "end": 6.478,
+          "score": 0.834,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "для",
+          "start": 6.518,
+          "end": 6.758,
+          "score": 0.99,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "середовища.",
+          "start": 6.818,
+          "end": 10.28,
+          "score": 0.882,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.1811556614421565,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "start": 10.36,
+      "end": 15.323,
+      "text": "Тоді віддати все девопсом для середовища, це має бути на цьому тижні, щоб вони запланували?",
+      "words": [
+        {
+          "word": "Тоді",
+          "start": 10.36,
+          "end": 10.8,
+          "score": 0.994,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "віддати",
+          "start": 11.02,
+          "end": 11.501,
+          "score": 0.969,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "все",
+          "start": 11.521,
+          "end": 11.721,
+          "score": 0.972,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "девопсом",
+          "start": 11.761,
+          "end": 12.181,
+          "score": 0.854,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "для",
+          "start": 12.201,
+          "end": 12.301,
+          "score": 0.207,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "середовища,",
+          "start": 12.341,
+          "end": 12.902,
+          "score": 0.71,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "це",
+          "start": 12.942,
+          "end": 13.042,
+          "score": 0.398,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "має",
+          "start": 13.062,
+          "end": 13.262,
+          "score": 0.806,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "бути",
+          "start": 13.302,
+          "end": 13.522,
+          "score": 0.954,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "на",
+          "start": 13.542,
+          "end": 13.662,
+          "score": 0.917,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "цьому",
+          "start": 13.702,
+          "end": 13.922,
+          "score": 0.807,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "тижні,",
+          "start": 13.982,
+          "end": 14.262,
+          "score": 0.857,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "щоб",
+          "start": 14.302,
+          "end": 14.443,
+          "score": 0.677,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "вони",
+          "start": 14.463,
+          "end": 14.663,
+          "score": 0.951,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "запланували?",
+          "start": 14.703,
+          "end": 15.323,
+          "score": 0.712,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.1811556614421565,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 15.363,
+      "end": 16.764,
+      "text": "Так, це сьогодні.",
+      "words": [
+        {
+          "word": "Так,",
+          "start": 15.363,
+          "end": 15.803,
+          "score": 0.594,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "це",
+          "start": 15.883,
+          "end": 16.184,
+          "score": 0.586,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "сьогодні.",
+          "start": 16.224,
+          "end": 16.764,
+          "score": 0.959,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.1811556614421565,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 16.844,
+      "end": 21.087,
+      "text": "Це сьогодні відділення має бути.",
+      "words": [
+        {
+          "word": "Це",
+          "start": 16.844,
+          "end": 16.944,
+          "score": 0.776,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "сьогодні",
+          "start": 16.984,
+          "end": 17.344,
+          "score": 0.969,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "відділення",
+          "start": 17.384,
+          "end": 17.725,
+          "score": 0.563,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "має",
+          "start": 17.745,
+          "end": 17.885,
+          "score": 0.768,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "бути.",
+          "start": 17.925,
+          "end": 21.087,
+          "score": 0.916,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.1811556614421565,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 21.187,
+      "end": 24.509,
+      "text": "Давай напишемо тоді, ініціювати зміни в СНДД.",
+      "words": [
+        {
+          "word": "Давай",
+          "start": 21.187,
+          "end": 21.507,
+          "score": 0.96,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "напишемо",
+          "start": 21.527,
+          "end": 22.027,
+          "score": 0.878,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "тоді,",
+          "start": 22.067,
+          "end": 22.808,
+          "score": 0.993,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "ініціювати",
+          "start": 22.968,
+          "end": 23.688,
+          "score": 0.974,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "зміни",
+          "start": 23.728,
+          "end": 24.108,
+          "score": 0.915,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "в",
+          "start": 24.128,
+          "end": 24.148,
+          "score": 0.98,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "СНДД.",
+          "start": 24.209,
+          "end": 24.509,
+          "score": 0.699,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.1811556614421565,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 27.438,
+      "end": 30.679,
+      "text": " Це не зовсім те саме, але... Це не те саме.",
+      "words": [
+        {
+          "word": "Це",
+          "start": 27.438,
+          "end": 27.498,
+          "score": 0.894,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "не",
+          "start": 27.538,
+          "end": 27.678,
+          "score": 0.584,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "зовсім",
+          "start": 27.718,
+          "end": 28.058,
+          "score": 1.0,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "те",
+          "start": 28.098,
+          "end": 28.218,
+          "score": 0.807,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "саме,",
+          "start": 28.278,
+          "end": 28.678,
+          "score": 0.953,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "але...",
+          "start": 28.738,
+          "end": 29.519,
+          "score": 0.937,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "Це",
+          "start": 29.679,
+          "end": 29.839,
+          "score": 0.906,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "не",
+          "start": 30.079,
+          "end": 30.179,
+          "score": 0.908,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "те",
+          "start": 30.219,
+          "end": 30.299,
+          "score": 0.872,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "саме.",
+          "start": 30.359,
+          "end": 30.679,
+          "score": 0.994,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.17262757775242343,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 30.859,
+      "end": 35.961,
+      "text": "Тому що зараз ми задачу віддамо на девопсі, і, відповідно, нема що в цілі писати.",
+      "words": [
+        {
+          "word": "Тому",
+          "start": 30.859,
+          "end": 31.099,
+          "score": 0.95,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "що",
+          "start": 31.139,
+          "end": 31.439,
+          "score": 0.846,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "зараз",
+          "start": 31.519,
+          "end": 31.78,
+          "score": 0.997,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "ми",
+          "start": 31.84,
+          "end": 31.92,
+          "score": 0.871,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "задачу",
+          "start": 31.96,
+          "end": 32.4,
+          "score": 0.822,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "віддамо",
+          "start": 32.42,
+          "end": 32.82,
+          "score": 0.955,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "на",
+          "start": 32.84,
+          "end": 33.16,
+          "score": 0.936,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "девопсі,",
+          "start": 33.22,
+          "end": 33.68,
+          "score": 0.836,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "і,",
+          "start": 33.78,
+          "end": 33.96,
+          "score": 0.776,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "відповідно,",
+          "start": 34.0,
+          "end": 34.721,
+          "score": 0.939,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "нема",
+          "start": 34.761,
+          "end": 35.001,
+          "score": 0.961,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "що",
+          "start": 35.061,
+          "end": 35.141,
+          "score": 0.808,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "в",
+          "start": 35.161,
+          "end": 35.201,
+          "score": 0.869,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "цілі",
+          "start": 35.241,
+          "end": 35.461,
+          "score": 0.906,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "писати.",
+          "start": 35.501,
+          "end": 35.961,
+          "score": 0.974,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.17262757775242343,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 36.421,
+      "end": 46.645,
+      "text": "А от ініціювати зміни в CNDD, необхідно визначити, що там змінювати, і необхідно визначити, до кого перейти, і поменеджити, щоб започати.",
+      "words": [
+        {
+          "word": "А",
+          "start": 36.421,
+          "end": 36.481,
+          "score": 0.999,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "от",
+          "start": 36.521,
+          "end": 36.701,
+          "score": 0.554,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "ініціювати",
+          "start": 36.721,
+          "end": 37.261,
+          "score": 0.892,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "зміни",
+          "start": 37.762,
+          "end": 38.022,
+          "score": 0.88,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "в",
+          "start": 38.042,
+          "end": 38.062,
+          "score": 0.486,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "CNDD,",
+          "start": 38.102,
+          "end": 38.582,
+          "score": 0.882,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "необхідно",
+          "start": 38.602,
+          "end": 38.982,
+          "score": 0.831,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "визначити,",
+          "start": 39.002,
+          "end": 39.462,
+          "score": 0.674,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "що",
+          "start": 39.502,
+          "end": 39.622,
+          "score": 0.829,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "там",
+          "start": 39.662,
+          "end": 39.822,
+          "score": 0.813,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "змінювати,",
+          "start": 39.862,
+          "end": 40.503,
+          "score": 0.992,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "і",
+          "start": 40.623,
+          "end": 40.863,
+          "score": 0.765,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "необхідно",
+          "start": 40.903,
+          "end": 41.243,
+          "score": 0.818,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "визначити,",
+          "start": 41.263,
+          "end": 41.683,
+          "score": 0.65,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "до",
+          "start": 41.703,
+          "end": 41.783,
+          "score": 0.899,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "кого",
+          "start": 41.843,
+          "end": 42.043,
+          "score": 0.916,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "перейти,",
+          "start": 42.103,
+          "end": 42.563,
+          "score": 0.782,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "і",
+          "start": 42.683,
+          "end": 42.903,
+          "score": 0.823,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "поменеджити,",
+          "start": 43.804,
+          "end": 45.044,
+          "score": 0.813,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "щоб",
+          "start": 45.084,
+          "end": 45.904,
+          "score": 0.84,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "започати.",
+          "start": 46.005,
+          "end": 46.645,
+          "score": 0.676,
+          "speaker": "SPEAKER_02"
+        }
+      ],
+      "avg_logprob": -0.17262757775242343,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 46.665,
+      "end": 53.187,
+      "text": "Окей, це я там ж такий поговорю пару хвилин, от я так розумію, в нього більше інформації з приводу цього, бо не доведуся.",
+      "words": [
+        {
+          "word": "Окей,",
+          "start": 46.665,
+          "end": 47.385,
+          "score": 0.636,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "це",
+          "start": 47.465,
+          "end": 47.565,
+          "score": 0.987,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "я",
+          "start": 47.585,
+          "end": 47.605,
+          "score": 0.007,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "там",
+          "start": 47.645,
+          "end": 47.765,
+          "score": 0.818,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "ж",
+          "start": 47.785,
+          "end": 47.805,
+          "score": 0.001,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "такий",
+          "start": 47.825,
+          "end": 48.085,
+          "score": 0.659,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "поговорю",
+          "start": 48.125,
+          "end": 48.485,
+          "score": 0.641,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "пару",
+          "start": 48.525,
+          "end": 48.685,
+          "score": 0.647,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "хвилин,",
+          "start": 48.705,
+          "end": 48.946,
+          "score": 0.348,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "от",
+          "start": 48.966,
+          "end": 49.006,
+          "score": 0.484,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "я",
+          "start": 49.026,
+          "end": 49.086,
+          "score": 0.62,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "так",
+          "start": 49.106,
+          "end": 49.186,
+          "score": 0.314,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "розумію,",
+          "start": 49.266,
+          "end": 49.586,
+          "score": 0.454,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "в",
+          "start": 49.606,
+          "end": 49.626,
+          "score": 0.008,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "нього",
+          "start": 49.646,
+          "end": 49.846,
+          "score": 0.757,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "більше",
+          "start": 49.886,
+          "end": 50.266,
+          "score": 0.529,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "інформації",
+          "start": 50.346,
+          "end": 50.786,
+          "score": 0.669,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "з",
+          "start": 50.806,
+          "end": 50.826,
+          "score": 0.112,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "приводу",
+          "start": 50.866,
+          "end": 51.146,
+          "score": 0.664,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "цього,",
+          "start": 51.206,
+          "end": 51.446,
+          "score": 0.742,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "бо",
+          "start": 51.486,
+          "end": 51.827,
+          "score": 0.792,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "не",
+          "start": 51.967,
+          "end": 52.047,
+          "score": 0.899,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "доведуся.",
+          "start": 52.087,
+          "end": 53.187,
+          "score": 0.82,
+          "speaker": "SPEAKER_00"
+        }
+      ],
+      "avg_logprob": -0.17262757775242343,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "start": 53.52,
+      "end": 54.361,
+      "text": " Окей, окей.",
+      "words": [
+        {
+          "word": "Окей,",
+          "start": 53.52,
+          "end": 54.0,
+          "score": 0.836,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "окей.",
+          "start": 54.14,
+          "end": 54.361,
+          "score": 0.428,
+          "speaker": "SPEAKER_00"
+        }
+      ],
+      "avg_logprob": -0.2741356958825904,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "start": 54.441,
+      "end": 56.161,
+      "text": "Дуже около цього, так.",
+      "words": [
+        {
+          "word": "Дуже",
+          "start": 54.441,
+          "end": 54.801,
+          "score": 0.942,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "около",
+          "start": 55.281,
+          "end": 55.621,
+          "score": 0.825,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "цього,",
+          "start": 55.661,
+          "end": 55.941,
+          "score": 0.632,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "так.",
+          "start": 55.981,
+          "end": 56.161,
+          "score": 0.696,
+          "speaker": "SPEAKER_00"
+        }
+      ],
+      "avg_logprob": -0.2741356958825904,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "start": 56.302,
+      "end": 66.907,
+      "text": "І по зайвому, то давай, може, типу... Сьогодні світить сонечко.",
+      "words": [
+        {
+          "word": "І",
+          "start": 56.302,
+          "end": 57.042,
+          "score": 0.968,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "по",
+          "start": 57.202,
+          "end": 57.282,
+          "score": 0.859,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "зайвому,",
+          "start": 57.322,
+          "end": 57.622,
+          "score": 0.445,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "то",
+          "start": 57.642,
+          "end": 57.722,
+          "score": 0.758,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "давай,",
+          "start": 57.762,
+          "end": 58.123,
+          "score": 0.807,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "може,",
+          "start": 58.163,
+          "end": 58.943,
+          "score": 0.993,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "типу...",
+          "start": 60.664,
+          "end": 61.464,
+          "score": 0.652
+        },
+        {
+          "word": "Сьогодні",
+          "start": 65.607,
+          "end": 65.987,
+          "score": 0.807,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "світить",
+          "start": 66.027,
+          "end": 66.287,
+          "score": 0.636,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "сонечко.",
+          "start": 66.327,
+          "end": 66.907,
+          "score": 0.836,
+          "speaker": "SPEAKER_02"
+        }
+      ],
+      "avg_logprob": -0.2741356958825904,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "start": 66.987,
+      "end": 75.412,
+      "text": "Ну, поки переноситься, я ж можу все відтестити і написати на GNI, на наступи є. У мене через проксі ходить.",
+      "words": [
+        {
+          "word": "Ну,",
+          "start": 66.987,
+          "end": 67.528,
+          "score": 0.819,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "поки",
+          "start": 67.588,
+          "end": 67.848,
+          "score": 0.915,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "переноситься,",
+          "start": 67.888,
+          "end": 68.788,
+          "score": 0.943,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "я",
+          "start": 68.928,
+          "end": 69.029,
+          "score": 0.925,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "ж",
+          "start": 69.109,
+          "end": 69.329,
+          "score": 0.896,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "можу",
+          "start": 69.449,
+          "end": 69.629,
+          "score": 0.891,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "все",
+          "start": 69.649,
+          "end": 69.909,
+          "score": 0.981,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "відтестити",
+          "start": 69.949,
+          "end": 70.489,
+          "score": 0.902,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "і",
+          "start": 70.509,
+          "end": 70.529,
+          "score": 0.056,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "написати",
+          "start": 70.549,
+          "end": 70.93,
+          "score": 0.924,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "на",
+          "start": 70.97,
+          "end": 71.03,
+          "score": 0.58,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "GNI,",
+          "start": 71.07,
+          "end": 71.49,
+          "score": 0.847,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "на",
+          "start": 71.57,
+          "end": 71.63,
+          "score": 0.666,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "наступи",
+          "start": 71.69,
+          "end": 72.07,
+          "score": 0.778,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "є.",
+          "start": 72.15,
+          "end": 72.43,
+          "score": 0.73,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "У",
+          "start": 72.45,
+          "end": 72.47,
+          "score": 0.001
+        },
+        {
+          "word": "мене",
+          "start": 73.291,
+          "end": 73.451,
+          "score": 0.484,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "через",
+          "start": 73.491,
+          "end": 73.671,
+          "score": 0.662,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "проксі",
+          "start": 73.711,
+          "end": 73.991,
+          "score": 0.811,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "ходить.",
+          "start": 74.011,
+          "end": 75.412,
+          "score": 0.884,
+          "speaker": "SPEAKER_00"
+        }
+      ],
+      "avg_logprob": -0.2741356958825904,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "start": 77.201,
+      "end": 83.491,
+      "text": " Я би написав, що відтестити функціонал інфіграції CRM на Janira.",
+      "words": [
+        {
+          "word": "Я",
+          "start": 77.201,
+          "end": 77.261,
+          "score": 0.849,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "би",
+          "start": 77.281,
+          "end": 77.342,
+          "score": 0.972,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "написав,",
+          "start": 77.382,
+          "end": 77.842,
+          "score": 0.929,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "що",
+          "start": 77.902,
+          "end": 78.423,
+          "score": 0.864,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "відтестити",
+          "start": 78.583,
+          "end": 79.385,
+          "score": 0.764,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "функціонал",
+          "start": 79.425,
+          "end": 80.146,
+          "score": 0.908,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "інфіграції",
+          "start": 80.847,
+          "end": 82.63,
+          "score": 0.726,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "CRM",
+          "start": 82.67,
+          "end": 82.95,
+          "score": 0.845,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "на",
+          "start": 82.97,
+          "end": 83.03,
+          "score": 0.302,
+          "speaker": "SPEAKER_00"
+        },
+        {
+          "word": "Janira.",
+          "start": 83.07,
+          "end": 83.491,
+          "score": 0.907,
+          "speaker": "SPEAKER_00"
+        }
+      ],
+      "avg_logprob": -0.2627511722285573,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "start": 85.694,
+      "end": 87.477,
+      "text": "Чудова погода сьогодні на дворі.",
+      "words": [
+        {
+          "word": "Чудова",
+          "start": 85.694,
+          "end": 86.035,
+          "score": 0.953,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "погода",
+          "start": 86.075,
+          "end": 86.455,
+          "score": 0.933,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "сьогодні",
+          "start": 86.496,
+          "end": 86.956,
+          "score": 0.87,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "на",
+          "start": 86.996,
+          "end": 87.056,
+          "score": 0.996,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "дворі.",
+          "start": 87.096,
+          "end": 87.477,
+          "score": 0.935,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.2627511722285573,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 95.651,
+      "end": 97.772,
+      "text": " Так що такі є справи.",
+      "words": [
+        {
+          "word": "Так",
+          "start": 95.651,
+          "end": 95.811,
+          "score": 0.943,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "що",
+          "start": 95.851,
+          "end": 95.951,
+          "score": 0.738,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "такі",
+          "start": 95.971,
+          "end": 96.211,
+          "score": 0.98,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "є",
+          "start": 96.231,
+          "end": 96.311,
+          "score": 0.71,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "справи.",
+          "start": 96.351,
+          "end": 97.772,
+          "score": 0.993,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.12934245024957963,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 98.093,
+      "end": 98.833,
+      "text": "Так, окей.",
+      "words": [
+        {
+          "word": "Так,",
+          "start": 98.093,
+          "end": 98.333,
+          "score": 0.966,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "окей.",
+          "start": 98.433,
+          "end": 98.833,
+          "score": 0.896,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.12934245024957963,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 99.994,
+      "end": 101.174,
+      "text": "Поки що цього достатньо.",
+      "words": [
+        {
+          "word": "Поки",
+          "start": 99.994,
+          "end": 100.234,
+          "score": 0.993,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "що",
+          "start": 100.274,
+          "end": 100.394,
+          "score": 0.905,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "цього",
+          "start": 100.454,
+          "end": 100.674,
+          "score": 0.959,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "достатньо.",
+          "start": 100.714,
+          "end": 101.174,
+          "score": 0.934,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.12934245024957963,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 101.214,
+      "end": 110.48,
+      "text": "Просто озвучив голос, що замовник не знав, що у них використовується Azure OpenAI для зая бота.",
+      "words": [
+        {
+          "word": "Просто",
+          "start": 101.214,
+          "end": 101.535,
+          "score": 0.95,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "озвучив",
+          "start": 101.555,
+          "end": 101.895,
+          "score": 0.918,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "голос,",
+          "start": 101.955,
+          "end": 102.275,
+          "score": 0.959,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "що",
+          "start": 102.315,
+          "end": 102.675,
+          "score": 0.948,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "замовник",
+          "start": 103.516,
+          "end": 104.076,
+          "score": 0.998,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "не",
+          "start": 104.136,
+          "end": 104.256,
+          "score": 0.97,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "знав,",
+          "start": 104.316,
+          "end": 104.777,
+          "score": 0.952,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "що",
+          "start": 105.737,
+          "end": 105.937,
+          "score": 0.925,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "у",
+          "start": 105.997,
+          "end": 106.057,
+          "score": 0.746,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "них",
+          "start": 106.117,
+          "end": 106.938,
+          "score": 0.972,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "використовується",
+          "start": 106.998,
+          "end": 108.419,
+          "score": 0.965,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "Azure",
+          "start": 108.439,
+          "end": 108.859,
+          "score": 0.876,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "OpenAI",
+          "start": 108.899,
+          "end": 109.419,
+          "score": 0.846,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "для",
+          "start": 109.76,
+          "end": 109.9,
+          "score": 0.773,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "зая",
+          "start": 109.94,
+          "end": 110.18,
+          "score": 0.799,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "бота.",
+          "start": 110.24,
+          "end": 110.48,
+          "score": 0.629,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.12934245024957963,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 110.5,
+      "end": 117.184,
+      "text": "Вони думали, що це використовується просто вінеяй кластер нашої власні модельки.",
+      "words": [
+        {
+          "word": "Вони",
+          "start": 110.5,
+          "end": 110.72,
+          "score": 0.763,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "думали,",
+          "start": 110.76,
+          "end": 111.14,
+          "score": 0.647,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "що",
+          "start": 111.18,
+          "end": 111.341,
+          "score": 0.782,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "це",
+          "start": 111.421,
+          "end": 111.581,
+          "score": 0.793,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "використовується",
+          "start": 111.601,
+          "end": 113.282,
+          "score": 0.959,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "просто",
+          "start": 113.402,
+          "end": 113.762,
+          "score": 0.967,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "вінеяй",
+          "start": 113.782,
+          "end": 114.162,
+          "score": 0.666,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "кластер",
+          "start": 114.182,
+          "end": 114.563,
+          "score": 0.836,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "нашої",
+          "start": 114.583,
+          "end": 114.903,
+          "score": 0.782,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "власні",
+          "start": 115.403,
+          "end": 115.683,
+          "score": 0.941,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "модельки.",
+          "start": 115.703,
+          "end": 117.184,
+          "score": 0.883,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.12934245024957963,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 117.264,
+      "end": 118.645,
+      "text": "Тому там ще...",
+      "words": [
+        {
+          "word": "Тому",
+          "start": 117.264,
+          "end": 117.564,
+          "score": 0.956,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "там",
+          "start": 117.624,
+          "end": 117.825,
+          "score": 0.993,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "ще...",
+          "start": 117.885,
+          "end": 118.645,
+          "score": 0.709,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.12934245024957963,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 118.918,
+      "end": 121.479,
+      "text": " буде переводити.",
+      "words": [
+        {
+          "word": "буде",
+          "start": 118.918,
+          "end": 119.158,
+          "score": 0.996,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "переводити.",
+          "start": 119.218,
+          "end": 121.479,
+          "score": 0.75,
+          "speaker": "SPEAKER_02"
+        }
+      ],
+      "avg_logprob": -0.21160267350327877,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "start": 121.599,
+      "end": 124.359,
+      "text": "Я не знаю, що... Давай це надемо.",
+      "words": [
+        {
+          "word": "Я",
+          "start": 121.599,
+          "end": 121.639,
+          "score": 0.914,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "не",
+          "start": 121.659,
+          "end": 121.719,
+          "score": 0.666,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "знаю,",
+          "start": 121.739,
+          "end": 121.919,
+          "score": 0.486,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "що...",
+          "start": 121.939,
+          "end": 122.739,
+          "score": 0.761,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "Давай",
+          "start": 122.799,
+          "end": 123.419,
+          "score": 0.773,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "це",
+          "start": 123.499,
+          "end": 123.679,
+          "score": 0.731,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "надемо.",
+          "start": 123.919,
+          "end": 124.359,
+          "score": 0.783,
+          "speaker": "SPEAKER_02"
+        }
+      ],
+      "avg_logprob": -0.21160267350327877,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "start": 124.419,
+      "end": 126.5,
+      "text": "Щороку був дзвінок, то говорили, що там не було.",
+      "words": [
+        {
+          "word": "Щороку",
+          "start": 124.419,
+          "end": 124.659,
+          "score": 0.55,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "був",
+          "start": 124.679,
+          "end": 124.739,
+          "score": 0.009,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "дзвінок,",
+          "start": 124.759,
+          "end": 125.039,
+          "score": 0.45,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "то",
+          "start": 125.079,
+          "end": 125.179,
+          "score": 0.856,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "говорили,",
+          "start": 125.219,
+          "end": 125.739,
+          "score": 0.576,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "що",
+          "start": 125.839,
+          "end": 125.899,
+          "score": 0.25,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "там",
+          "start": 125.939,
+          "end": 126.06,
+          "score": 0.554,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "не",
+          "start": 126.08,
+          "end": 126.16,
+          "score": 0.522,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "було.",
+          "start": 126.2,
+          "end": 126.5,
+          "score": 0.764,
+          "speaker": "SPEAKER_02"
+        }
+      ],
+      "avg_logprob": -0.21160267350327877,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "start": 126.6,
+      "end": 128.04,
+      "text": "Я розкажу, що там було.",
+      "words": [
+        {
+          "word": "Я",
+          "start": 126.6,
+          "end": 126.66,
+          "score": 0.714,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "розкажу,",
+          "start": 126.7,
+          "end": 127.02,
+          "score": 0.461,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "що",
+          "start": 127.04,
+          "end": 127.12,
+          "score": 0.478,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "там",
+          "start": 127.14,
+          "end": 127.48,
+          "score": 0.783,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "було.",
+          "start": 127.52,
+          "end": 128.04,
+          "score": 0.683,
+          "speaker": "SPEAKER_02"
+        }
+      ],
+      "avg_logprob": -0.21160267350327877,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "start": 128.76,
+      "end": 130.06,
+      "text": "Окей, проговоримо.",
+      "words": [
+        {
+          "word": "Окей,",
+          "start": 128.76,
+          "end": 129.08,
+          "score": 0.771,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "проговоримо.",
+          "start": 129.5,
+          "end": 130.06,
+          "score": 0.901,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.21160267350327877,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 130.18,
+      "end": 132.881,
+      "text": "І додаю, що є чат-боти.",
+      "words": [
+        {
+          "word": "І",
+          "start": 130.18,
+          "end": 130.34,
+          "score": 0.888,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "додаю,",
+          "start": 131.081,
+          "end": 131.541,
+          "score": 0.854,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "що",
+          "start": 131.601,
+          "end": 131.781,
+          "score": 0.764,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "є",
+          "start": 132.041,
+          "end": 132.141,
+          "score": 0.919,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "чат-боти.",
+          "start": 132.221,
+          "end": 132.881,
+          "score": 0.809,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.21160267350327877,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 134.681,
+      "end": 138.502,
+      "text": "Сюди теж треба буде додати, виділити трохи часу.",
+      "words": [
+        {
+          "word": "Сюди",
+          "start": 134.681,
+          "end": 134.941,
+          "score": 0.892,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "теж",
+          "start": 135.001,
+          "end": 135.662,
+          "score": 0.876,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "треба",
+          "start": 135.722,
+          "end": 135.982,
+          "score": 0.931,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "буде",
+          "start": 136.042,
+          "end": 136.282,
+          "score": 0.877,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "додати,",
+          "start": 136.302,
+          "end": 137.042,
+          "score": 0.781,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "виділити",
+          "start": 137.082,
+          "end": 137.502,
+          "score": 0.679,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "трохи",
+          "start": 137.562,
+          "end": 137.902,
+          "score": 0.958,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "часу.",
+          "start": 137.982,
+          "end": 138.502,
+          "score": 0.943,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.21160267350327877,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 138.622,
+      "end": 142.083,
+      "text": "І питання в тому, щоб підготувати хай-левел родмап.",
+      "words": [
+        {
+          "word": "І",
+          "start": 138.622,
+          "end": 138.702,
+          "score": 0.754,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "питання",
+          "start": 138.762,
+          "end": 139.122,
+          "score": 0.942,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "в",
+          "start": 139.142,
+          "end": 139.162,
+          "score": 0.799,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "тому,",
+          "start": 139.202,
+          "end": 139.442,
+          "score": 0.963,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "щоб",
+          "start": 139.482,
+          "end": 139.622,
+          "score": 0.876,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "підготувати",
+          "start": 139.682,
+          "end": 140.303,
+          "score": 0.927,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "хай-левел",
+          "start": 140.363,
+          "end": 140.963,
+          "score": 0.713,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "родмап.",
+          "start": 141.003,
+          "end": 142.083,
+          "score": 0.941,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.21160267350327877,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "start": 142.423,
+      "end": 147.144,
+      "text": "Ну, я владу два рази писав з проханням пояснити,",
+      "words": [
+        {
+          "word": "Ну,",
+          "start": 142.423,
+          "end": 143.263,
+          "score": 0.905,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "я",
+          "start": 143.443,
+          "end": 143.503,
+          "score": 0.803,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "владу",
+          "start": 143.523,
+          "end": 143.763,
+          "score": 0.713,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "два",
+          "start": 143.803,
+          "end": 143.943,
+          "score": 0.964,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "рази",
+          "start": 143.963,
+          "end": 144.203,
+          "score": 0.945,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "писав",
+          "start": 144.243,
+          "end": 144.844,
+          "score": 0.884,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "з",
+          "start": 145.004,
+          "end": 145.064,
+          "score": 0.884,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "проханням",
+          "start": 145.484,
+          "end": 146.304,
+          "score": 0.848,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "пояснити,",
+          "start": 146.724,
+          "end": 147.144,
+          "score": 0.777,
+          "speaker": "SPEAKER_02"
+        }
+      ],
+      "avg_logprob": -0.21160267350327877,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "start": 150.029,
+      "end": 155.317,
+      "text": " Скажи мені, будь ласка, ну, тобто, надай мені інформацію, що тобі треба, або в цілому я тоді...",
+      "words": [
+        {
+          "word": "Скажи",
+          "start": 150.029,
+          "end": 150.25,
+          "score": 0.624,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "мені,",
+          "start": 150.27,
+          "end": 150.55,
+          "score": 0.605,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "будь",
+          "start": 150.59,
+          "end": 150.73,
+          "score": 0.367,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "ласка,",
+          "start": 150.75,
+          "end": 151.111,
+          "score": 0.476,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "ну,",
+          "start": 151.151,
+          "end": 151.311,
+          "score": 0.639,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "тобто,",
+          "start": 151.351,
+          "end": 151.852,
+          "score": 0.705,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "надай",
+          "start": 151.892,
+          "end": 152.212,
+          "score": 0.73,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "мені",
+          "start": 152.232,
+          "end": 152.413,
+          "score": 0.342,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "інформацію,",
+          "start": 152.473,
+          "end": 152.893,
+          "score": 0.313,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "що",
+          "start": 152.913,
+          "end": 152.973,
+          "score": 0.4,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "тобі",
+          "start": 152.993,
+          "end": 153.094,
+          "score": 0.222,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "треба,",
+          "start": 153.114,
+          "end": 153.394,
+          "score": 0.609,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "або",
+          "start": 153.434,
+          "end": 153.554,
+          "score": 0.346,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "в",
+          "start": 153.594,
+          "end": 153.654,
+          "score": 0.393,
+          "speaker": "SPEAKER_02"
+        },
+        {
+          "word": "цілому",
+          "start": 153.694,
+          "end": 154.956,
+          "score": 0.56,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "я",
+          "start": 155.016,
+          "end": 155.036,
+          "score": 0.204,
+          "speaker": "SPEAKER_01"
+        },
+        {
+          "word": "тоді...",
+          "start": 155.076,
+          "end": 155.317,
+          "score": 0.486,
+          "speaker": "SPEAKER_01"
+        }
+      ],
+      "avg_logprob": -0.21001135286959735,
+      "speaker": "SPEAKER_02"
+    }
+  ],
+  "word_segments": [
+    {
+      "word": "Ну",
+      "start": 0.634,
+      "end": 0.694,
+      "score": 0.706,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "віддати",
+      "start": 0.734,
+      "end": 1.034,
+      "score": 0.705,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "залежить.",
+      "start": 1.054,
+      "end": 1.935,
+      "score": 0.908,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "Давай",
+      "start": 1.975,
+      "end": 2.375,
+      "score": 0.774,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "напишемо,",
+      "start": 2.415,
+      "end": 4.016,
+      "score": 0.718,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "що",
+      "start": 4.076,
+      "end": 4.476,
+      "score": 0.784,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "віддати",
+      "start": 5.457,
+      "end": 5.797,
+      "score": 0.973,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "все",
+      "start": 5.837,
+      "end": 5.977,
+      "score": 0.984,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "девопсом",
+      "start": 6.017,
+      "end": 6.478,
+      "score": 0.834,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "для",
+      "start": 6.518,
+      "end": 6.758,
+      "score": 0.99,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "середовища.",
+      "start": 6.818,
+      "end": 10.28,
+      "score": 0.882,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Тоді",
+      "start": 10.36,
+      "end": 10.8,
+      "score": 0.994,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "віддати",
+      "start": 11.02,
+      "end": 11.501,
+      "score": 0.969,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "все",
+      "start": 11.521,
+      "end": 11.721,
+      "score": 0.972,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "девопсом",
+      "start": 11.761,
+      "end": 12.181,
+      "score": 0.854,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "для",
+      "start": 12.201,
+      "end": 12.301,
+      "score": 0.207,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "середовища,",
+      "start": 12.341,
+      "end": 12.902,
+      "score": 0.71,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "це",
+      "start": 12.942,
+      "end": 13.042,
+      "score": 0.398,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "має",
+      "start": 13.062,
+      "end": 13.262,
+      "score": 0.806,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "бути",
+      "start": 13.302,
+      "end": 13.522,
+      "score": 0.954,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "на",
+      "start": 13.542,
+      "end": 13.662,
+      "score": 0.917,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "цьому",
+      "start": 13.702,
+      "end": 13.922,
+      "score": 0.807,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "тижні,",
+      "start": 13.982,
+      "end": 14.262,
+      "score": 0.857,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "щоб",
+      "start": 14.302,
+      "end": 14.443,
+      "score": 0.677,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "вони",
+      "start": 14.463,
+      "end": 14.663,
+      "score": 0.951,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "запланували?",
+      "start": 14.703,
+      "end": 15.323,
+      "score": 0.712,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Так,",
+      "start": 15.363,
+      "end": 15.803,
+      "score": 0.594,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "це",
+      "start": 15.883,
+      "end": 16.184,
+      "score": 0.586,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "сьогодні.",
+      "start": 16.224,
+      "end": 16.764,
+      "score": 0.959,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Це",
+      "start": 16.844,
+      "end": 16.944,
+      "score": 0.776,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "сьогодні",
+      "start": 16.984,
+      "end": 17.344,
+      "score": 0.969,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "відділення",
+      "start": 17.384,
+      "end": 17.725,
+      "score": 0.563,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "має",
+      "start": 17.745,
+      "end": 17.885,
+      "score": 0.768,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "бути.",
+      "start": 17.925,
+      "end": 21.087,
+      "score": 0.916,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Давай",
+      "start": 21.187,
+      "end": 21.507,
+      "score": 0.96,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "напишемо",
+      "start": 21.527,
+      "end": 22.027,
+      "score": 0.878,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "тоді,",
+      "start": 22.067,
+      "end": 22.808,
+      "score": 0.993,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "ініціювати",
+      "start": 22.968,
+      "end": 23.688,
+      "score": 0.974,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "зміни",
+      "start": 23.728,
+      "end": 24.108,
+      "score": 0.915,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "в",
+      "start": 24.128,
+      "end": 24.148,
+      "score": 0.98,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "СНДД.",
+      "start": 24.209,
+      "end": 24.509,
+      "score": 0.699,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Це",
+      "start": 27.438,
+      "end": 27.498,
+      "score": 0.894,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "не",
+      "start": 27.538,
+      "end": 27.678,
+      "score": 0.584,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "зовсім",
+      "start": 27.718,
+      "end": 28.058,
+      "score": 1.0,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "те",
+      "start": 28.098,
+      "end": 28.218,
+      "score": 0.807,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "саме,",
+      "start": 28.278,
+      "end": 28.678,
+      "score": 0.953,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "але...",
+      "start": 28.738,
+      "end": 29.519,
+      "score": 0.937,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Це",
+      "start": 29.679,
+      "end": 29.839,
+      "score": 0.906,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "не",
+      "start": 30.079,
+      "end": 30.179,
+      "score": 0.908,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "те",
+      "start": 30.219,
+      "end": 30.299,
+      "score": 0.872,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "саме.",
+      "start": 30.359,
+      "end": 30.679,
+      "score": 0.994,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Тому",
+      "start": 30.859,
+      "end": 31.099,
+      "score": 0.95,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "що",
+      "start": 31.139,
+      "end": 31.439,
+      "score": 0.846,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "зараз",
+      "start": 31.519,
+      "end": 31.78,
+      "score": 0.997,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "ми",
+      "start": 31.84,
+      "end": 31.92,
+      "score": 0.871,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "задачу",
+      "start": 31.96,
+      "end": 32.4,
+      "score": 0.822,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "віддамо",
+      "start": 32.42,
+      "end": 32.82,
+      "score": 0.955,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "на",
+      "start": 32.84,
+      "end": 33.16,
+      "score": 0.936,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "девопсі,",
+      "start": 33.22,
+      "end": 33.68,
+      "score": 0.836,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "і,",
+      "start": 33.78,
+      "end": 33.96,
+      "score": 0.776,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "відповідно,",
+      "start": 34.0,
+      "end": 34.721,
+      "score": 0.939,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "нема",
+      "start": 34.761,
+      "end": 35.001,
+      "score": 0.961,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "що",
+      "start": 35.061,
+      "end": 35.141,
+      "score": 0.808,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "в",
+      "start": 35.161,
+      "end": 35.201,
+      "score": 0.869,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "цілі",
+      "start": 35.241,
+      "end": 35.461,
+      "score": 0.906,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "писати.",
+      "start": 35.501,
+      "end": 35.961,
+      "score": 0.974,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "А",
+      "start": 36.421,
+      "end": 36.481,
+      "score": 0.999,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "от",
+      "start": 36.521,
+      "end": 36.701,
+      "score": 0.554,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "ініціювати",
+      "start": 36.721,
+      "end": 37.261,
+      "score": 0.892,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "зміни",
+      "start": 37.762,
+      "end": 38.022,
+      "score": 0.88,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "в",
+      "start": 38.042,
+      "end": 38.062,
+      "score": 0.486,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "CNDD,",
+      "start": 38.102,
+      "end": 38.582,
+      "score": 0.882,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "необхідно",
+      "start": 38.602,
+      "end": 38.982,
+      "score": 0.831,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "визначити,",
+      "start": 39.002,
+      "end": 39.462,
+      "score": 0.674,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "що",
+      "start": 39.502,
+      "end": 39.622,
+      "score": 0.829,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "там",
+      "start": 39.662,
+      "end": 39.822,
+      "score": 0.813,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "змінювати,",
+      "start": 39.862,
+      "end": 40.503,
+      "score": 0.992,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "і",
+      "start": 40.623,
+      "end": 40.863,
+      "score": 0.765,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "необхідно",
+      "start": 40.903,
+      "end": 41.243,
+      "score": 0.818,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "визначити,",
+      "start": 41.263,
+      "end": 41.683,
+      "score": 0.65,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "до",
+      "start": 41.703,
+      "end": 41.783,
+      "score": 0.899,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "кого",
+      "start": 41.843,
+      "end": 42.043,
+      "score": 0.916,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "перейти,",
+      "start": 42.103,
+      "end": 42.563,
+      "score": 0.782,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "і",
+      "start": 42.683,
+      "end": 42.903,
+      "score": 0.823,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "поменеджити,",
+      "start": 43.804,
+      "end": 45.044,
+      "score": 0.813,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "щоб",
+      "start": 45.084,
+      "end": 45.904,
+      "score": 0.84,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "започати.",
+      "start": 46.005,
+      "end": 46.645,
+      "score": 0.676,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "Окей,",
+      "start": 46.665,
+      "end": 47.385,
+      "score": 0.636,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "це",
+      "start": 47.465,
+      "end": 47.565,
+      "score": 0.987,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "я",
+      "start": 47.585,
+      "end": 47.605,
+      "score": 0.007,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "там",
+      "start": 47.645,
+      "end": 47.765,
+      "score": 0.818,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "ж",
+      "start": 47.785,
+      "end": 47.805,
+      "score": 0.001,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "такий",
+      "start": 47.825,
+      "end": 48.085,
+      "score": 0.659,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "поговорю",
+      "start": 48.125,
+      "end": 48.485,
+      "score": 0.641,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "пару",
+      "start": 48.525,
+      "end": 48.685,
+      "score": 0.647,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "хвилин,",
+      "start": 48.705,
+      "end": 48.946,
+      "score": 0.348,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "от",
+      "start": 48.966,
+      "end": 49.006,
+      "score": 0.484,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "я",
+      "start": 49.026,
+      "end": 49.086,
+      "score": 0.62,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "так",
+      "start": 49.106,
+      "end": 49.186,
+      "score": 0.314,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "розумію,",
+      "start": 49.266,
+      "end": 49.586,
+      "score": 0.454,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "в",
+      "start": 49.606,
+      "end": 49.626,
+      "score": 0.008,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "нього",
+      "start": 49.646,
+      "end": 49.846,
+      "score": 0.757,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "більше",
+      "start": 49.886,
+      "end": 50.266,
+      "score": 0.529,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "інформації",
+      "start": 50.346,
+      "end": 50.786,
+      "score": 0.669,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "з",
+      "start": 50.806,
+      "end": 50.826,
+      "score": 0.112,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "приводу",
+      "start": 50.866,
+      "end": 51.146,
+      "score": 0.664,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "цього,",
+      "start": 51.206,
+      "end": 51.446,
+      "score": 0.742,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "бо",
+      "start": 51.486,
+      "end": 51.827,
+      "score": 0.792,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "не",
+      "start": 51.967,
+      "end": 52.047,
+      "score": 0.899,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "доведуся.",
+      "start": 52.087,
+      "end": 53.187,
+      "score": 0.82,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "Окей,",
+      "start": 53.52,
+      "end": 54.0,
+      "score": 0.836,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "окей.",
+      "start": 54.14,
+      "end": 54.361,
+      "score": 0.428,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "Дуже",
+      "start": 54.441,
+      "end": 54.801,
+      "score": 0.942,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "около",
+      "start": 55.281,
+      "end": 55.621,
+      "score": 0.825,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "цього,",
+      "start": 55.661,
+      "end": 55.941,
+      "score": 0.632,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "так.",
+      "start": 55.981,
+      "end": 56.161,
+      "score": 0.696,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "І",
+      "start": 56.302,
+      "end": 57.042,
+      "score": 0.968,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "по",
+      "start": 57.202,
+      "end": 57.282,
+      "score": 0.859,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "зайвому,",
+      "start": 57.322,
+      "end": 57.622,
+      "score": 0.445,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "то",
+      "start": 57.642,
+      "end": 57.722,
+      "score": 0.758,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "давай,",
+      "start": 57.762,
+      "end": 58.123,
+      "score": 0.807,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "може,",
+      "start": 58.163,
+      "end": 58.943,
+      "score": 0.993,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "типу...",
+      "start": 60.664,
+      "end": 61.464,
+      "score": 0.652
+    },
+    {
+      "word": "Сьогодні",
+      "start": 65.607,
+      "end": 65.987,
+      "score": 0.807,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "світить",
+      "start": 66.027,
+      "end": 66.287,
+      "score": 0.636,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "сонечко.",
+      "start": 66.327,
+      "end": 66.907,
+      "score": 0.836,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "Ну,",
+      "start": 66.987,
+      "end": 67.528,
+      "score": 0.819,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "поки",
+      "start": 67.588,
+      "end": 67.848,
+      "score": 0.915,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "переноситься,",
+      "start": 67.888,
+      "end": 68.788,
+      "score": 0.943,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "я",
+      "start": 68.928,
+      "end": 69.029,
+      "score": 0.925,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "ж",
+      "start": 69.109,
+      "end": 69.329,
+      "score": 0.896,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "можу",
+      "start": 69.449,
+      "end": 69.629,
+      "score": 0.891,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "все",
+      "start": 69.649,
+      "end": 69.909,
+      "score": 0.981,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "відтестити",
+      "start": 69.949,
+      "end": 70.489,
+      "score": 0.902,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "і",
+      "start": 70.509,
+      "end": 70.529,
+      "score": 0.056,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "написати",
+      "start": 70.549,
+      "end": 70.93,
+      "score": 0.924,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "на",
+      "start": 70.97,
+      "end": 71.03,
+      "score": 0.58,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "GNI,",
+      "start": 71.07,
+      "end": 71.49,
+      "score": 0.847,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "на",
+      "start": 71.57,
+      "end": 71.63,
+      "score": 0.666,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "наступи",
+      "start": 71.69,
+      "end": 72.07,
+      "score": 0.778,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "є.",
+      "start": 72.15,
+      "end": 72.43,
+      "score": 0.73,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "У",
+      "start": 72.45,
+      "end": 72.47,
+      "score": 0.001
+    },
+    {
+      "word": "мене",
+      "start": 73.291,
+      "end": 73.451,
+      "score": 0.484,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "через",
+      "start": 73.491,
+      "end": 73.671,
+      "score": 0.662,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "проксі",
+      "start": 73.711,
+      "end": 73.991,
+      "score": 0.811,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "ходить.",
+      "start": 74.011,
+      "end": 75.412,
+      "score": 0.884,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "Я",
+      "start": 77.201,
+      "end": 77.261,
+      "score": 0.849,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "би",
+      "start": 77.281,
+      "end": 77.342,
+      "score": 0.972,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "написав,",
+      "start": 77.382,
+      "end": 77.842,
+      "score": 0.929,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "що",
+      "start": 77.902,
+      "end": 78.423,
+      "score": 0.864,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "відтестити",
+      "start": 78.583,
+      "end": 79.385,
+      "score": 0.764,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "функціонал",
+      "start": 79.425,
+      "end": 80.146,
+      "score": 0.908,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "інфіграції",
+      "start": 80.847,
+      "end": 82.63,
+      "score": 0.726,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "CRM",
+      "start": 82.67,
+      "end": 82.95,
+      "score": 0.845,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "на",
+      "start": 82.97,
+      "end": 83.03,
+      "score": 0.302,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "Janira.",
+      "start": 83.07,
+      "end": 83.491,
+      "score": 0.907,
+      "speaker": "SPEAKER_00"
+    },
+    {
+      "word": "Чудова",
+      "start": 85.694,
+      "end": 86.035,
+      "score": 0.953,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "погода",
+      "start": 86.075,
+      "end": 86.455,
+      "score": 0.933,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "сьогодні",
+      "start": 86.496,
+      "end": 86.956,
+      "score": 0.87,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "на",
+      "start": 86.996,
+      "end": 87.056,
+      "score": 0.996,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "дворі.",
+      "start": 87.096,
+      "end": 87.477,
+      "score": 0.935,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Так",
+      "start": 95.651,
+      "end": 95.811,
+      "score": 0.943,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "що",
+      "start": 95.851,
+      "end": 95.951,
+      "score": 0.738,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "такі",
+      "start": 95.971,
+      "end": 96.211,
+      "score": 0.98,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "є",
+      "start": 96.231,
+      "end": 96.311,
+      "score": 0.71,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "справи.",
+      "start": 96.351,
+      "end": 97.772,
+      "score": 0.993,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Так,",
+      "start": 98.093,
+      "end": 98.333,
+      "score": 0.966,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "окей.",
+      "start": 98.433,
+      "end": 98.833,
+      "score": 0.896,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Поки",
+      "start": 99.994,
+      "end": 100.234,
+      "score": 0.993,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "що",
+      "start": 100.274,
+      "end": 100.394,
+      "score": 0.905,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "цього",
+      "start": 100.454,
+      "end": 100.674,
+      "score": 0.959,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "достатньо.",
+      "start": 100.714,
+      "end": 101.174,
+      "score": 0.934,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Просто",
+      "start": 101.214,
+      "end": 101.535,
+      "score": 0.95,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "озвучив",
+      "start": 101.555,
+      "end": 101.895,
+      "score": 0.918,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "голос,",
+      "start": 101.955,
+      "end": 102.275,
+      "score": 0.959,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "що",
+      "start": 102.315,
+      "end": 102.675,
+      "score": 0.948,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "замовник",
+      "start": 103.516,
+      "end": 104.076,
+      "score": 0.998,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "не",
+      "start": 104.136,
+      "end": 104.256,
+      "score": 0.97,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "знав,",
+      "start": 104.316,
+      "end": 104.777,
+      "score": 0.952,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "що",
+      "start": 105.737,
+      "end": 105.937,
+      "score": 0.925,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "у",
+      "start": 105.997,
+      "end": 106.057,
+      "score": 0.746,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "них",
+      "start": 106.117,
+      "end": 106.938,
+      "score": 0.972,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "використовується",
+      "start": 106.998,
+      "end": 108.419,
+      "score": 0.965,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Azure",
+      "start": 108.439,
+      "end": 108.859,
+      "score": 0.876,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "OpenAI",
+      "start": 108.899,
+      "end": 109.419,
+      "score": 0.846,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "для",
+      "start": 109.76,
+      "end": 109.9,
+      "score": 0.773,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "зая",
+      "start": 109.94,
+      "end": 110.18,
+      "score": 0.799,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "бота.",
+      "start": 110.24,
+      "end": 110.48,
+      "score": 0.629,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Вони",
+      "start": 110.5,
+      "end": 110.72,
+      "score": 0.763,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "думали,",
+      "start": 110.76,
+      "end": 111.14,
+      "score": 0.647,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "що",
+      "start": 111.18,
+      "end": 111.341,
+      "score": 0.782,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "це",
+      "start": 111.421,
+      "end": 111.581,
+      "score": 0.793,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "використовується",
+      "start": 111.601,
+      "end": 113.282,
+      "score": 0.959,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "просто",
+      "start": 113.402,
+      "end": 113.762,
+      "score": 0.967,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "вінеяй",
+      "start": 113.782,
+      "end": 114.162,
+      "score": 0.666,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "кластер",
+      "start": 114.182,
+      "end": 114.563,
+      "score": 0.836,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "нашої",
+      "start": 114.583,
+      "end": 114.903,
+      "score": 0.782,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "власні",
+      "start": 115.403,
+      "end": 115.683,
+      "score": 0.941,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "модельки.",
+      "start": 115.703,
+      "end": 117.184,
+      "score": 0.883,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Тому",
+      "start": 117.264,
+      "end": 117.564,
+      "score": 0.956,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "там",
+      "start": 117.624,
+      "end": 117.825,
+      "score": 0.993,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "ще...",
+      "start": 117.885,
+      "end": 118.645,
+      "score": 0.709,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "буде",
+      "start": 118.918,
+      "end": 119.158,
+      "score": 0.996,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "переводити.",
+      "start": 119.218,
+      "end": 121.479,
+      "score": 0.75,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "Я",
+      "start": 121.599,
+      "end": 121.639,
+      "score": 0.914,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "не",
+      "start": 121.659,
+      "end": 121.719,
+      "score": 0.666,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "знаю,",
+      "start": 121.739,
+      "end": 121.919,
+      "score": 0.486,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "що...",
+      "start": 121.939,
+      "end": 122.739,
+      "score": 0.761,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "Давай",
+      "start": 122.799,
+      "end": 123.419,
+      "score": 0.773,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "це",
+      "start": 123.499,
+      "end": 123.679,
+      "score": 0.731,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "надемо.",
+      "start": 123.919,
+      "end": 124.359,
+      "score": 0.783,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "Щороку",
+      "start": 124.419,
+      "end": 124.659,
+      "score": 0.55,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "був",
+      "start": 124.679,
+      "end": 124.739,
+      "score": 0.009,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "дзвінок,",
+      "start": 124.759,
+      "end": 125.039,
+      "score": 0.45,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "то",
+      "start": 125.079,
+      "end": 125.179,
+      "score": 0.856,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "говорили,",
+      "start": 125.219,
+      "end": 125.739,
+      "score": 0.576,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "що",
+      "start": 125.839,
+      "end": 125.899,
+      "score": 0.25,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "там",
+      "start": 125.939,
+      "end": 126.06,
+      "score": 0.554,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "не",
+      "start": 126.08,
+      "end": 126.16,
+      "score": 0.522,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "було.",
+      "start": 126.2,
+      "end": 126.5,
+      "score": 0.764,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "Я",
+      "start": 126.6,
+      "end": 126.66,
+      "score": 0.714,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "розкажу,",
+      "start": 126.7,
+      "end": 127.02,
+      "score": 0.461,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "що",
+      "start": 127.04,
+      "end": 127.12,
+      "score": 0.478,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "там",
+      "start": 127.14,
+      "end": 127.48,
+      "score": 0.783,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "було.",
+      "start": 127.52,
+      "end": 128.04,
+      "score": 0.683,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "Окей,",
+      "start": 128.76,
+      "end": 129.08,
+      "score": 0.771,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "проговоримо.",
+      "start": 129.5,
+      "end": 130.06,
+      "score": 0.901,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "І",
+      "start": 130.18,
+      "end": 130.34,
+      "score": 0.888,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "додаю,",
+      "start": 131.081,
+      "end": 131.541,
+      "score": 0.854,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "що",
+      "start": 131.601,
+      "end": 131.781,
+      "score": 0.764,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "є",
+      "start": 132.041,
+      "end": 132.141,
+      "score": 0.919,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "чат-боти.",
+      "start": 132.221,
+      "end": 132.881,
+      "score": 0.809,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Сюди",
+      "start": 134.681,
+      "end": 134.941,
+      "score": 0.892,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "теж",
+      "start": 135.001,
+      "end": 135.662,
+      "score": 0.876,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "треба",
+      "start": 135.722,
+      "end": 135.982,
+      "score": 0.931,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "буде",
+      "start": 136.042,
+      "end": 136.282,
+      "score": 0.877,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "додати,",
+      "start": 136.302,
+      "end": 137.042,
+      "score": 0.781,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "виділити",
+      "start": 137.082,
+      "end": 137.502,
+      "score": 0.679,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "трохи",
+      "start": 137.562,
+      "end": 137.902,
+      "score": 0.958,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "часу.",
+      "start": 137.982,
+      "end": 138.502,
+      "score": 0.943,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "І",
+      "start": 138.622,
+      "end": 138.702,
+      "score": 0.754,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "питання",
+      "start": 138.762,
+      "end": 139.122,
+      "score": 0.942,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "в",
+      "start": 139.142,
+      "end": 139.162,
+      "score": 0.799,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "тому,",
+      "start": 139.202,
+      "end": 139.442,
+      "score": 0.963,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "щоб",
+      "start": 139.482,
+      "end": 139.622,
+      "score": 0.876,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "підготувати",
+      "start": 139.682,
+      "end": 140.303,
+      "score": 0.927,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "хай-левел",
+      "start": 140.363,
+      "end": 140.963,
+      "score": 0.713,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "родмап.",
+      "start": 141.003,
+      "end": 142.083,
+      "score": 0.941,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "Ну,",
+      "start": 142.423,
+      "end": 143.263,
+      "score": 0.905,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "я",
+      "start": 143.443,
+      "end": 143.503,
+      "score": 0.803,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "владу",
+      "start": 143.523,
+      "end": 143.763,
+      "score": 0.713,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "два",
+      "start": 143.803,
+      "end": 143.943,
+      "score": 0.964,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "рази",
+      "start": 143.963,
+      "end": 144.203,
+      "score": 0.945,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "писав",
+      "start": 144.243,
+      "end": 144.844,
+      "score": 0.884,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "з",
+      "start": 145.004,
+      "end": 145.064,
+      "score": 0.884,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "проханням",
+      "start": 145.484,
+      "end": 146.304,
+      "score": 0.848,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "пояснити,",
+      "start": 146.724,
+      "end": 147.144,
+      "score": 0.777,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "Скажи",
+      "start": 150.029,
+      "end": 150.25,
+      "score": 0.624,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "мені,",
+      "start": 150.27,
+      "end": 150.55,
+      "score": 0.605,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "будь",
+      "start": 150.59,
+      "end": 150.73,
+      "score": 0.367,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "ласка,",
+      "start": 150.75,
+      "end": 151.111,
+      "score": 0.476,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "ну,",
+      "start": 151.151,
+      "end": 151.311,
+      "score": 0.639,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "тобто,",
+      "start": 151.351,
+      "end": 151.852,
+      "score": 0.705,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "надай",
+      "start": 151.892,
+      "end": 152.212,
+      "score": 0.73,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "мені",
+      "start": 152.232,
+      "end": 152.413,
+      "score": 0.342,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "інформацію,",
+      "start": 152.473,
+      "end": 152.893,
+      "score": 0.313,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "що",
+      "start": 152.913,
+      "end": 152.973,
+      "score": 0.4,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "тобі",
+      "start": 152.993,
+      "end": 153.094,
+      "score": 0.222,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "треба,",
+      "start": 153.114,
+      "end": 153.394,
+      "score": 0.609,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "або",
+      "start": 153.434,
+      "end": 153.554,
+      "score": 0.346,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "в",
+      "start": 153.594,
+      "end": 153.654,
+      "score": 0.393,
+      "speaker": "SPEAKER_02"
+    },
+    {
+      "word": "цілому",
+      "start": 153.694,
+      "end": 154.956,
+      "score": 0.56,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "я",
+      "start": 155.016,
+      "end": 155.036,
+      "score": 0.204,
+      "speaker": "SPEAKER_01"
+    },
+    {
+      "word": "тоді...",
+      "start": 155.076,
+      "end": 155.317,
+      "score": 0.486,
+      "speaker": "SPEAKER_01"
+    }
+  ],
+  "language": "uk"
+}

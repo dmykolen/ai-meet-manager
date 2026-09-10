@@ -10,6 +10,7 @@ export {
 
 export {
     Answer,
+    KnowledgeAnswer,
     Meeting,
     Settings,
     Stage,

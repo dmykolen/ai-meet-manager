@@ -53,7 +53,9 @@ export default function Ear() {
     >
       <span className="relative flex size-[18px] items-center justify-center">
         {look.halo && (
-          <span className={`breathe absolute inset-0 rounded-full ${look.halo}`} />
+          <span
+            className={`breathe absolute inset-0 rounded-full ${look.halo}`}
+          />
         )}
         <look.Icon
           size={16}
@@ -62,7 +64,9 @@ export default function Ear() {
           fill={look.filled ? "currentColor" : "none"}
         />
       </span>
-      <span className={`text-[10px] font-medium tabular-nums ${look.tint}`}>{look.label}</span>
+      <span className={`text-[10px] font-medium tabular-nums ${look.tint}`}>
+        {look.label}
+      </span>
     </button>
   )
 }
@@ -79,7 +83,7 @@ function describe(s: Listening) {
         spin: false,
         pressable: true,
         label: clock(s.elapsed),
-        title: `Recording a ${s.kind === "note" ? "note" : "meeting"} — ⌘R to stop`,
+        title: `Триває запис ${s.kind === "note" ? "нотатки" : "зустрічі"} — ⌘R зупинити`,
       }
     case "wrapping up":
       return {
@@ -90,7 +94,7 @@ function describe(s: Listening) {
         spin: false,
         pressable: true,
         label: clock(s.elapsed),
-        title: `It has gone quiet for ${s.quiet}s — this may be the end`,
+        title: `Тиша вже ${s.quiet} с — можливо, зустріч завершилась`,
       }
     case "listening":
       return {
@@ -100,10 +104,10 @@ function describe(s: Listening) {
         halo: "",
         spin: false,
         pressable: true,
-        label: "Record",
+        label: "Запис",
         title: s.system
-          ? "Listening. Press to record now — ⌘R"
-          : "Listening, but only to you: the other side is not being captured",
+          ? "Слухаю. Почати запис — ⌘R"
+          : "Слухаю лише вас: звук співрозмовників не захоплюється",
       }
     case "opening":
       return {
@@ -113,8 +117,8 @@ function describe(s: Listening) {
         halo: "",
         spin: true,
         pressable: false,
-        label: "Opening",
-        title: "Opening the microphone. macOS may be asking for permission.",
+        label: "Запуск",
+        title: "Відкриваю мікрофон. macOS може запитати дозвіл.",
       }
     case "paused":
     case "off":
@@ -125,8 +129,8 @@ function describe(s: Listening) {
         halo: "",
         spin: false,
         pressable: false,
-        label: "Off",
-        title: "Listening is off. Turn it on in Settings.",
+        label: "Вимкнено",
+        title: "Слухання вимкнено. Увімкніть його в параметрах.",
       }
     default:
       return {
@@ -136,8 +140,8 @@ function describe(s: Listening) {
         halo: "",
         spin: false,
         pressable: false,
-        label: "Problem",
-        title: s.problem || "The microphone could not be opened",
+        label: "Помилка",
+        title: s.problem || "Не вдалося відкрити мікрофон",
       }
   }
 }

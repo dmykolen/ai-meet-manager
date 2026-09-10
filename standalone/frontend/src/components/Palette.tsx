@@ -1,9 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import {
-  AudioLines, CornerDownLeft, FolderOpen, Search, Sparkles, UserRound,
+  AudioLines,
+  CornerDownLeft,
+  FolderOpen,
+  Search,
+  Sparkles,
+  UserRound,
 } from "lucide-react"
-import { Meetings as Api, many, when, type Group, type Person, type Recording } from "../api"
+import {
+  Meetings as Api,
+  many,
+  when,
+  type Group,
+  type Person,
+  type Recording,
+} from "../api"
 import { colourOf } from "../colours"
 
 type Hit = {
@@ -15,21 +27,20 @@ type Hit = {
   run: () => void
 }
 
-const ICON = { meeting: AudioLines, project: FolderOpen, person: UserRound, do: Sparkles }
-const GROUP = { meeting: "Наради", project: "Проєкти", person: "Люди", do: "Дії" }
+const ICON = {
+  meeting: AudioLines,
+  project: FolderOpen,
+  person: UserRound,
+  do: Sparkles,
+}
+const GROUP = {
+  meeting: "Наради",
+  project: "Проєкти",
+  person: "Люди",
+  do: "Дії",
+}
 
-/**
- * One line for reaching anything in the app.
- *
- * It lives in the window's own title bar, which was forty-two pixels of nothing
- * but the traffic lights. That is the whole idea: a command palette is normally
- * a panel thrown over the middle of the screen, and this app's rule is that
- * nothing appears on top of content. Here it is always present, costs no space
- * that was being used, and only the results drop down — over an inch of chrome
- * rather than over what somebody was reading.
- *
- * ⌘K puts the cursor in it from anywhere.
- */
+/** Command navigation lives in the title bar and opens with ⌘K. */
 export default function Palette({
   onOpenMeeting,
   onOpenProject,
@@ -46,17 +57,24 @@ export default function Palette({
   const [people, setPeople] = useState<Person[]>([])
   const field = useRef<HTMLInputElement>(null)
 
-  // Everything it searches is already in memory by the time anybody types.
-  useEffect(() => {
-    Api.Recent(400).then((r) => setRows((r as Recording[]) ?? []))
-    Api.Groups().then((g) => setGroups((g as Group[]) ?? []))
-    Api.People().then((p) => setPeople((p as Person[]) ?? []))
-  }, [])
+  const refresh = () => {
+    void Api.Recent(10000)
+      .then((r) => setRows((r as Recording[]) ?? []))
+      .catch(() => {})
+    void Api.Groups()
+      .then((g) => setGroups((g as Group[]) ?? []))
+      .catch(() => {})
+    void Api.People()
+      .then((p) => setPeople((p as Person[]) ?? []))
+      .catch(() => {})
+  }
+  useEffect(refresh, [])
 
   useEffect(() => {
     const press = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault()
+        refresh()
         field.current?.focus()
         field.current?.select()
       }
@@ -71,30 +89,71 @@ export default function Palette({
     const has = (s: string) => s.toLowerCase().includes(q)
 
     const commands: Hit[] = [
-      { kind: "do", id: -1, label: "Почати або зупинити запис", run: () => Api.Record() },
-      { kind: "do", id: -2, label: "Шукати в розшифровках", run: () => onScreen("search") },
-      { kind: "do", id: -3, label: "Запитати про наради", run: () => onScreen("ask") },
-      { kind: "do", id: -4, label: "Зобовʼязання", run: () => onScreen("todo") },
-      { kind: "do", id: -5, label: "Налаштування", run: () => onScreen("settings") },
+      {
+        kind: "do",
+        id: -1,
+        label: "Почати або зупинити запис",
+        run: () => Api.Record(),
+      },
+      {
+        kind: "do",
+        id: -2,
+        label: "Шукати в усьому архіві",
+        run: () => onScreen("search"),
+      },
+      {
+        kind: "do",
+        id: -3,
+        label: "Запитати про весь архів",
+        run: () => onScreen("ask"),
+      },
+      {
+        kind: "do",
+        id: -4,
+        label: "Зобовʼязання",
+        run: () => onScreen("todo"),
+      },
+      {
+        kind: "do",
+        id: -5,
+        label: "Налаштування",
+        run: () => onScreen("settings"),
+      },
       { kind: "do", id: -6, label: "Сьогодні", run: () => onScreen("today") },
     ]
 
     return [
       ...commands.filter((c) => has(c.label)),
-      ...groups.filter((g) => has(g.name)).map<Hit>((g) => ({
-        kind: "project", id: g.id, label: g.name,
-        note: `${g.count} ${many(g.count, "нарада", "наради", "нарад")}`,
-        colour: colourOf(g.name, g.colour), run: () => onOpenProject(g.id),
-      })),
-      ...people.filter((p) => has(p.name)).map<Hit>((p) => ({
-        kind: "person", id: p.id, label: p.name,
-        note: `${p.meetings} ${many(p.meetings, "нарада", "наради", "нарад")}`,
-        colour: colourOf(p.name, p.colour), run: () => onScreen("settings"),
-      })),
-      ...rows.filter((r) => has(r.title)).slice(0, 8).map<Hit>((r) => ({
-        kind: "meeting", id: r.id, label: r.title, note: when(r.started),
-        run: () => onOpenMeeting(r.id),
-      })),
+      ...groups
+        .filter((g) => has(g.name))
+        .map<Hit>((g) => ({
+          kind: "project",
+          id: g.id,
+          label: g.name,
+          note: `${g.count} ${many(g.count, "нарада", "наради", "нарад")}`,
+          colour: colourOf(g.name, g.colour),
+          run: () => onOpenProject(g.id),
+        })),
+      ...people
+        .filter((p) => has(p.name))
+        .map<Hit>((p) => ({
+          kind: "person",
+          id: p.id,
+          label: p.name,
+          note: `${p.meetings} ${many(p.meetings, "нарада", "наради", "нарад")}`,
+          colour: colourOf(p.name, p.colour),
+          run: () => onScreen("settings"),
+        })),
+      ...rows
+        .filter((r) => has(r.title))
+        .slice(0, 8)
+        .map<Hit>((r) => ({
+          kind: "meeting",
+          id: r.id,
+          label: r.title,
+          note: when(r.started),
+          run: () => onOpenMeeting(r.id),
+        })),
     ]
   }, [query, rows, groups, people, onOpenMeeting, onOpenProject, onScreen])
 
@@ -110,6 +169,7 @@ export default function Palette({
         <Search size={12} className="shrink-0 text-faint" />
         <input
           ref={field}
+          onFocus={refresh}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value)
@@ -117,7 +177,8 @@ export default function Palette({
           }}
           onKeyDown={(e) => {
             e.stopPropagation()
-            if (e.key === "ArrowDown") setAt((i) => Math.min(i + 1, hits.length - 1))
+            if (e.key === "ArrowDown")
+              setAt((i) => Math.min(i + 1, hits.length - 1))
             if (e.key === "ArrowUp") setAt((i) => Math.max(i - 1, 0))
             if (e.key === "Enter") go(hits[at])
             if (e.key === "Escape") {
@@ -160,12 +221,25 @@ export default function Palette({
                       at === i ? "bg-surface" : ""
                     }`}
                   >
-                    <Icon size={12} style={{ color: hit.colour }} className={hit.colour ? "" : "text-faint"} />
-                    <span className="min-w-0 flex-1 truncate text-[12px]">{hit.label}</span>
+                    <Icon
+                      size={12}
+                      style={{ color: hit.colour }}
+                      className={hit.colour ? "" : "text-faint"}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-[12px]">
+                      {hit.label}
+                    </span>
                     {hit.note && (
-                      <span className="shrink-0 text-[10px] text-faint">{hit.note}</span>
+                      <span className="shrink-0 text-[10px] text-faint">
+                        {hit.note}
+                      </span>
                     )}
-                    {at === i && <CornerDownLeft size={11} className="shrink-0 text-faint" />}
+                    {at === i && (
+                      <CornerDownLeft
+                        size={11}
+                        className="shrink-0 text-faint"
+                      />
+                    )}
                   </button>
                 </div>
               )

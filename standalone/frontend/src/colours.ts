@@ -1,54 +1,19 @@
-/**
- * One colour system for the two things that need to be told apart at a glance:
- * people and projects.
- *
- * The colour comes from the name, not from a position in a list. That is the
- * whole point — Olena was a different colour in every meeting because the old
- * palette was indexed by whoever happened to speak first. Derived from the name
- * she is the same colour in a meeting, in the Library, and on a project.
- *
- * Violet is missing from the wheel on purpose. It is the app's own colour —
- * buttons, the playhead, the active tab — and a person wearing it makes "this
- * is interactive" and "this is Olena" the same signal.
- *
- * Every hue here was chosen by the owner from a sheet of three hundred; see the
- * wheel below.
- */
-
-// Five hues, every one of them his, and not one of them already spoken for.
-//
-// Five is not a preference, it is what is left after arithmetic. He marked
-// thirty colours and struck out magenta/pink (320-350), turquoise/cyan
-// (185-215) and lemon (90). Of the thirty, three hues are already the app's
-// vocabulary — --color-warn is 30, --color-good is 150, --color-accent is 295 —
-// and anything within twenty degrees of those reads as them. The old wheel held
-// 30 and 150 outright, so the person the hash sent to 30 wore "overdue" and the
-// one at 150 wore "done": on his own screen he was coral and Olena was green.
-//
-// Ruling out those bands and then the pairs closer than twenty degrees to each
-// other leaves 60, 130, 170, 245 and 275, and nothing else. Two lightnesses of
-// each — 78%, which he picked most often, and 58%, which he picked for the deep
-// ones — makes ten slots, ordered so that consecutive names never match on both
-// hue and weight.
-//
-// Ten is the ceiling, and it is a real one: an eleventh person must repeat
-// somebody. The way past it is not another hue, it is spending colour on fewer
-// things — see mockups/colours.html.
+/** Stable, saturated defaults for people and projects. Explicit user colours
+ * remain untouched; collisions within a meeting use the next free hue. */
 const WHEEL = [
-  [60, 78],  // gold
+  [60, 78], // gold
   [245, 58], // deep blue
   [170, 78], // mint
   [275, 58], // deep periwinkle
   [130, 78], // green
-  [60, 58],  // bronze
+  [60, 58], // bronze
   [245, 78], // blue
   [130, 58], // deep green
   [275, 78], // periwinkle
   [170, 58], // deep mint
 ]
 
-
-const CHROMA = 0.19
+const CHROMA = 0.23
 
 /**
  * tone is the colour a name always has.
@@ -68,7 +33,9 @@ export function tone(name: string): string {
 }
 
 /** The wheel as pickable swatches, for the one place somebody overrules it. */
-export const SWATCHES = WHEEL.map(([hue, light]) => `oklch(${light}% ${CHROMA} ${hue})`)
+export const SWATCHES = WHEEL.map(
+  ([hue, light]) => `oklch(${light}% ${CHROMA} ${hue})`,
+)
 
 /** The hue behind a swatch, which is the part the eye actually separates. */
 const HUES = WHEEL.map(([hue]) => hue)
@@ -100,20 +67,18 @@ export const picked = (colour?: string) => !!colour && colour.trim() !== ""
  */
 export function hex(colour: string): string {
   if (/^#[0-9a-f]{6}$/i.test(colour.trim())) return colour.trim()
-  const probe = document.createElement("span")
-  probe.style.color = colour
-  probe.style.display = "none"
-  document.body.appendChild(probe)
-  const seen = getComputedStyle(probe).color
-  probe.remove()
-  const parts = seen.match(/[\d.]+/g)
-  if (!parts || parts.length < 3) return "#808080"
+  const canvas = document.createElement("canvas")
+  canvas.width = canvas.height = 1
+  const context = canvas.getContext("2d", { willReadFrequently: true })
+  if (!context) return "#808080"
+  context.fillStyle = colour
+  context.fillRect(0, 0, 1, 1)
+  const data = context.getImageData(0, 0, 1, 1).data
   return (
     "#" +
-    parts
-      .slice(0, 3)
-      .map((v) => Math.round(Number(v)).toString(16).padStart(2, "0"))
-      .join("")
+    Array.from(data.slice(0, 3), (v) => v.toString(16).padStart(2, "0")).join(
+      "",
+    )
   )
 }
 
@@ -150,7 +115,10 @@ export const on = (colour: string) => `contrast-color(${colour})`
  * can no longer show one colour twice. Order decides who keeps their own, so
  * pass the names in the order they are drawn.
  */
-export function palette(names: string[], chosen?: Map<string, string>): Map<string, string> {
+export function palette(
+  names: string[],
+  chosen?: Map<string, string>,
+): Map<string, string> {
   const out = new Map<string, string>()
   const usedHue = new Set<number>()
   const usedSlot = new Set<number>()

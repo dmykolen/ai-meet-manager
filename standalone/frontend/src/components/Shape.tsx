@@ -43,49 +43,59 @@ export default function Shape({
   return (
     <section className="mt-6">
       <h2 className="mb-2 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-faint">
-        <Activity size={11} /> The shape of it
+        <Activity size={11} /> Голоси й ритм
       </h2>
 
       <div className="rounded-panel border border-line/60 bg-surface/40 px-4 py-3.5">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-faint">
           <span>
-            Talking <b className="font-medium text-soft">{clock(a.speech)}</b>
+            Мовлення <b className="font-medium text-soft">{clock(a.speech)}</b>
           </span>
           <span>
-            Quiet <b className="font-medium text-soft">{clock(a.silence)}</b>
+            Паузи <b className="font-medium text-soft">{clock(a.silence)}</b>
           </span>
           {a.overlap > 1 && (
             <span>
-              Over each other <b className="font-medium text-soft">{clock(a.overlap)}</b>
+              Перекриття{" "}
+              <b className="font-medium text-soft">{clock(a.overlap)}</b>
             </span>
           )}
           <span>
-            <b className="font-medium text-soft">{Math.round(a.pace)}</b> words a minute
+            <b className="font-medium text-soft">{Math.round(a.pace)}</b>{" "}
+            слів/хв
           </span>
           {alone && (
             <span>
-              <b className="font-medium text-soft">{a.words}</b> words
+              <b className="font-medium text-soft">{a.words}</b> слів
             </span>
           )}
           {a.speakers.length > 1 && (
             <span className="flex items-center gap-1">
               <Scale size={11} />
-              {a.balance > 0.85 ? "Evenly shared" : a.balance > 0.6 ? "Fairly shared" : "One voice mostly"}
+              {a.balance > 0.85
+                ? "Рівномірна участь"
+                : a.balance > 0.6
+                  ? "Збалансована участь"
+                  : "Переважає один голос"}
             </span>
           )}
         </div>
 
-        {/* Where the words were. A meeting has a shape, and it is usually not flat. */}
+        {/* Where the слів were. A meeting has a shape, and it is usually not flat. */}
         {a.busiest && a.busiest.length > 0 && (
           <div className="mt-3 flex h-9 items-end gap-[2px]">
             {a.busiest.map((m, i) => (
               <motion.button
                 key={i}
                 onClick={() => onJump(m.at)}
-                title={`${clock(m.at)} — ${m.words} words`}
+                title={`${clock(m.at)} — ${m.words} слів`}
                 initial={{ scaleY: 0 }}
                 animate={{ scaleY: 1 }}
-                transition={{ delay: i * 0.006, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                transition={{
+                  delay: i * 0.006,
+                  duration: 0.35,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
                 style={{ height: `${Math.max((m.words / most) * 100, 4)}%` }}
                 className="flex-1 origin-bottom rounded-[1px] bg-accent/35 transition-colors hover:bg-accent"
               />
@@ -115,14 +125,21 @@ export default function Shape({
                 <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-raised">
                   <motion.span
                     className="block h-full rounded-full"
-                    style={{ background: colours.get(v.speaker) ?? "var(--color-accent)" }}
+                    style={{
+                      background:
+                        colours.get(v.speaker) ?? "var(--color-accent)",
+                    }}
                     initial={{ width: 0 }}
                     animate={{ width: `${v.share * 100}%` }}
-                    transition={{ delay: 0.1 + i * 0.06, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                    transition={{
+                      delay: 0.1 + i * 0.06,
+                      duration: 0.6,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
                   />
                 </span>
                 <span className="mt-1 block text-[9.5px] tabular-nums text-faint">
-                  {v.turns} turns · {Math.round(v.pace)} wpm
+                  {v.turns} реплік · {Math.round(v.pace)} wpm
                 </span>
               </div>
             ))}
@@ -133,12 +150,12 @@ export default function Shape({
           <p className="mt-3 flex items-start gap-1.5 border-t border-line/40 pt-2.5 text-[10.5px] leading-relaxed text-faint">
             <MessageCircleQuestion size={11} className="mt-[3px] shrink-0" />
             <span className="min-w-0">
-              Questions asked:{" "}
-            {a.speakers
-              .filter((v) => v.questions > 0)
-              .sort((x, y) => y.questions - x.questions)
-              .map((v) => `${v.speaker} ${v.questions}`)
-              .join(" · ")}
+              Питань:{" "}
+              {a.speakers
+                .filter((v) => v.questions > 0)
+                .sort((x, y) => y.questions - x.questions)
+                .map((v) => `${v.speaker} ${v.questions}`)
+                .join(" · ")}
             </span>
           </p>
         )}

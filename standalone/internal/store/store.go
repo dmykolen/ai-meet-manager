@@ -152,6 +152,15 @@ func Open(path string) (*DB, error) {
 func (d *DB) Close() error { return d.sql.Close() }
 
 const schema = `
+CREATE TABLE IF NOT EXISTS knowledge_vectors(key TEXT PRIMARY KEY,vector BLOB NOT NULL);
+CREATE TABLE IF NOT EXISTS notes (
+ id INTEGER PRIMARY KEY AUTOINCREMENT,
+ recording INTEGER REFERENCES recordings(id) ON DELETE CASCADE,
+ project INTEGER REFERENCES groups(id) ON DELETE CASCADE,
+ text TEXT NOT NULL DEFAULT '', colour TEXT NOT NULL DEFAULT 'lime', at REAL NOT NULL DEFAULT 0,
+ CHECK ((recording IS NOT NULL) != (project IS NOT NULL))
+);
+
 CREATE TABLE IF NOT EXISTS recordings (
   id        INTEGER PRIMARY KEY AUTOINCREMENT,
   kind      TEXT    NOT NULL,
@@ -413,7 +422,8 @@ func (d *DB) In(group int64, limit int) ([]Recording, error) {
 // here and never from anything a person typed; anything variable in it is a
 // placeholder, and its values come in args ahead of the limit.
 func (d *DB) list(where string, limit int, args ...any) ([]Recording, error) {
-	if limit <= 0 {
+	// A negative limit explicitly asks SQLite for all rows. Zero keeps the default.
+	if limit == 0 {
 		limit = 100
 	}
 	rows, err := d.sql.Query(`
@@ -549,15 +559,19 @@ var ErrNotFound = errors.New("no such recording")
 // the summary, and the summary is rewritten whole whenever it is regenerated.
 // A position survives that; a synthetic id would not.
 func (d *DB) TickAction(id int64, index int, done bool) error {
-	r, err := d.Get(id)
+	path := fmt.Sprintf("$.action_items[%d]", index)
+	if index < 0 {
+		return errors.New("invalid action index")
+	}
+	result, err := d.sql.Exec(`UPDATE recordings SET summary=json_set(summary,?,json(?)) WHERE id=? AND deleted IS NULL AND json_type(summary,?)='object'`, path+".done", fmt.Sprint(done), id, path)
 	if err != nil {
 		return err
 	}
-	if r.Summary == nil || index < 0 || index >= len(r.Summary.ActionItems) {
+	n, _ := result.RowsAffected()
+	if n != 1 {
 		return fmt.Errorf("recording %d has no action item %d", id, index)
 	}
-	r.Summary.ActionItems[index].Done = done
-	return d.SaveSummary(id, r.Summary)
+	return nil
 }
 
 // Outstanding is every action item from every meeting, newest meeting first.

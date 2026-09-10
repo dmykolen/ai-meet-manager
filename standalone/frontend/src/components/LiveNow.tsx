@@ -64,11 +64,13 @@ export default function LiveNow({ state }: { state: Listening }) {
         </span>
         <Radio size={13} className="text-warn" />
         <h2 className="text-[12.5px] font-medium text-warn">
-          {state.kind === "note" ? "Recording a note" : "Recording"}
+          {state.kind === "note" ? "Запис нотатки" : "Триває запис"}
         </h2>
-        <span className="text-[11px] tabular-nums text-faint">{clock(state.elapsed)}</span>
+        <span className="text-[11px] tabular-nums text-faint">
+          {clock(state.elapsed)}
+        </span>
         {state.phase === "wrapping up" && (
-          <span className="text-[11px] text-faint">· quiet for {state.quiet}s</span>
+          <span className="text-[11px] text-faint">· тиша {state.quiet} с</span>
         )}
         <ChevronDown
           size={14}
@@ -84,10 +86,10 @@ export default function LiveNow({ state }: { state: Listening }) {
             exit={{ height: 0 }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
-            <div className="max-h-52 overflow-y-auto px-4 pb-3">
+            <div className="max-h-36 overflow-y-auto px-4 pb-3">
               {lines.length === 0 ? (
                 <p className="text-[12px] leading-relaxed text-faint">
-                  Listening. The first words appear a couple of seconds after they are said.
+                  Слухаю. Перші репліки з’являться за кілька секунд.
                 </p>
               ) : (
                 <div className="flex flex-col gap-1">
@@ -99,13 +101,15 @@ export default function LiveNow({ state }: { state: Listening }) {
                       transition={{ duration: 0.25 }}
                       className="text-[12.5px] leading-[1.45]"
                     >
-                      <span className="mr-2 tabular-nums text-[11px] text-faint">{clock(l.at)}</span>
+                      <span className="mr-2 tabular-nums text-[11px] text-faint">
+                        {clock(l.at)}
+                      </span>
                       <span
                         className={`mr-1.5 text-[11px] font-medium ${
                           l.who === "you" ? "text-accent" : "text-good"
                         }`}
                       >
-                        {l.who === "you" ? "You" : "Them"}
+                        {l.who === "you" ? "Ви" : "Співрозмовники"}
                       </span>
                       <span className="text-soft">{l.text}</span>
                     </motion.p>
@@ -114,8 +118,8 @@ export default function LiveNow({ state }: { state: Listening }) {
                 </div>
               )}
               <p className="mt-2 border-t border-warn/15 pt-2 text-[10.5px] leading-relaxed text-faint">
-                Rough, and only for reading along. The real transcript is written from the
-                recording when the meeting ends, with speakers and punctuation.
+                Попередня розшифровка. Після зустрічі з’явиться остаточний текст
+                з учасниками й пунктуацією.
               </p>
             </div>
           </motion.div>

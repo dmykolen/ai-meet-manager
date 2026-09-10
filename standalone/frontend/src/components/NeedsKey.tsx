@@ -24,8 +24,8 @@ export default function NeedsKey({ what }: { what: string }) {
     <div className="flex items-start gap-2.5 rounded-panel border border-line/60 bg-surface/50 px-4 py-3">
       <KeyRound size={14} className="mt-0.5 shrink-0 text-faint" />
       <p className="text-[12.5px] leading-relaxed text-soft">
-        {what} needs an OpenAI key. Add one in Settings — transcription and
-        speaker names run on this machine either way, key or no key.
+        {what}: додайте ключ OpenAI у параметрах. Розшифровка й розпізнавання
+        учасників працюють локально.
       </p>
     </div>
   )

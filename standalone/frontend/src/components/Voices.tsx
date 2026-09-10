@@ -2,9 +2,6 @@ import { useMemo, useState } from "react"
 import type { Turn } from "../api"
 import { clock } from "../api"
 
-/** Nobody can hold eight rows in their head, and the tail is never the point. */
-const ROWS = 6
-
 /**
  * Who held the floor, in order — a row each.
  *
@@ -29,11 +26,14 @@ export default function Voices({
   colours,
   at,
   lit,
+  length,
   onJump,
   onLight,
 }: {
   turns: Turn[]
   colours: Map<string, string>
+  /** The recording's full length in seconds, so this shares the player's axis. */
+  length: number
   /** Where the player is, in seconds. */
   at: number
   /** A speaker to pick out, or null for all of them. */
@@ -41,10 +41,17 @@ export default function Voices({
   onJump: (seconds: number) => void
   onLight: (speaker: string | null) => void
 }) {
-  const [over, setOver] = useState<{ who: string; start: number; end: number } | null>(null)
+  const [over, setOver] = useState<{
+    who: string
+    start: number
+    end: number
+  } | null>(null)
 
-  const { people, first, span } = useMemo(() => {
-    const held = new Map<string, { who: string; said: number; bars: [number, number][] }>()
+  const { people, span } = useMemo(() => {
+    const held = new Map<
+      string,
+      { who: string; said: number; bars: [number, number][] }
+    >()
     for (const t of turns) {
       const who = t.speaker || "—"
       const row = held.get(who) ?? { who, said: 0, bars: [] }
@@ -57,16 +64,20 @@ export default function Voices({
       held.set(who, row)
     }
     const ranked = [...held.values()].sort((a, b) => b.said - a.said)
-    const first = turns[0]?.start ?? 0
-    const last = turns.reduce((m, t) => Math.max(m, t.end), first + 1)
-    return { people: ranked.slice(0, ROWS), first, span: Math.max(last - first, 1) }
-  }, [turns])
+    // The axis is the recording, from nothing to its full length — not from
+    // the first word to the last. The waveform under the player is drawn over
+    // the whole file, and two strips on one screen showing the same instant in
+    // two different places is the thing this map exists to make legible. When
+    // the length is not known yet, the last word stands in for it.
+    const last = turns.reduce((m, t) => Math.max(m, t.end), 1)
+    return { people: ranked, span: Math.max(length || last, 1) }
+  }, [turns, length])
 
   if (people.length === 0) return null
-  const where = Math.min(Math.max((at - first) / span, 0), 1) * 100
+  const where = Math.min(Math.max(at / span, 0), 1) * 100
 
   return (
-    <div className="mt-3" onMouseLeave={() => (onLight(null), setOver(null))}>
+    <div className="voice-map" onMouseLeave={() => setOver(null)}>
       <div className="relative">
         {people.map((p) => {
           const colour = colours.get(p.who) || "var(--color-line)"
@@ -74,16 +85,16 @@ export default function Voices({
           return (
             <div
               key={p.who}
-              onMouseEnter={() => onLight(p.who)}
               className="group flex items-center gap-2 py-[1.5px]"
             >
-              <span
+              <button
+                onClick={() => onLight(lit === p.who ? null : p.who)}
                 className={`w-[86px] shrink-0 truncate text-right text-[9.5px] leading-none transition-colors ${
                   dim ? "text-faint/50" : "text-faint group-hover:text-soft"
                 }`}
               >
                 {p.who}
-              </span>
+              </button>
               <span
                 className={`relative h-[7px] flex-1 rounded-full transition-colors ${
                   dim ? "bg-raised/30" : "bg-raised/70"
@@ -93,10 +104,12 @@ export default function Voices({
                   <button
                     key={i}
                     onClick={() => onJump(s)}
-                    onMouseEnter={() => setOver({ who: p.who, start: s, end: e })}
+                    onMouseEnter={() =>
+                      setOver({ who: p.who, start: s, end: e })
+                    }
                     aria-label={`${p.who}, ${clock(s)}`}
                     style={{
-                      left: `${((s - first) / span) * 100}%`,
+                      left: `${(s / span) * 100}%`,
                       width: `max(2px, ${((e - s) / span) * 100}%)`,
                       background: colour,
                       opacity: dim ? 0.2 : 1,
@@ -111,7 +124,9 @@ export default function Voices({
 
         {/* One playhead through every row, so the rows read as one instrument. */}
         <span
-          style={{ left: `calc(86px + 0.5rem + ${where}% - ${where / 100} * (86px + 0.5rem))` }}
+          style={{
+            left: `calc(86px + 0.5rem + ${where}% - ${where / 100} * (86px + 0.5rem))`,
+          }}
           className="pointer-events-none absolute inset-y-0 w-px bg-text/70 transition-[left] duration-200"
         />
       </div>
@@ -121,7 +136,8 @@ export default function Voices({
       <p className="mt-1 h-3 pl-[94px] text-[10px] leading-3 text-faint">
         {over && (
           <span className="tabular-nums">
-            {clock(over.start)} — {clock(over.end)} · {Math.round(over.end - over.start)} с
+            {clock(over.start)} — {clock(over.end)} ·{" "}
+            {Math.round(over.end - over.start)} с
           </span>
         )}
       </p>

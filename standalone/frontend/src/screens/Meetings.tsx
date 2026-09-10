@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Dialogs } from "@wailsio/runtime"
 import { motion } from "motion/react"
-import { Check, FileAudio, FolderInput, Import, Mic, Trash, Trash2 } from "lucide-react"
+import {
+  Check,
+  FileAudio,
+  FolderInput,
+  Import,
+  Mic,
+  Trash,
+  Trash2,
+} from "lucide-react"
 import {
   Meetings as Api,
   length,
@@ -12,8 +20,11 @@ import {
   type Recording,
 } from "../api"
 import { colourOf } from "../colours"
-import Timeline from "../components/Timeline"
+import Timeline from "../components/EdgeTimeline"
+import Drawer, { useNarrow } from "../components/Drawer"
 import Dock from "../components/Dock"
+import Confirm from "../components/Confirm"
+import MeetingPeek from "../components/MeetingPeek"
 import LiveNow from "../components/LiveNow"
 import Head, { Verb } from "../components/Head"
 import Undo from "../components/Undo"
@@ -38,17 +49,24 @@ export default function Workspace({
   onPicked,
   project,
   onProject,
-  density,
-  onDensity,
+  pickAt,
+  onReturn,
+  returnLabel,
 }: {
+  pickAt?: number
+  onReturn?: () => void
+  returnLabel?: string
   pick: number | null
   onPicked: () => void
   /** Held above, so the palette in the title bar can open a project too. */
   project: number | null
   onProject: (id: number | null) => void
-  density: "compact" | "comfortable"
-  onDensity: (d: "compact" | "comfortable") => void
 }) {
+  const narrow = useNarrow(1049)
+  const [listOpen, setListOpen] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const [problem, setProblem] = useState("")
+  const [confirmBin, setConfirmBin] = useState(false)
   const [rows, setRows] = useState<Recording[] | null>(null)
   const [marks, setMarks] = useState<Mark[]>([])
   const [groups, setGroups] = useState<Group[]>([])
@@ -58,7 +76,7 @@ export default function Workspace({
   const [open, setOpen] = useState<number | null>(null)
   /** A second to open the meeting at, when it was reached from a line of a
       project document rather than from the list. */
-  const [moment, setMoment] = useState(0)
+  const [moment, setMoment] = useState<number | undefined>()
   // Something is open in the reader. On a narrow window it owns the width;
   // wide, the list keeps its place beside it.
   const reading = open !== null || project !== null
@@ -70,21 +88,25 @@ export default function Workspace({
 
   const [naming, setNaming] = useState(false)
   const [fresh, setFresh] = useState("")
-  const [undone, setUndone] = useState<{ id: number; title: string } | null>(null)
+  const [undone, setUndone] = useState<{ id: number; title: string } | null>(
+    null,
+  )
 
   // A meeting opened from Today, Search or To do lands here already selected.
   useEffect(() => {
     if (pick !== null) {
       setOpen(pick)
+      setMoment(pickAt)
+      setListOpen(false)
       onPicked()
     }
-  }, [pick, onPicked])
+  }, [pick, onPicked, pickAt])
 
   const load = useCallback(async () => {
     try {
-      setRows((await (binned ? Api.Bin() : Api.Recent(400))) as Recording[])
-    } catch {
-      setRows([])
+      setRows((await (binned ? Api.Bin() : Api.Recent(10000))) as Recording[])
+    } catch (e) {
+      setProblem(String(e))
     }
     Api.Groups().then((g) => setGroups((g as Group[]) ?? []))
     Api.Span(365).then((m) => setMarks((m as Mark[]) ?? []))
@@ -108,7 +130,8 @@ export default function Workspace({
       (rows ?? []).filter(
         (r) =>
           (project === null || r.group === project) &&
-          (!range || (day(r.started) >= range[0] && day(r.started) <= range[1])),
+          (!range ||
+            (day(r.started) >= range[0] && day(r.started) <= range[1])),
       ),
     [rows, project, range],
   )
@@ -154,9 +177,80 @@ export default function Workspace({
     return () => window.removeEventListener("keydown", press)
   }, [shown, lit, open])
 
+  const list = (
+    <motion.div
+      key={`${project}-${range?.join("") ?? ""}-${binned}`}
+      initial={{ opacity: 0.45 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.18 }}
+      className="min-h-0 flex-1 overflow-y-auto pb-[calc(var(--spacing-dock)+0.75rem)]"
+    >
+      {live && (
+        <div className="px-3 pt-2">
+          <LiveNow state={live} />
+        </div>
+      )}
+      {rows === null ? null : shown.length === 0 ? (
+        <p className="px-4 py-10 text-center text-[11.5px] leading-relaxed text-faint">
+          {binned
+            ? "У кошику порожньо."
+            : project !== null
+              ? "У цьому проєкті ще нічого немає. Перетягніть нараду на його плитку внизу."
+              : range
+                ? "За цей проміжок нічого. Візьміть ширший на смузі вгорі."
+                : "Тут порожньо."}
+        </p>
+      ) : (
+        group(shown).map(([date, held]) => (
+          <section key={date}>
+            <h2 className="sticky top-0 z-10 flex h-[30px] items-center justify-between border-b border-line/50 bg-surface/90 px-3.5 text-[9.5px] text-faint backdrop-blur">
+              {when(held[0].started)}
+              <span className="tabular-nums">{held.length}</span>
+            </h2>
+            {held.map((r) => (
+              <Row
+                key={r.id}
+                recording={r}
+                groups={groups}
+                on={open === r.id}
+                lit={lit === r.id}
+                binned={binned}
+                onLight={setLit}
+                onOpen={() => {
+                  setMoment(undefined)
+                  setOpen(r.id)
+                  setListOpen(false)
+                }}
+                onLift={(e) => drag.lift(r, e)}
+                onFile={(g) => file(r.id, g)}
+                onDelete={async () => {
+                  await Api.Delete(r.id)
+                  setUndone({ id: r.id, title: r.title })
+                  if (open === r.id) setOpen(null)
+                  load()
+                }}
+                onRestore={async () => {
+                  await Api.Restore(r.id)
+                  load()
+                }}
+              />
+            ))}
+          </section>
+        ))
+      )}
+    </motion.div>
+  )
+
   return (
-    <div className="@container/work relative flex h-full min-h-0 flex-col">
+    <div
+      className={`workspace-shell @container/work relative flex h-full min-h-0 flex-col ${focused ? "workspace-focus" : ""}`}
+    >
       <Head title="Записи" count={shown.length}>
+        {onReturn && open === null && (
+          <button className="ui-chip" onClick={onReturn}>
+            ← {returnLabel || "Назад"}
+          </button>
+        )}
         {range && (
           <button
             onClick={() => setRange(null)}
@@ -171,8 +265,7 @@ export default function Workspace({
         {binned && shown.length > 0 && (
           <Verb
             onClick={async () => {
-              await Api.EmptyBin()
-              load()
+              setConfirmBin(true)
             }}
             Icon={Trash}
           >
@@ -208,93 +301,51 @@ export default function Workspace({
           Narrow: one pane — the list, or the reader when something is open.
           Normal: a list that grows with the window between 240 and 340.
           Wide: the same, because a list wider than that is not easier to read. */}
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] @min-[820px]/work:grid-cols-[clamp(240px,21cqw,340px)_minmax(0,1fr)]">
-        <div
-          className={`min-h-0 flex-col border-r border-line/70 ${
-            reading ? "hidden @min-[820px]/work:flex" : "flex"
-          }`}
-        >
-          <motion.div
-            key={`${project}-${range?.join("") ?? ""}-${binned}`}
-            initial={{ opacity: 0.45 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.18 }}
-            className="min-h-0 flex-1 overflow-y-auto pb-[calc(var(--spacing-dock)+0.75rem)]"
-          >
-            {live && (
-              <div className="px-3 pt-2">
-                <LiveNow state={live} />
-              </div>
-            )}
-            {rows === null ? null : shown.length === 0 ? (
-              <p className="px-4 py-10 text-center text-[11.5px] leading-relaxed text-faint">
-                {binned
-                  ? "У кошику порожньо."
-                  : project !== null
-                    ? "У цьому проєкті ще нічого немає. Перетягніть нараду на його плитку внизу."
-                    : range
-                      ? "За цей проміжок нічого. Візьміть ширший на смузі вгорі."
-                      : "Тут порожньо."}
-              </p>
+      <div className={`workspace-split ${narrow || focused ? "one-pane" : ""}`}>
+        {!focused &&
+          (narrow ? (
+            !reading ? (
+              <aside className="meeting-list">{list}</aside>
             ) : (
-              group(shown).map(([date, held]) => (
-                <section key={date}>
-                  <h2 className="sticky top-0 z-10 flex h-[30px] items-center justify-between border-b border-line/50 bg-surface/90 px-3.5 text-[9.5px] text-faint backdrop-blur">
-                    {when(held[0].started)}
-                    <span className="tabular-nums">{held.length}</span>
-                  </h2>
-                  {held.map((r) => (
-                    <Row
-                      key={r.id}
-                      recording={r}
-                      groups={groups}
-                      on={open === r.id}
-                      lit={lit === r.id}
-                      binned={binned}
-                      onLight={setLit}
-                      onOpen={() => {
-                        setMoment(0)
-                        setOpen(r.id)
-                      }}
-                      onLift={(e) => drag.lift(r, e)}
-                      onFile={(g) => file(r.id, g)}
-                      onDelete={async () => {
-                        await Api.Delete(r.id)
-                        setUndone({ id: r.id, title: r.title })
-                        if (open === r.id) setOpen(null)
-                        load()
-                      }}
-                      onRestore={async () => {
-                        await Api.Restore(r.id)
-                        load()
-                      }}
-                    />
-                  ))}
-                </section>
-              ))
-            )}
-          </motion.div>
-        </div>
+              <Drawer
+                side="left"
+                title="Зустрічі"
+                open={listOpen}
+                onClose={() => setListOpen(false)}
+              >
+                {list}
+              </Drawer>
+            )
+          ) : (
+            <aside className="meeting-list">{list}</aside>
+          ))}
 
         {/* The reader arrives from the side rather than appearing. Which of
             the two it is — a meeting or a project — is what changes, so that is
             what the key follows. */}
         <motion.div
-          key={open !== null ? `m${open}` : project !== null ? `p${project}` : "empty"}
+          key={
+            open !== null
+              ? `m${open}`
+              : project !== null
+                ? `p${project}`
+                : "empty"
+          }
           initial={{ opacity: 0, x: 10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-          className={`min-h-0 overflow-hidden pb-[var(--spacing-dock)] ${
-            reading ? "" : "hidden @min-[820px]/work:block"
-          }`}
+          className={`workspace-reader min-h-0 overflow-hidden ${reading || !narrow ? "" : "hidden"}`}
         >
           {open !== null ? (
             <Transcript
               id={open}
               groups={groups}
               at={moment}
-              density={density}
-              onDensity={onDensity}
+              focused={focused}
+              onFocus={() => setFocused((v) => !v)}
+              onList={narrow ? () => setListOpen(true) : undefined}
+              onReturn={onReturn}
+              returnLabel={returnLabel}
               onBack={() => setOpen(null)}
               onChanged={load}
             />
@@ -339,6 +390,44 @@ export default function Workspace({
         onNew={() => setNaming(true)}
       />
 
+      {problem && (
+        <p role="alert" className="action-toast">
+          {problem}
+          <button onClick={() => setProblem("")}>Закрити</button>
+        </p>
+      )}
+      {confirmBin && (
+        <Confirm title="Очистити кошик" onClose={() => setConfirmBin(false)}>
+          <section className="confirm-panel">
+            <h2>
+              Видалити назавжди всі {rows?.length ?? 0} записів із кошика?
+            </h2>
+            <p>
+              Дія стосується всього кошика, незалежно від фільтра проєкту або
+              дати.
+            </p>
+            <footer>
+              <button className="ui-chip" onClick={() => setConfirmBin(false)}>
+                Залишити
+              </button>
+              <button
+                className="ui-primary"
+                onClick={async () => {
+                  try {
+                    await Api.EmptyBin()
+                    setConfirmBin(false)
+                    load()
+                  } catch (e) {
+                    setProblem(String(e))
+                  }
+                }}
+              >
+                Видалити назавжди
+              </button>
+            </footer>
+          </section>
+        </Confirm>
+      )}
       {drag.card}
 
       <Undo
@@ -390,9 +479,12 @@ function useDrag(onDrop: (recording: number, group: number) => void) {
     const move = (e: PointerEvent) =>
       setHeld((d) => {
         if (!d) return d
-        const moved = d.moved || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 5
+        const moved =
+          d.moved || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 5
         const tile = moved
-          ? document.elementFromPoint(e.clientX, e.clientY)?.closest("[data-project]")
+          ? document
+              .elementFromPoint(e.clientX, e.clientY)
+              ?.closest("[data-project]")
           : null
         return {
           ...d,
@@ -422,7 +514,15 @@ function useDrag(onDrop: (recording: number, group: number) => void) {
     lifted: !!held?.moved,
     lift: (r: Recording, e: React.PointerEvent) =>
       e.button === 0 &&
-      setHeld({ id: r.id, title: r.title, x: e.clientX, y: e.clientY, from: r.group, over: null, moved: false }),
+      setHeld({
+        id: r.id,
+        title: r.title,
+        x: e.clientX,
+        y: e.clientY,
+        from: r.group,
+        over: null,
+        moved: false,
+      }),
     card: held?.moved ? (
       <div
         style={{ left: held.x, top: held.y }}
@@ -464,61 +564,90 @@ function Row({
   const Kind = recording.kind === "note" ? Mic : FileAudio
 
   return (
-    <div
-      onPointerDown={(e) => !busy && !binned && onLift(e)}
-      data-rec={recording.id}
-      onMouseEnter={() => onLight(recording.id)}
-      onMouseLeave={() => onLight(null)}
-      // The actions used to be pinned over the row's top-right corner, which
-      // put an unlabelled delete on top of the title it would delete. The row
-      // is a two-column grid instead: the second column is zero wide until the
-      // pointer arrives and then opens, so the title gives up the space rather
-      // than being covered by it. grid-template-columns interpolates, so the
-      // opening is a movement and not a pop.
-      className={`group grid grid-cols-[minmax(0,1fr)_0fr] border-b border-line/40 transition-[grid-template-columns,background-color] duration-[220ms] ease-[cubic-bezier(.22,1,.36,1)] ${
-        binned ? "" : "hover:grid-cols-[minmax(0,1fr)_auto] focus-within:grid-cols-[minmax(0,1fr)_auto]"
-      } ${on ? "bg-raised/60" : lit ? "bg-raised/35" : "hover:bg-raised/25"}`}
-    >
-      <button
-        onClick={binned ? onRestore : onOpen}
-        disabled={busy}
-        className="block w-full px-4 py-2.5 text-left disabled:cursor-default"
+    <MeetingPeek recording={recording} onOpen={onOpen} disabled={on || binned}>
+      <div
+        onPointerDown={(e) =>
+          !busy &&
+          !binned &&
+          !(e.target as HTMLElement).closest("[popover], [data-row-action]") &&
+          onLift(e)
+        }
+        data-rec={recording.id}
+        onMouseEnter={() => onLight(recording.id)}
+        onMouseLeave={() => onLight(null)}
+        // Reserved action width keeps the title still as controls reveal.
+        className={`meeting-row group grid grid-cols-[minmax(0,1fr)_56px] border-b border-line/40 transition-[grid-template-columns,background-color] duration-[220ms] ease-[cubic-bezier(.22,1,.36,1)] ${
+          binned ? "" : ""
+        } ${on ? "bg-raised/60" : lit ? "bg-raised/35" : "hover:bg-raised/25"}`}
       >
-        <span className="flex items-start gap-2">
-          <Kind
-            size={11}
-            className="mt-[3px] shrink-0"
-            style={{ color: filed ? colourOf(filed.name, filed.colour) : undefined }}
-          />
-          <span className={`text-[12px] leading-snug ${on ? "text-text" : "text-soft"}`}>
-            {recording.title}
+        <button
+          onClick={onOpen}
+          disabled={false}
+          className="block w-full px-4 py-2.5 text-left disabled:cursor-default"
+        >
+          <span className="flex items-start gap-2">
+            <Kind
+              size={11}
+              className="mt-[3px] shrink-0"
+              style={{
+                color: filed ? colourOf(filed.name, filed.colour) : undefined,
+              }}
+            />
+            <span
+              className={`text-[12px] leading-snug ${on ? "text-text" : "text-soft"}`}
+            >
+              {recording.title}
+            </span>
           </span>
-        </span>
-        <span className="mt-1 flex items-center gap-1.5 truncate pl-[19px] text-[9px] text-faint">
-          <span className="tabular-nums">{clockOf(recording.started)}</span>
-          <span>·</span>
-          <span className="tabular-nums">{length(recording.duration)}</span>
-          {busy && <span className="text-accent">· {recording.status}</span>}
-          {recording.speakers?.length ? (
-            <>
-              <span>·</span>
-              <span className="truncate">{recording.speakers.join(", ")}</span>
-            </>
-          ) : null}
-        </span>
-      </button>
+          <span className="mt-1 flex items-center gap-1.5 truncate pl-[19px] text-[9px] text-faint">
+            <span className="tabular-nums">{clockOf(recording.started)}</span>
+            <span>·</span>
+            <span className="tabular-nums">{length(recording.duration)}</span>
+            {busy && (
+              <span className="text-accent">
+                ·{" "}
+                {{
+                  done: "готово",
+                  failed: "помилка",
+                  queued: "у черзі",
+                  transcribing: "розшифрування",
+                  summarising: "підсумок",
+                }[recording.status] ?? recording.status}
+              </span>
+            )}
+            {recording.speakers?.length ? (
+              <>
+                <span>·</span>
+                <span className="truncate">
+                  {recording.speakers.join(", ")}
+                </span>
+              </>
+            ) : null}
+          </span>
+        </button>
 
-      <span className="overflow-hidden">
-        {!binned && (
-          <span className="flex h-full items-center gap-px pr-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
-            <Filing recording={recording} groups={groups} onFile={onFile} />
-            <Tool onClick={onDelete} title="У кошик" danger>
-              <Trash2 size={12} />
-            </Tool>
-          </span>
-        )}
-      </span>
-    </div>
+        <span className="overflow-hidden" data-row-action>
+          {binned && (
+            <button
+              className="ui-icon"
+              title="Відновити"
+              aria-label="Відновити"
+              onClick={onRestore}
+            >
+              <Import size={14} />
+            </button>
+          )}
+          {!binned && (
+            <span className="flex h-full items-center gap-px pr-2 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+              <Filing recording={recording} groups={groups} onFile={onFile} />
+              <Tool onClick={onDelete} title="У кошик" danger>
+                <Trash2 size={12} />
+              </Tool>
+            </span>
+          )}
+        </span>
+      </div>
+    </MeetingPeek>
   )
 }
 
@@ -560,12 +689,14 @@ function Filing({
       <div
         popover="auto"
         id={id}
-        style={{
-          positionAnchor: `--${id}`,
-          positionArea: "bottom span-left",
-          positionTryFallbacks: "flip-block",
-          marginTop: "4px",
-        } as React.CSSProperties}
+        style={
+          {
+            positionAnchor: `--${id}`,
+            positionArea: "bottom span-left",
+            positionTryFallbacks: "flip-block",
+            marginTop: "4px",
+          } as React.CSSProperties
+        }
         className="w-[200px] rounded-xl border border-line bg-raised/95 p-1 shadow-[0_20px_50px_-16px_rgba(0,0,0,0.8)] backdrop-blur-xl [&:popover-open]:animate-[rise_.16s_cubic-bezier(.22,1,.36,1)]"
       >
         {groups.map((g) => (
@@ -584,7 +715,9 @@ function Filing({
               style={{ background: colourOf(g.name, g.colour) }}
             />
             <span className="min-w-0 flex-1 truncate">{g.name}</span>
-            {recording.group === g.id && <Check size={12} className="shrink-0 text-faint" />}
+            {recording.group === g.id && (
+              <Check size={12} className="shrink-0 text-faint" />
+            )}
           </button>
         ))}
         {groups.length > 0 && recording.group > 0 && (

@@ -1,107 +1,137 @@
 import { useCallback, useEffect, useState } from "react"
-import Head from "../components/Head"
 import { AnimatePresence, motion } from "motion/react"
-import { Check, ListChecks } from "lucide-react"
-import NeedsKey from "../components/NeedsKey"
+import { Check, MoreHorizontal, RotateCcw } from "lucide-react"
+import Head from "../components/Head"
+import ActionEditor from "../components/ActionEditor"
 import { Meetings, when, type Outstanding } from "../api"
-
-/**
- * Everything anybody committed to, across every meeting.
- *
- * The summaries have carried task, owner and deadline all along; nothing ever
- * gathered them into one place, so the answer to "what did I promise" was to
- * open meetings one at a time and read.
- */
 export default function Todo({ onOpen }: { onOpen: (id: number) => void }) {
-  const [items, setItems] = useState<Outstanding[] | null>(null)
-  const [showDone, setShowDone] = useState(false)
-
+  const [items, setItems] = useState<Outstanding[]>([]),
+    [done, setDone] = useState(false),
+    [editing, setEditing] = useState<Outstanding | null>(null),
+    [error, setError] = useState(""),
+    [undo, setUndo] = useState<Outstanding | null>(null)
   const load = useCallback(async () => {
     try {
-      setItems((await Meetings.Actions(showDone)) as Outstanding[])
-    } catch {
-      setItems([])
+      setItems((await Meetings.Actions(done)) as Outstanding[])
+    } catch (e) {
+      setError(String(e))
     }
-  }, [showDone])
-
+  }, [done])
   useEffect(() => {
-    load()
+    void load()
   }, [load])
-
-  const owners = [...new Set((items ?? []).map((i) => i.owner).filter(Boolean))]
-
+  useEffect(() => {
+    if (!undo) return
+    const t = setTimeout(() => setUndo(null), 8000)
+    return () => clearTimeout(t)
+  }, [undo])
   return (
-    <div className="flex h-full flex-col">
-      <Head title="Зобовʼязання" />
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-10">
-        <div className="mx-auto w-full max-w-[78ch]">
-        {items === null ? null : items.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center pb-16 text-center">
-            <ListChecks size={26} className="text-faint" />
-            <h2 className="mt-4 text-[14px] font-medium">Нічого не висить</h2>
-            <p className="mt-1 max-w-xs text-[12.5px] leading-relaxed text-soft">
-              Anything anybody commits to in a meeting turns up here on its own.
-            </p>
-            <div className="mt-5 max-w-sm text-left">
-              <NeedsKey what="Читаю зобовʼязання з наради" />
-            </div>
-          </div>
-        ) : (
-          <>
-            {owners.length > 0 && (
-              <p className="mb-3 text-[11px] text-faint">
-                {items.length} open · {owners.join(", ")}
-              </p>
-            )}
-            <ul className="flex flex-col gap-1">
-              <AnimatePresence initial={false}>
-                {items.map((a) => (
-                  <motion.li
-                    key={`${a.recording}-${a.index}`}
-                    layout
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                    className="group flex items-start gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-raised/50"
-                  >
-                    <button
-                      onClick={async () => {
-                        await Meetings.Tick(a.recording, a.index, !a.done)
-                        load()
-                      }}
-                      className={`mt-[2px] flex size-[16px] shrink-0 items-center justify-center rounded border transition-colors ${
-                        a.done ? "border-good bg-good/20 text-good" : "border-line hover:border-accent"
-                      }`}
-                    >
-                      {a.done && <Check size={11} strokeWidth={3} />}
-                    </button>
-
-                    <div className="min-w-0 flex-1">
-                      <p className={`text-[13px] leading-relaxed ${a.done ? "text-faint line-through" : ""}`}>
-                        {a.task}
-                      </p>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[10.5px] text-faint">
-                        {a.owner && <span className="text-accent">{a.owner}</span>}
-                        {a.due && <span>{a.due}</span>}
-                        <button
-                          onClick={() => onOpen(a.recording)}
-                          className="truncate transition-colors hover:text-soft hover:underline"
-                        >
-                          {a.title}
-                        </button>
-                        <span>{when(a.started)}</span>
-                      </div>
-                    </div>
-                  </motion.li>
-                ))}
-              </AnimatePresence>
-            </ul>
-          </>
+    <div className="knowledge-screen">
+      <Head title="Домовленості">
+        <button
+          className="ui-chip"
+          aria-pressed={done}
+          onClick={() => setDone(!done)}
+        >
+          {done ? "Сховати виконані" : "Показати виконані"}
+        </button>
+      </Head>
+      <div className="knowledge-results">
+        {error && (
+          <p role="alert" className="error">
+            {error}
+          </p>
         )}
-        </div>
+        <p className="result-count">
+          {items.length} домовленостей · {done ? "усі" : "відкриті"}
+        </p>
+        {!items.length && (
+          <p className="search-empty">
+            {done
+              ? "Домовленостей ще немає. Додайте їх у документі зустрічі."
+              : "Відкритих домовленостей немає."}
+          </p>
+        )}
+        <AnimatePresence initial={false}>
+          {items.map((a) => (
+            <motion.div
+              layout
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, x: 16, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className={`commitment ${a.done ? "done" : ""}`}
+              key={`${a.recording}-${a.index}`}
+            >
+              <button
+                role="checkbox"
+                aria-label={`Виконано: ${a.task}`}
+                aria-checked={a.done}
+                onClick={async () => {
+                  try {
+                    await Meetings.Tick(a.recording, a.index, !a.done)
+                    setUndo(a)
+                    await load()
+                  } catch (e) {
+                    setError(String(e))
+                  }
+                }}
+              >
+                {a.done && <Check size={12} />}
+              </button>
+              <div>
+                <p>{a.task}</p>
+                <div className="task-links">
+                  <button
+                    className="commitment-meta"
+                    onClick={() => setEditing(a)}
+                  >
+                    {a.owner || "Призначити"}{" "}
+                    <span>· {a.due || "Без строку"}</span>
+                  </button>
+                  <button onClick={() => onOpen(a.recording)}>{a.title}</button>
+                  <small>{when(a.started)}</small>
+                </div>
+              </div>
+              <button
+                className="context-action ui-icon"
+                aria-label="Редагувати домовленість"
+                onClick={() => setEditing(a)}
+              >
+                <MoreHorizontal size={14} />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
+      {editing && (
+        <ActionEditor
+          recording={editing.recording}
+          index={editing.index}
+          action={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => void load()}
+        />
+      )}
+      {undo && (
+        <div className="action-toast" role="status">
+          Домовленість оновлено
+          <button
+            onClick={async () => {
+              try {
+                await Meetings.Tick(undo.recording, undo.index, undo.done)
+                setUndo(null)
+                await load()
+              } catch (e) {
+                setError(String(e))
+              }
+            }}
+          >
+            <RotateCcw size={12} />
+            Скасувати
+          </button>
+        </div>
+      )}
     </div>
   )
 }

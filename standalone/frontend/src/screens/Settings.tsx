@@ -1,14 +1,40 @@
-import { useEffect, useState } from "react"
+import {
+  useEffect,
+  useState,
+  useRef,
+  useId,
+  createContext,
+  useContext,
+} from "react"
 import { AnimatePresence, motion } from "motion/react"
 import {
-  Brain, Check, ChevronRight, Ear, FolderOpen, Mic, Rows2, Sparkles, Trash2, UserRound, X,
+  Brain,
+  Check,
+  ChevronRight,
+  Ear,
+  FolderOpen,
+  Mic,
+  Rows2,
+  Sparkles,
+  Trash2,
+  UserRound,
+  X,
 } from "lucide-react"
-import { Meetings, type Density, type Group, type Person, type Settings as Values, type Source } from "../api"
+import {
+  Meetings,
+  type Group,
+  type Person,
+  type Settings as Values,
+  type Source,
+} from "../api"
 import { colourOf, picked, tone, wash } from "../colours"
+import Head from "../components/Head"
 import Paint from "../components/Paint"
 import Snippet from "../components/Snippet"
 
-export default function Settings({ onDensity }: { onDensity: (d: Density) => void }) {
+const SettingLabel = createContext("")
+
+export default function Settings() {
   const [values, setValues] = useState<Values | null>(null)
   const [saved, setSaved] = useState(false)
   const [people, setPeople] = useState<Person[]>([])
@@ -16,6 +42,7 @@ export default function Settings({ onDensity }: { onDensity: (d: Density) => voi
   const [busy, setBusy] = useState("")
   const [said, setSaid] = useState("")
   const [me, setMe] = useState("")
+  const saving = useRef(Promise.resolve())
 
   const teach = () =>
     run("me", async () => {
@@ -39,96 +66,129 @@ export default function Settings({ onDensity }: { onDensity: (d: Density) => voi
     }
   }
 
-  const voices = () => Meetings.People().then((p) => setPeople((p as Person[]) ?? []))
-  const folders = () => Meetings.Groups().then((g) => setProjects((g as Group[]) ?? []))
+  const voices = () =>
+    Meetings.People().then((p) => setPeople((p as Person[]) ?? []))
+  const folders = () =>
+    Meetings.Groups().then((g) => setProjects((g as Group[]) ?? []))
 
   useEffect(() => {
-    Meetings.Settings().then((v) => setValues(v as Values))
+    Meetings.Settings()
+      .then((v) => setValues(v as Values))
+      .catch((e) => setSaid(String(e)))
     voices().catch(() => {})
     folders().catch(() => {})
   }, [])
 
-  if (!values) return null
+  if (!values)
+    return <p className="reader-loading">{said || "Відкриваю параметри…"}</p>
 
   const save = async (next: Values) => {
     setValues(next)
-    await Meetings.SaveSettings(next)
-    if (next.density !== values.density) onDensity(next.density)
+    setSaved(false)
+    saving.current = saving.current
+      .catch(() => {})
+      .then(() => Meetings.SaveSettings(next))
+    try {
+      await saving.current
+    } catch (e) {
+      setSaid("Не збережено: " + String(e))
+      return
+    }
     setSaved(true)
     setTimeout(() => setSaved(false), 1600)
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="no-drag flex items-baseline gap-2.5 px-6 pb-4 pt-2">
-        <h1 className="text-[24px] font-semibold tracking-[-0.02em]">Settings</h1>
+    <div className="settings-screen flex h-full flex-col">
+      <Head title="Параметри">
         <motion.span
-          className="flex items-center gap-1 text-[11.5px] text-good"
-          initial={{ opacity: 0 }}
+          className="flex items-center gap-1 text-[11px] text-good"
           animate={{ opacity: saved ? 1 : 0 }}
-          transition={{ duration: 0.2 }}
         >
-          <Check size={12} /> Saved
+          <Check size={12} />
+          Збережено
         </motion.span>
-      </header>
+      </Head>
+      {said && (
+        <p className="reader-error" role="status">
+          {said}
+          {said.startsWith("Не збережено") && (
+            <button className="ui-chip" onClick={() => void save(values)}>
+              Повторити
+            </button>
+          )}
+        </p>
+      )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-10">
-        <div className="flex max-w-2xl flex-col gap-7">
-          <Group title="Listening" Icon={Ear}>
-            <Row label="Record meetings on its own" hint="Nothing leaves this machine.">
-              <Toggle on={values.listening} onChange={(on) => save({ ...values, listening: on })} />
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-10">
+        <div className="settings-grid">
+          <Group title="Слухання" Icon={Ear}>
+            <Row
+              label="Автоматично записувати зустрічі"
+              hint="Аудіо обробляється на цьому пристрої."
+            >
+              <Toggle
+                on={values.listening}
+                onChange={(on) => save({ ...values, listening: on })}
+              />
             </Row>
             <Row
-              label="What it listens to"
+              label="Джерела звуку"
               hint={
                 values.system
-                  ? "The microphone and whatever the machine is playing, kept apart. Speech on the second one is how it knows somebody is talking to you rather than that you are thinking aloud — and it is what gives the other side of a call cleanly instead of through the room."
-                  : "The microphone only, like a voice recorder. Without headphones that already contains everybody, once. It can still hear when a second voice is in the room and call that a meeting, but not reliably enough to throw anything away on — so in this mode nothing it records is ever discarded, whatever “Keep notes” says below."
+                  ? "Ваш голос і звук співрозмовників записуються окремо."
+                  : "Лише звук мікрофона. Автоматичні записи в цьому режимі не відкидаються."
               }
             >
               <Choice
                 options={[
-                  { id: "both", label: "Mic + system" },
-                  { id: "mic", label: "Mic only" },
+                  { id: "both", label: "Мікрофон + система" },
+                  { id: "mic", label: "Мікрофон" },
                 ]}
                 value={values.system ? "both" : "mic"}
                 onChange={(id) => save({ ...values, system: id === "both" })}
               />
             </Row>
             <Row
-              label="Start after"
-              hint="How much talking there has to be before it decides this is a meeting."
+              label="Почати після мовлення"
+              hint="Тривалість мовлення для автоматичного старту."
             >
               <Number
                 value={values.startSpeech}
-                unit="sec"
+                unit="с"
                 min={5}
                 max={300}
                 onChange={(n) => save({ ...values, startSpeech: n })}
               />
             </Row>
-            <Row label="Stop after" hint="How much quiet ends it.">
+            <Row
+              label="Завершити після тиші"
+              hint="Пауза, після якої зустріч вважається завершеною."
+            >
               <Number
                 value={values.quietEnds}
-                unit="sec"
+                unit="с"
                 min={15}
                 max={1800}
                 onChange={(n) => save({ ...values, quietEnds: n })}
               />
             </Row>
             <Row
-              label="Keep notes it records by itself"
-              hint="A recording nobody else was in and nobody asked for is usually a phone call or thinking aloud. Off, those are discarded when they end and cost nothing. Pressing Record always keeps the note, whatever this says."
+              label="Зберігати автоматичні голосові нотатки"
+              hint="Зберігати також записи, де говорите лише ви. Ручний запис зберігається завжди."
             >
-              <Toggle on={values.keepNotes} onChange={(on) => save({ ...values, keepNotes: on })} />
+              <Toggle
+                on={values.keepNotes}
+                onChange={(on) => save({ ...values, keepNotes: on })}
+              />
             </Row>
             <Row
-              label="Reach back"
-              hint="How far into the past a recording starts, so a meeting noticed late keeps its opening."
+              label="Захопити початок"
+              hint="Додати попередні секунди, якщо зустріч помічено із запізненням."
             >
               <Number
                 value={values.preroll}
-                unit="sec"
+                unit="с"
                 min={0}
                 max={600}
                 onChange={(n) => save({ ...values, preroll: n })}
@@ -136,10 +196,12 @@ export default function Settings({ onDensity }: { onDensity: (d: Density) => voi
             </Row>
           </Group>
 
-          <Group title="Transcripts" Icon={Rows2}>
+          <Group title="Розшифровка" Icon={Rows2}>
             <Row
-              label="Language"
-              hint={'A code such as uk or en, or "auto" to work it out per meeting. Naming it is more accurate — left to guess, a Ukrainian meeting with a few borrowed words comes back written in Russian.'}
+              label="Мова"
+              hint={
+                "Код мови: uk, en або auto. Явний вибір допомагає правильно розпізнавати українську."
+              }
             >
               <Text
                 value={values.language}
@@ -150,8 +212,8 @@ export default function Settings({ onDensity }: { onDensity: (d: Density) => voi
               />
             </Row>
             <Row
-              label="Transcription model"
-              hint="Measured on three minutes of a real Ukrainian meeting: Whisper found 320 words in Ukrainian, Parakeet 161 in Russian — it picks the language itself and cannot be told. Parakeet is three times faster and better on clean, close-miked speech. Choosing it downloads 670 MB."
+              label="Модель розпізнавання"
+              hint="Whisper підтримує вибір мови. Parakeet визначає її автоматично; перший запуск завантажить модель."
             >
               <Choice
                 options={[
@@ -159,32 +221,24 @@ export default function Settings({ onDensity }: { onDensity: (d: Density) => voi
                   { id: "parakeet", label: "Parakeet" },
                 ]}
                 value={values.transcriber}
-                onChange={(id) => save({ ...values, transcriber: id as Values["transcriber"] })}
-              />
-            </Row>
-            <Row label="Density" hint="How tightly the rows of a transcript are packed.">
-              <Choice
-                options={[
-                  { id: "compact", label: "Compact" },
-                  { id: "comfortable", label: "Roomy" },
-                ]}
-                value={values.density}
-                onChange={(d) => save({ ...values, density: d as Density })}
+                onChange={(id) =>
+                  save({ ...values, transcriber: id as Values["transcriber"] })
+                }
               />
             </Row>
           </Group>
 
-          <Group title="Voices it knows" Icon={UserRound}>
+          <Group title="Учасники" Icon={UserRound}>
             <Row
-              label="This is me"
-              hint="Everything the microphone hears is already one person. Say who, once, and every note and every one of your own turns carries your name from then on."
+              label="Мій голос"
+              hint="Вкажіть ім’я для голосу з мікрофона у наступних записах."
             >
               <div className="flex items-center gap-1.5">
                 <input
                   value={me}
                   onChange={(e) => setMe(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && teach()}
-                  placeholder="Your name"
+                  placeholder="Ваше ім’я"
                   className="w-32 rounded-lg border border-line/60 bg-surface/60 px-2.5 py-1.5 text-[12px] outline-none transition-colors placeholder:text-faint focus:border-accent/50"
                 />
                 <button
@@ -192,49 +246,55 @@ export default function Settings({ onDensity }: { onDensity: (d: Density) => voi
                   disabled={busy !== "" || !me.trim()}
                   className="flex items-center gap-1.5 rounded-lg bg-accent px-2.5 py-1.5 text-[11.5px] font-medium text-ink transition-opacity disabled:opacity-30"
                 >
-                  <Mic size={13} /> {busy === "me" ? "Learning…" : "Learn"}
+                  <Mic size={13} />{" "}
+                  {busy === "me" ? "Запам’ятовую…" : "Запам’ятати"}
                 </button>
               </div>
             </Row>
             {people.length === 0 ? (
               <p className="px-4 py-3 text-[12px] leading-relaxed text-faint">
-                Nobody yet. Open a meeting, click a speaker and type their name — the app
-                learns what they sound like and names them by itself from then on.
+                Учасників ще немає. Назвіть голос у зустрічі, щоб розпізнавати
+                його надалі.
               </p>
             ) : (
-              people.map((p) => <Face key={p.id} person={p} onChanged={voices} />)
+              people.map((p) => (
+                <Face key={p.id} person={p} onChanged={voices} />
+              ))
             )}
           </Group>
 
-          <Group title="Projects" Icon={FolderOpen}>
+          <Group title="Проєкти" Icon={FolderOpen}>
             {projects.length === 0 ? (
               <p className="px-4 py-3 text-[12px] leading-relaxed text-faint">
-                No projects yet. Make one from the Meetings screen, then file meetings
-                under it — a project is just a folder you named.
+                Створіть проєкт у Dock і додайте до нього зустрічі.
               </p>
             ) : (
-              projects.map((g) => <Folder key={g.id} group={g} onChanged={folders} />)
+              projects.map((g) => (
+                <Folder key={g.id} group={g} onChanged={folders} />
+              ))
             )}
           </Group>
 
-          <Group title="Summaries" Icon={Sparkles}>
+          <Group title="AI та архів" Icon={Sparkles}>
             <Row
-              label="What is worth a summary"
-              hint="Most of what an always-on recorder catches is half a phone call or a thought said out loud, and summarising those costs money for nothing. The Summarise button on a meeting always works, whatever this says."
+              label="Автоматичні підсумки"
+              hint="Для зустрічей, усіх записів або лише вручну. Ручне оновлення доступне в документі."
             >
               <Choice
                 options={[
-                  { id: "meetings", label: "Meetings" },
-                  { id: "always", label: "Everything" },
-                  { id: "never", label: "Nothing" },
+                  { id: "meetings", label: "Зустрічі" },
+                  { id: "always", label: "Усе" },
+                  { id: "never", label: "Вимкнено" },
                 ]}
                 value={values.summarise}
-                onChange={(id) => save({ ...values, summarise: id as Values["summarise"] })}
+                onChange={(id) =>
+                  save({ ...values, summarise: id as Values["summarise"] })
+                }
               />
             </Row>
             <Row
-              label="OpenAI key"
-              hint="Only for summaries and questions. Transcription and voices run here and never leave."
+              label="Ключ OpenAI"
+              hint="Використовується для підсумків, embeddings і відповідей. Розпізнавання мовлення працює локально."
             >
               <Text
                 value={values.openaiKey}
@@ -246,18 +306,19 @@ export default function Settings({ onDensity }: { onDensity: (d: Density) => voi
               />
             </Row>
             <Row
-              label="Search by meaning"
-              hint="Passages are embedded so a question finds the answer even when it uses none of the same words. Index the meetings recorded before the key was added."
+              label="Індекс розшифровок"
+              hint="Оновити старі розшифровки. Решта архіву індексується під час пошуку за змістом."
             >
               <button
                 onClick={() => run("index", () => Meetings.Reindex())}
                 disabled={busy !== ""}
                 className="flex items-center gap-1.5 rounded-lg border border-line/60 bg-surface/60 px-2.5 py-1.5 text-[11.5px] text-soft transition-colors hover:border-accent/40 hover:text-text disabled:opacity-40"
               >
-                <Brain size={13} /> {busy === "index" ? "Indexing…" : "Index now"}
+                <Brain size={13} />{" "}
+                {busy === "index" ? "Індексую…" : "Оновити індекс"}
               </button>
             </Row>
-            <Row label="Model" hint="Any model your key can reach.">
+            <Row label="Модель AI" hint="Назва моделі, доступної вашому ключу.">
               <Text
                 value={values.openaiModel}
                 placeholder="gpt-5.4-mini"
@@ -268,37 +329,38 @@ export default function Settings({ onDensity }: { onDensity: (d: Density) => voi
             </Row>
           </Group>
 
-          <Group title="Storage" Icon={FolderOpen}>
+          <Group title="Зберігання" Icon={FolderOpen}>
             <Row
-              label="Keep audio for"
-              hint="Transcripts are kept for ever. Audio is large and stops being interesting. 0 keeps everything."
+              label="Зберігати аудіо"
+              hint="Строк у днях; 0 — без обмеження. Текст зберігається."
             >
               <Number
                 value={values.keepAudioDays}
-                unit="days"
+                unit="днів"
                 min={0}
                 max={3650}
                 onChange={(n) => save({ ...values, keepAudioDays: n })}
               />
             </Row>
             <Row
-              label="Delete old audio now"
-              hint="Runs the same sweep that happens daily. Transcripts, summaries and analytics are never deleted — only the sound."
+              label="Очистити старе аудіо"
+              hint="Видаляє лише звук за вказаним строком зберігання."
             >
               <button
                 onClick={() => run("tidy", () => Meetings.Tidy())}
                 disabled={busy !== ""}
                 className="flex items-center gap-1.5 rounded-lg border border-line/60 bg-surface/60 px-2.5 py-1.5 text-[11.5px] text-soft transition-colors hover:border-warn/50 hover:text-text disabled:opacity-40"
               >
-                <Trash2 size={13} /> {busy === "tidy" ? "Deleting…" : "Free up space"}
+                <Trash2 size={13} />{" "}
+                {busy === "tidy" ? "Очищаю…" : "Звільнити місце"}
               </button>
             </Row>
-            <Row label="Your folder" hint={values.folder}>
+            <Row label="Папка даних" hint={values.folder}>
               <button
                 onClick={() => Meetings.RevealFolder()}
                 className="flex items-center gap-1.5 rounded-lg border border-line/60 bg-surface/60 px-2.5 py-1.5 text-[11.5px] text-soft transition-colors hover:border-accent/40 hover:text-text"
               >
-                <FolderOpen size={13} /> Show
+                <FolderOpen size={13} /> Відкрити
               </button>
             </Row>
           </Group>
@@ -315,7 +377,7 @@ export default function Settings({ onDensity }: { onDensity: (d: Density) => voi
 
           <p className="flex items-start gap-2 text-[11px] leading-relaxed text-faint">
             <Trash2 size={12} className="mt-0.5 shrink-0" />
-            Everything this app owns is in that one folder. Drag it to the Bin and the app is gone.
+            Усі локальні дані застосунку зберігаються у папці вище.
           </p>
         </div>
       </div>
@@ -323,32 +385,63 @@ export default function Settings({ onDensity }: { onDensity: (d: Density) => voi
   )
 }
 
-function Group({ title, Icon, children }: { title: string; Icon: typeof Ear; children: React.ReactNode }) {
+function Group({
+  title,
+  Icon,
+  children,
+}: {
+  title: string
+  Icon: typeof Ear
+  children: React.ReactNode
+}) {
   return (
     <section>
       <h2 className="mb-2 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-faint">
         <Icon size={12} /> {title}
       </h2>
-      <div className="rounded-panel border border-line/60 bg-surface/40">{children}</div>
+      <div className="rounded-panel border border-line/60 bg-surface/40">
+        {children}
+      </div>
     </section>
   )
 }
 
-function Row({ label, hint, children }: { label: string; hint: string; children: React.ReactNode }) {
+function Row({
+  label,
+  hint,
+  children,
+}: {
+  label: string
+  hint: string
+  children: React.ReactNode
+}) {
+  const id = useId()
   return (
-    <div className="flex items-center justify-between gap-6 border-b border-line/40 px-4 py-3 last:border-b-0">
-      <div className="min-w-0">
-        <h3 className="text-[13px] font-medium">{label}</h3>
-        <p className="mt-0.5 text-[11px] leading-relaxed text-faint">{hint}</p>
+    <SettingLabel.Provider value={label}>
+      <div role="group" aria-labelledby={id} className="settings-row">
+        <div>
+          <h3 id={id}>{label}</h3>
+          <p>{hint}</p>
+        </div>
+        <div>{children}</div>
       </div>
-      <div className="shrink-0">{children}</div>
-    </div>
+    </SettingLabel.Provider>
   )
 }
 
-function Toggle({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
+function Toggle({
+  on,
+  onChange,
+}: {
+  on: boolean
+  onChange: (on: boolean) => void
+}) {
+  const label = useContext(SettingLabel)
   return (
     <button
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
       onClick={() => onChange(!on)}
       className={`flex h-[22px] w-10 items-center rounded-full px-0.5 transition-colors ${on ? "bg-accent" : "bg-raised"}`}
     >
@@ -378,12 +471,15 @@ function Text({
 }) {
   return (
     <input
+      aria-label={useContext(SettingLabel)}
       type={secret ? "password" : "text"}
       value={value}
       placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
       onBlur={onDone}
-      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+      onKeyDown={(e) =>
+        e.key === "Enter" && (e.target as HTMLInputElement).blur()
+      }
       className={`${width} rounded-lg border border-line/60 bg-surface/60 px-2.5 py-1.5 text-[12px] outline-none transition-colors placeholder:text-faint focus:border-accent/50`}
     />
   )
@@ -403,16 +499,23 @@ function Number({
   max: number
   onChange: (n: number) => void
 }) {
+  const label = useContext(SettingLabel)
   const [draft, setDraft] = useState(String(value))
   useEffect(() => setDraft(String(value)), [value])
 
   return (
     <div className="flex items-center gap-1.5 rounded-lg border border-line/60 bg-surface/60 px-2.5 py-1.5 focus-within:border-accent/50">
       <input
+        aria-label={label}
+        inputMode="numeric"
         value={draft}
         onChange={(e) => setDraft(e.target.value.replace(/[^\d]/g, ""))}
-        onBlur={() => onChange(Math.min(Math.max(parseInt(draft || "0", 10), min), max))}
-        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+        onBlur={() =>
+          onChange(Math.min(Math.max(parseInt(draft || "0", 10), min), max))
+        }
+        onKeyDown={(e) =>
+          e.key === "Enter" && (e.target as HTMLInputElement).blur()
+        }
         className="w-10 bg-transparent text-right text-[12px] tabular-nums outline-none"
       />
       <span className="text-[11px] text-faint">{unit}</span>
@@ -429,22 +532,28 @@ function Choice({
   value: string
   onChange: (id: string) => void
 }) {
+  const id = useId()
   return (
     <div className="flex rounded-lg bg-raised p-0.5">
       {options.map((o) => (
         <button
           key={o.id}
+          aria-pressed={value === o.id}
           onClick={() => onChange(o.id)}
           className="relative rounded-[6px] px-2.5 py-1 text-[11.5px] transition-colors"
         >
           {value === o.id && (
             <motion.span
-              layoutId="choice"
+              layoutId={id}
               className="absolute inset-0 rounded-[6px] bg-surface"
               transition={{ type: "spring", stiffness: 500, damping: 38 }}
             />
           )}
-          <span className={`relative z-10 ${value === o.id ? "text-text" : "text-faint"}`}>{o.label}</span>
+          <span
+            className={`relative z-10 ${value === o.id ? "text-text" : "text-faint"}`}
+          >
+            {o.label}
+          </span>
         </button>
       ))}
     </div>
@@ -461,7 +570,13 @@ function Choice({
  * It expands in place rather than opening a panel over the list, so the row you
  * clicked stays where you clicked it.
  */
-function Face({ person, onChanged }: { person: Person; onChanged: () => void }) {
+function Face({
+  person,
+  onChanged,
+}: {
+  person: Person
+  onChanged: () => void
+}) {
   const [open, setOpen] = useState(false)
   const [samples, setSamples] = useState<Source[] | null>(null)
   const [seen, setSeen] = useState<Group[]>([])
@@ -487,7 +602,10 @@ function Face({ person, onChanged }: { person: Person; onChanged: () => void }) 
           onClick={() => setOpen((o) => !o)}
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
         >
-          <motion.span animate={{ rotate: open ? 90 : 0 }} transition={{ duration: 0.18 }}>
+          <motion.span
+            animate={{ rotate: open ? 90 : 0 }}
+            transition={{ duration: 0.18 }}
+          >
             <ChevronRight size={13} className="shrink-0 text-faint" />
           </motion.span>
           <span
@@ -497,8 +615,7 @@ function Face({ person, onChanged }: { person: Person; onChanged: () => void }) 
           <span className="min-w-0">
             <h3 className="truncate text-[13px] font-medium">{person.name}</h3>
             <p className="mt-0.5 text-[11px] text-faint">
-              {person.samples} {person.samples === 1 ? "voiceprint" : "voiceprints"} ·{" "}
-              {person.meetings} {person.meetings === 1 ? "meeting" : "meetings"}
+              {person.samples} {"зразків"} · {person.meetings} {"зустрічей"}
             </p>
           </span>
         </button>
@@ -507,7 +624,7 @@ function Face({ person, onChanged }: { person: Person; onChanged: () => void }) 
             await Meetings.Forget(person.name)
             onChanged()
           }}
-          title="Forget this voice. Transcripts keep the name; new meetings stop guessing it."
+          title="Забути голос. Імена у збережених розшифровках залишаться."
           className="shrink-0 rounded-lg p-1.5 text-faint transition-colors hover:bg-raised hover:text-warn"
         >
           <X size={14} />
@@ -525,7 +642,7 @@ function Face({ person, onChanged }: { person: Person; onChanged: () => void }) 
           >
             <div className="space-y-3.5 px-4 pb-4 pl-[38px]">
               <div>
-                <Label>Colour</Label>
+                <Label>Колір</Label>
                 <div className="mt-1.5">
                   <Paint
                     colour={colour}
@@ -538,7 +655,7 @@ function Face({ person, onChanged }: { person: Person; onChanged: () => void }) 
 
               {seen.length > 0 && (
                 <div>
-                  <Label>Heard in</Label>
+                  <Label>У проєктах</Label>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {seen.map((g) => (
                       <span
@@ -547,7 +664,10 @@ function Face({ person, onChanged }: { person: Person; onChanged: () => void }) 
                           g.id === 0
                             ? undefined
                             : {
-                                background: wash(colourOf(g.name, g.colour), 16),
+                                background: wash(
+                                  colourOf(g.name, g.colour),
+                                  16,
+                                ),
                                 color: colourOf(g.name, g.colour),
                               }
                         }
@@ -555,8 +675,10 @@ function Face({ person, onChanged }: { person: Person; onChanged: () => void }) 
                           g.id === 0 ? "bg-raised text-faint" : ""
                         }`}
                       >
-                        {g.name || "No project"}
-                        <span className="ml-1.5 tabular-nums opacity-60">{g.count}</span>
+                        {g.name || "Поза проєктами"}
+                        <span className="ml-1.5 tabular-nums opacity-60">
+                          {g.count}
+                        </span>
                       </span>
                     ))}
                   </div>
@@ -564,18 +686,24 @@ function Face({ person, onChanged }: { person: Person; onChanged: () => void }) 
               )}
 
               <div>
-                <Label>What the app thinks they sound like</Label>
+                <Label>Зразки голосу</Label>
                 <div className="mt-1 -ml-1">
                   {samples === null ? (
-                    <p className="px-1 py-1 text-[11.5px] text-faint">Looking…</p>
+                    <p className="px-1 py-1 text-[11.5px] text-faint">
+                      Завантажую…
+                    </p>
                   ) : samples.length === 0 ? (
                     <p className="px-1 py-1 text-[11.5px] leading-relaxed text-faint">
-                      The samples were saved before the app kept track of where they came
-                      from. The next time this voice is recognised, one will appear here.
+                      Для старих зразків джерела ще немає. Воно з’явиться після
+                      наступного розпізнавання.
                     </p>
                   ) : (
                     samples.map((src, i) => (
-                      <Snippet key={`${src.recording}-${i}`} source={src} colour={colour} />
+                      <Snippet
+                        key={`${src.recording}-${i}`}
+                        source={src}
+                        colour={colour}
+                      />
                     ))
                   )}
                 </div>
@@ -620,7 +748,7 @@ function Folder({ group, onChanged }: { group: Group; onChanged: () => void }) {
       <div className="flex items-center gap-3">
         <button
           onClick={() => setPicking((p) => !p)}
-          title="Change this project's colour"
+          title="Колір проєкту"
           style={{ background: colour }}
           className="size-2.5 shrink-0 rounded-full transition-transform hover:scale-125"
         />
@@ -645,14 +773,14 @@ function Folder({ group, onChanged }: { group: Group; onChanged: () => void }) {
           className="-mx-1.5 min-w-0 flex-1 rounded-lg bg-transparent px-1.5 py-0.5 font-[inherit] text-[13px] font-medium text-text outline-none transition-colors hover:bg-raised/50 focus:bg-raised"
         />
         <span className="shrink-0 text-[11px] tabular-nums text-faint">
-          {group.count} {group.count === 1 ? "meeting" : "meetings"}
+          {group.count} {"зустрічей"}
         </span>
         <button
           onClick={async () => {
             await Meetings.DropGroup(group.id)
             onChanged()
           }}
-          title="Remove this project. Its meetings stay, unfiled."
+          title="Видалити проєкт. Зустрічі залишаться, нотатки проєкту буде видалено."
           className="shrink-0 rounded-lg p-1.5 text-faint transition-colors hover:bg-raised hover:text-warn"
         >
           <X size={14} />

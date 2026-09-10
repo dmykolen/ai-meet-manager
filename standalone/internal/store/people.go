@@ -181,9 +181,14 @@ func (d *DB) Sample(from Source) (Source, bool) {
 // SaveVoices keeps this recording's voiceprints, one per speaker label as the
 // transcript shows it. They are what makes naming a speaker afterwards teach
 // the app a voice rather than only relabel four hundred rows.
+// An empty map is written, not skipped. These are this recording's voices as
+// of now, and a transcription that found none has to say so: transcribing again
+// renumbers the clusters, so prints left over from the previous run are keyed to
+// labels that belong to different people. Naming a speaker then enrols the
+// wrong voice, and every later meeting inherits the mistake.
 func (d *DB) SaveVoices(recording int64, prints map[string][]float32) error {
-	if len(prints) == 0 {
-		return nil
+	if prints == nil {
+		prints = map[string][]float32{}
 	}
 	encoded, err := json.Marshal(prints)
 	if err != nil {
