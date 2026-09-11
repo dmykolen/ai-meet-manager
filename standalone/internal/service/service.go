@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/home"
@@ -26,6 +27,8 @@ type Meetings struct {
 	dir     string
 	config  home.Config
 	started time.Time
+	mcpMu   sync.RWMutex
+	mcp     MCPState
 
 	// The listener may arrive later on a first run while models download.
 	ears *listen.Recorder

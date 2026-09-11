@@ -48,6 +48,13 @@ export type SetupState = {
   problem?: string
 }
 
+export type MCPState = {
+  status: "starting" | "running" | "failed" | "stopped"
+  url: string
+  command: string
+  problem?: string
+}
+
 // The always-on recorder's state, straight from Go.
 export type Listening = {
   phase:

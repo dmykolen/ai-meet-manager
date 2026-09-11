@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -17,6 +18,14 @@ import (
 )
 
 const DefaultAddr = "127.0.0.1:8765"
+
+// MCPState is the local server status shown in Settings.
+type MCPState struct {
+	Status  string `json:"status"`
+	URL     string `json:"url"`
+	Command string `json:"command"`
+	Problem string `json:"problem,omitempty"`
+}
 
 type empty struct{}
 
@@ -306,38 +315,84 @@ func nonemptyQuery(ctx context.Context, query string) error {
 	return nil
 }
 
+// MCPStatus reports whether external AI clients can reach the app.
+func (m *Meetings) MCPStatus() MCPState {
+	m.mcpMu.RLock()
+	state := m.mcp
+	m.mcpMu.RUnlock()
+	if state.Status == "" {
+		state.Status = "starting"
+	}
+	if state.Command == "" {
+		state.Command, _ = os.Executable()
+	}
+	return state
+}
+
+func (m *Meetings) setMCP(status, url string, err error) {
+	state := MCPState{Status: status, URL: url}
+	if err != nil {
+		state.Problem = err.Error()
+	}
+	m.mcpMu.Lock()
+	m.mcp = state
+	m.mcpMu.Unlock()
+}
+
 func RunMCP(ctx context.Context, meetings *Meetings, addr string) error {
 	if addr == "" {
 		addr = DefaultAddr
 	}
+	url := "http://" + addr + "/mcp"
+	meetings.setMCP("starting", url, nil)
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
-		return fmt.Errorf("invalid MT_MCP_ADDR %q: %w", addr, err)
+		err = fmt.Errorf("invalid MT_MCP_ADDR %q: %w", addr, err)
+		meetings.setMCP("failed", url, err)
+		return err
 	}
 	ip := net.ParseIP(host)
 	if host != "localhost" && (ip == nil || !ip.IsLoopback()) {
-		return fmt.Errorf("MT_MCP_ADDR must use a loopback host, got %q", host)
+		err = fmt.Errorf("MT_MCP_ADDR must use a loopback host, got %q", host)
+		meetings.setMCP("failed", url, err)
+		return err
 	}
 
 	listener, err := net.Listen("tcp", addr)
 	if err != nil {
+		meetings.setMCP("failed", url, err)
 		return err
 	}
 	transport := server.NewStreamableHTTPServer(NewMCP(meetings), server.WithStateLess(true))
 	httpServer := &http.Server{Handler: transport, ReadHeaderTimeout: 5 * time.Second}
 	stopped := make(chan error, 1)
 	go func() { stopped <- httpServer.Serve(listener) }()
-	slog.Info("MCP server ready", "url", "http://"+addr+"/mcp")
+	meetings.setMCP("running", url, nil)
+	slog.Info("MCP server ready", "url", url)
 
 	select {
 	case err := <-stopped:
 		if errors.Is(err, http.ErrServerClosed) {
+			meetings.setMCP("stopped", url, nil)
 			return nil
 		}
+		meetings.setMCP("failed", url, err)
 		return err
 	case <-ctx.Done():
 		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		return httpServer.Shutdown(shutdown)
+		err := httpServer.Shutdown(shutdown)
+		if err != nil {
+			meetings.setMCP("failed", url, err)
+			return err
+		}
+		meetings.setMCP("stopped", url, nil)
+		return nil
 	}
+}
+
+// ServeMCPStdio lets clients such as Claude Desktop launch this same binary
+// without starting the desktop window.
+func ServeMCPStdio(meetings *Meetings) error {
+	return server.ServeStdio(NewMCP(meetings))
 }

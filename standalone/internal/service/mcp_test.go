@@ -118,8 +118,12 @@ func TestToolsExposeStoredInformation(t *testing.T) {
 }
 
 func TestRunMCPRejectsNetworkAddress(t *testing.T) {
-	if err := RunMCP(t.Context(), nil, "0.0.0.0:8765"); err == nil {
+	meetings, _, _ := testMeetings(t)
+	if err := RunMCP(t.Context(), meetings, "0.0.0.0:8765"); err == nil {
 		t.Fatal("non-loopback MCP address should be rejected")
+	}
+	if state := meetings.MCPStatus(); state.Status != "failed" || state.Problem == "" {
+		t.Fatalf("unexpected MCP state: %+v", state)
 	}
 }
 
@@ -148,6 +152,15 @@ func TestRunMCPServesStreamableHTTP(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
+	for meetings.MCPStatus().Status != "running" {
+		if time.Now().After(deadline) {
+			t.Fatalf("unexpected running MCP state: %+v", meetings.MCPStatus())
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if state := meetings.MCPStatus(); state.URL != "http://"+addr+"/mcp" || state.Command == "" {
+		t.Fatalf("unexpected running MCP state: %+v", state)
+	}
 
 	client, err := mcpclient.NewStreamableHttpClient("http://" + addr + "/mcp")
 	if err != nil {
@@ -175,6 +188,9 @@ func TestRunMCPServesStreamableHTTP(t *testing.T) {
 		}
 	case <-time.After(3 * time.Second):
 		t.Fatal("MCP server did not shut down")
+	}
+	if state := meetings.MCPStatus(); state.Status != "stopped" {
+		t.Fatalf("unexpected stopped MCP state: %+v", state)
 	}
 }
 

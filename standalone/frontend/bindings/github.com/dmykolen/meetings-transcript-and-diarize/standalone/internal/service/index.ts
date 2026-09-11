@@ -11,6 +11,7 @@ export {
 export {
     Answer,
     KnowledgeAnswer,
+    MCPState,
     Meeting,
     Settings,
     Stage,

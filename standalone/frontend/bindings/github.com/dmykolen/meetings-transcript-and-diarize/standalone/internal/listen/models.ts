@@ -10,14 +10,12 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as store$0 from "../store/models.js";
 
 /**
- * Kind is what a recording turned out to be — the store's own type, because
- * that is where it ends up and a second copy of two constants would be two
- * copies to keep in step.
+ * Kind is re-exported from store so the detector and persistence agree.
  */
 export type Kind = store$0.Kind;
 
 /**
- * A Line is one utterance, written down.
+ * Line is one live-transcribed utterance.
  */
 export class Line {
     /**
@@ -56,8 +54,7 @@ export class Line {
 }
 
 /**
- * Phase is what the app is doing, for the window to show. Every wait is a
- * visible state; a pause with no name is a bug.
+ * Phase is the capture state shown in the UI.
  */
 export enum Phase {
     /**
@@ -71,7 +68,7 @@ export enum Phase {
     Off = "off",
 
     /**
-     * waiting for the devices, and often for a permission dialog
+     * waiting for devices, often on a permission dialog
      */
     Opening = "opening",
     Listening = "listening",
@@ -86,7 +83,7 @@ export enum Phase {
 };
 
 /**
- * Recorder is the whole loop: audio in, finished recordings out.
+ * Recorder is the capture loop.
  */
 export class Recorder {
 
@@ -106,7 +103,7 @@ export class Recorder {
 }
 
 /**
- * Status is the snapshot the window polls.
+ * Status is the polled UI snapshot.
  */
 export class Status {
     "phase": Phase;

@@ -1946,6 +1946,20 @@ main .px-5 {
   break-inside: avoid;
   margin-bottom: 20px;
 }
+.settings-grid > section.settings-wide {
+  column-span: all;
+}
+.mcp-settings {
+  display: grid;
+  grid-template-columns: minmax(240px, 0.8fr) minmax(360px, 1.2fr);
+}
+.mcp-overview {
+  padding: 14px 16px;
+}
+.mcp-connect {
+  min-width: 0;
+  border-left: 1px solid var(--color-line);
+}
 .settings-grid > section:nth-child(3) > div,
 .settings-grid > section:nth-child(4) > div {
   max-height: 278px;
@@ -1957,5 +1971,14 @@ main .px-5 {
 @media (max-width: 1100px) {
   .settings-grid {
     columns: 1;
+  }
+}
+@media (max-width: 760px) {
+  .mcp-settings {
+    grid-template-columns: 1fr;
+  }
+  .mcp-connect {
+    border-top: 1px solid var(--color-line);
+    border-left: 0;
   }
 }

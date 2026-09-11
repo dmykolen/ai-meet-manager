@@ -39,13 +39,7 @@ export class Action {
 }
 
 /**
- * Analytics is what the shape of a meeting looks like from outside the words:
- * who held the floor, for how long, how fast, and who was actually asking
- * things rather than telling.
- *
- * Computed from the stored rows every time it is asked for rather than saved.
- * It is a walk over a few hundred turns, it can never go stale, and it follows
- * a speaker being renamed without a migration.
+ * Analytics is a transcript-derived meeting summary.
  */
 export class Analytics {
     /**
@@ -136,12 +130,7 @@ export class Analytics {
 }
 
 /**
- * Briefing is the answer to the two questions somebody actually opens this app
- * with: what did I miss, and what did I say I would do.
- *
- * Everything here is read out of summaries that were already written. No model
- * is called, nothing is sent anywhere, and it is the same few hundred rows the
- * Library screen reads — so it is instant and it works with no key.
+ * Briefing is the cross-meeting dashboard view.
  */
 export class Briefing {
     "since": string;
@@ -290,7 +279,7 @@ export class Chapter {
 }
 
 /**
- * A Face is somebody heard in the project, ever.
+ * Face is somebody heard in the project.
  */
 export class Face {
     "name": string;
@@ -326,11 +315,7 @@ export class Face {
 }
 
 /**
- * A Group is a folder for recordings: a project, a team, a client.
- *
- * Manual, not clever. The app could try to guess which project a meeting
- * belongs to, and would be wrong often enough that every card would need
- * checking — which is more work than dragging it once.
+ * Group is a user-managed folder for recordings.
  */
 export class Group {
     "id": number;
@@ -427,8 +412,7 @@ export enum Kind {
 };
 
 /**
- * KnowledgeHit preserves the kind and owner of a source. Only transcript
- * sources promise a timestamp; a handwritten note is never called a quote.
+ * KnowledgeHit preserves the source kind and owner.
  */
 export class KnowledgeHit {
     "key": string;
@@ -480,12 +464,7 @@ export class KnowledgeHit {
 }
 
 /**
- * A Mark is one recording as the timeline draws it: enough to place a tick and
- * colour it, and nothing else.
- *
- * The timeline shows a year at a time. Reusing list() there would send every
- * transcript, summary and note for four hundred recordings to draw four hundred
- * three-pixel marks.
+ * Mark is the lightweight recording shape the timeline draws.
  */
 export class Mark {
     "id": number;
@@ -525,8 +504,7 @@ export class Mark {
 }
 
 /**
- * A Moment is one slice of the timeline and how much was said in it, so the
- * meeting can be drawn as a shape rather than a list.
+ * Moment is one slice of the meeting timeline.
  */
 export class Moment {
     "at": number;
@@ -555,10 +533,6 @@ export class Moment {
 
 /**
  * Nagging is a question that keeps coming back.
- *
- * This is the thing a pile of transcripts knows and a person does not: the same
- * thing was left unresolved in three meetings, and nobody noticed because each
- * meeting only remembers itself.
  */
 export class Nagging {
     "text": string;
@@ -594,8 +568,7 @@ export class Nagging {
 }
 
 /**
- * Outstanding is every action item from every meeting, newest meeting first.
- * The inbox that answers "what did I commit to", which no single transcript can.
+ * Outstanding is one action item from one meeting.
  */
 export class Outstanding {
     "recording": number;
@@ -647,8 +620,7 @@ export class Outstanding {
 }
 
 /**
- * A Person is somebody the app has been told the name of, and the voiceprints
- * it has collected for them since.
+ * Person is an enrolled speaker with saved voiceprints.
  */
 export class Person {
     "id": number;
@@ -788,7 +760,7 @@ export class Recording {
 }
 
 /**
- * Said is one line from a summary, and the meeting it came from.
+ * Said is one line from a summary, with its source meeting.
  */
 export class Said {
     "recording": number;
@@ -824,9 +796,7 @@ export class Said {
 }
 
 /**
- * A Source is where one voiceprint was taken from. Without it a saved sample is
- * a vector nobody can examine; with it, "this is what I think Olena sounds
- * like" is one click from being played and disagreed with.
+ * Source is where one voiceprint was taken from.
  */
 export class Source {
     "recording": number;
@@ -870,15 +840,7 @@ export class Source {
 }
 
 /**
- * Standing is where a project stands, gathered from the meetings in it.
- *
- * This is the mechanical version of what PROJECTS.md describes: no model, no
- * judgement, only what the summaries already say, folded together so that the
- * same commitment made in three meetings is one line saying it was made three
- * times rather than three lines pretending to be different work.
- *
- * It is deliberately useful on its own. A project page that needs an API key to
- * show anything at all would be a page most days show nothing.
+ * Standing is the mechanical project rollup built from stored meetings.
  */
 export class Standing {
     "meetings": number;
@@ -891,16 +853,13 @@ export class Standing {
     "people": Face[];
 
     /**
-     * One paragraph on where the project stands, and whether a model wrote it
-     * rather than the mechanical fold below.
+     * Whether a model-authored project document is available.
      */
     "status": string;
     "written": boolean;
 
     /**
-     * How many of these meetings the model has folded in. During a rebuild it
-     * climbs, which is the only honest progress bar available: the document
-     * itself counts what it has read.
+     * How many meetings the model-authored document has folded in so far.
      */
     "folded": number;
 
@@ -969,8 +928,7 @@ export class Standing {
 }
 
 /**
- * Status is where a recording is in the pipeline. Every one of these is shown
- * to the person waiting, because a recording that stops moving has to say where.
+ * Status is where a recording is in the pipeline.
  */
 export enum Status {
     /**
@@ -1030,8 +988,7 @@ export class Sticky {
 }
 
 /**
- * Summary is stored as JSON; the shape belongs to the insights package, and this
- * is deliberately a loose mirror so the two can move independently.
+ * Summary is the stored JSON summary payload.
  */
 export class Summary {
     "title": string;
@@ -1099,9 +1056,7 @@ export class Summary {
 }
 
 /**
- * A Thread is one thing the project's meetings keep saying: the text, how many
- * meetings said it, and where it was said last. Owner and Due are empty for
- * anything that is not a commitment.
+ * Thread is one recurring line of work, one decision, or one open question.
  */
 export class Thread {
     /**
@@ -1213,7 +1168,7 @@ export class Turn {
 }
 
 /**
- * A Voice is one person's share of a meeting.
+ * Voice is one person's share of a meeting.
  */
 export class Voice {
     "speaker": string;
