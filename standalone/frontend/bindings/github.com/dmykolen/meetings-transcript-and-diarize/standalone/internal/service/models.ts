@@ -10,8 +10,7 @@ import { Create as $Create } from "@wailsio/runtime";
 import * as store$0 from "../store/models.js";
 
 /**
- * Answer is what Ask returns: the reply and where it came from, so that nothing
- * has to be taken on trust.
+ * Answer is an LLM reply plus the passages it cites.
  */
 export class Answer {
     "text": string;
@@ -68,6 +67,39 @@ export class KnowledgeAnswer {
             $$parsedSource["sources"] = $$createField1_0($$parsedSource["sources"]);
         }
         return new KnowledgeAnswer($$parsedSource as Partial<KnowledgeAnswer>);
+    }
+}
+
+/**
+ * MCPState is the local server status shown in Settings.
+ */
+export class MCPState {
+    "status": string;
+    "url": string;
+    "command": string;
+    "problem"?: string;
+
+    /** Creates a new MCPState instance. */
+    constructor($$source: Partial<MCPState> = {}) {
+        if (!("status" in $$source)) {
+            this["status"] = "";
+        }
+        if (!("url" in $$source)) {
+            this["url"] = "";
+        }
+        if (!("command" in $$source)) {
+            this["command"] = "";
+        }
+
+        Object.assign(this, $$source);
+    }
+
+    /**
+     * Creates a new MCPState instance from a string or object.
+     */
+    static createFrom($$source: any = {}): MCPState {
+        let $$parsedSource = typeof $$source === 'string' ? JSON.parse($$source) : $$source;
+        return new MCPState($$parsedSource as Partial<MCPState>);
     }
 }
 
@@ -168,7 +200,7 @@ export class Meeting {
 }
 
 /**
- * Settings is what the settings screen reads and writes.
+ * Settings is the payload the settings screen reads and writes.
  */
 export class Settings {
     "language": string;
@@ -180,8 +212,7 @@ export class Settings {
     "listening": boolean;
 
     /**
-     * System captures the machine's own audio alongside the microphone. Off,
-     * the app hears only what the room hears.
+     * System captures machine audio alongside the microphone.
      */
     "system": boolean;
 
@@ -261,7 +292,7 @@ export class Settings {
 }
 
 /**
- * Stage is what the app is doing before it can transcribe anything.
+ * Stage is the first-run setup stage.
  */
 export enum Stage {
     /**
@@ -283,8 +314,7 @@ export enum Stage {
 };
 
 /**
- * State is the first-run screen, and afterwards the thing that says whether the
- * app can work at all.
+ * State is the first-run status snapshot.
  */
 export class State {
     "stage": Stage;

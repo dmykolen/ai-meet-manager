@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"embed"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -59,6 +60,13 @@ func sound(dir, cache string) application.Middleware {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--mcp-stdio" {
+		if err := runMCPStdio(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	// Open the log before run(); startup failures still need somewhere to go.
 	dir, err := home.Dir()
 	if err == nil {
@@ -73,6 +81,24 @@ func main() {
 		slog.Error("Meeting Transcriber stopped", "err", err)
 		os.Exit(1)
 	}
+}
+
+func runMCPStdio() error {
+	dir, err := home.Dir()
+	if err != nil {
+		return err
+	}
+	cfg, err := home.Load(dir)
+	if err != nil {
+		return err
+	}
+	db, err := store.Open(home.Database(dir))
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	lib := library.New(db, nil, insights.New(cfg.OpenAIKey, cfg.OpenAIModel, cfg.Language), home.Recordings(dir))
+	return service.ServeMCPStdio(service.New(db, lib, dir, cfg))
 }
 
 func run() error {
@@ -114,6 +140,11 @@ func run() error {
 	lib.Policy(store.When(cfg.Summarise))
 	lib.Owner(cfg.Me)
 	meetings := service.New(db, lib, dir, cfg)
+	go func() {
+		if err := service.RunMCP(ctx, meetings, os.Getenv("MT_MCP_ADDR")); err != nil {
+			slog.Error("MCP server stopped", "err", err)
+		}
+	}()
 
 	// Stale partial WAVs are not recoverable.
 	listen.Recover(home.Recordings(dir))

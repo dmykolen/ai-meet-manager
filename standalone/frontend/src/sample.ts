@@ -534,6 +534,13 @@ export const sample = {
     problem: "",
   }),
   Summaries: () => true,
+  MCPStatus: async () => ({
+    status: "running" as const,
+    url: "http://127.0.0.1:8765/mcp",
+    command:
+      "/Applications/Meeting Transcriber.app/Contents/MacOS/MeetingTranscriber",
+    problem: "",
+  }),
   Waveform: async () =>
     Array.from({ length: 300 }, (_, i) =>
       Math.max(

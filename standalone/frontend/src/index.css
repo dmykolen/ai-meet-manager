@@ -1946,6 +1946,65 @@ main .px-5 {
   break-inside: avoid;
   margin-bottom: 20px;
 }
+.settings-grid > section.settings-wide {
+  column-span: all;
+}
+.mcp-settings {
+  min-width: 0;
+}
+.mcp-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+}
+.mcp-labels {
+  display: flex;
+  min-width: 0;
+  gap: 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.mcp-labels::-webkit-scrollbar {
+  display: none;
+}
+.mcp-labels span {
+  flex: 0 0 auto;
+  border: 1px solid var(--color-line);
+  border-radius: 999px;
+  padding: 3px 7px;
+  color: var(--color-faint);
+  font-size: 9.5px;
+  line-height: 1;
+}
+.mcp-labels span:last-child {
+  border-color: color-mix(in oklch, var(--color-good) 35%, transparent);
+  color: var(--color-good);
+}
+.mcp-endpoint {
+  display: flex;
+  min-width: 230px;
+  align-items: center;
+  gap: 4px;
+  border-radius: 7px;
+  background: color-mix(in oklch, var(--color-raised) 72%, transparent);
+  padding: 4px 5px 4px 10px;
+}
+.mcp-status-dot[data-active="true"] {
+  animation: mcp-status-breathe 2.8s ease-in-out infinite;
+}
+@keyframes mcp-status-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 .settings-grid > section:nth-child(3) > div,
 .settings-grid > section:nth-child(4) > div {
   max-height: 278px;
@@ -1957,5 +2016,19 @@ main .px-5 {
 @media (max-width: 1100px) {
   .settings-grid {
     columns: 1;
+  }
+}
+@media (max-width: 760px) {
+  .mcp-meta {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .mcp-endpoint {
+    min-width: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mcp-status-dot[data-active="true"] {
+    animation: none;
   }
 }

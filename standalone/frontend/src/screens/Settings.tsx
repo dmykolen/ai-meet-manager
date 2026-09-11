@@ -9,8 +9,10 @@ import {
 import { AnimatePresence, motion } from "motion/react"
 import {
   Brain,
+  Cable,
   Check,
   ChevronRight,
+  Copy,
   Ear,
   FolderOpen,
   Mic,
@@ -23,6 +25,7 @@ import {
 import {
   Meetings,
   type Group,
+  type MCPState,
   type Person,
   type Settings as Values,
   type Source,
@@ -42,6 +45,7 @@ export default function Settings() {
   const [busy, setBusy] = useState("")
   const [said, setSaid] = useState("")
   const [me, setMe] = useState("")
+  const [mcp, setMcp] = useState<MCPState | null>(null)
   const saving = useRef(Promise.resolve())
 
   const teach = () =>
@@ -72,11 +76,31 @@ export default function Settings() {
     Meetings.Groups().then((g) => setProjects((g as Group[]) ?? []))
 
   useEffect(() => {
+    let alive = true
+    const refreshMCP = () =>
+      Meetings.MCPStatus()
+        .then((state) => alive && setMcp(state as MCPState))
+        .catch((e) => {
+          if (alive)
+            setMcp({
+              status: "failed",
+              url: "",
+              command: "",
+              problem: String(e).replace(/^Error:\s*/, ""),
+            })
+        })
+
     Meetings.Settings()
       .then((v) => setValues(v as Values))
       .catch((e) => setSaid(String(e)))
     voices().catch(() => {})
     folders().catch(() => {})
+    refreshMCP()
+    const timer = window.setInterval(refreshMCP, 3000)
+    return () => {
+      alive = false
+      window.clearInterval(timer)
+    }
   }, [])
 
   if (!values)
@@ -329,6 +353,18 @@ export default function Settings() {
             </Row>
           </Group>
 
+          <Group
+            title="MCP Server"
+            Icon={Cable}
+            wide
+            afterTitle={<MCPIndicator state={mcp} />}
+          >
+            <MCPPanel
+              state={mcp}
+              onError={(message) => setSaid(message)}
+            />
+          </Group>
+
           <Group title="Зберігання" Icon={FolderOpen}>
             <Row
               label="Зберігати аудіо"
@@ -389,20 +425,207 @@ function Group({
   title,
   Icon,
   children,
+  wide = false,
+  afterTitle,
 }: {
   title: string
   Icon: typeof Ear
   children: React.ReactNode
+  wide?: boolean
+  afterTitle?: React.ReactNode
 }) {
   return (
-    <section>
-      <h2 className="mb-2 flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-faint">
-        <Icon size={12} /> {title}
+    <section className={wide ? "settings-wide" : undefined}>
+      <h2
+        className={`mb-2 flex items-center gap-1.5 text-[10.5px] font-semibold text-faint ${
+          title === "MCP Server"
+            ? "tracking-[0.04em]"
+            : "uppercase tracking-wider"
+        }`}
+      >
+        <Icon size={12} /> {title} {afterTitle}
       </h2>
       <div className="rounded-panel border border-line/60 bg-surface/40">
         {children}
       </div>
     </section>
+  )
+}
+
+type MCPClient = "claude" | "codex" | "vscode"
+
+function MCPIndicator({ state }: { state: MCPState | null }) {
+  const status = {
+    running: { label: "MCP server працює", colour: "bg-good" },
+    starting: { label: "MCP server запускається", colour: "bg-accent" },
+    failed: { label: "MCP server недоступний", colour: "bg-warn" },
+    stopped: { label: "MCP server зупинено", colour: "bg-faint" },
+  }[state?.status ?? "starting"]
+
+  return (
+    <span
+      role="status"
+      aria-label={status.label}
+      title={status.label}
+      className={`mcp-status-dot ml-0.5 size-1.5 rounded-full ${status.colour}`}
+      data-active={
+        state?.status === "running" || state?.status === "starting"
+          ? "true"
+          : undefined
+      }
+    />
+  )
+}
+
+function MCPPanel({
+  state,
+  onError,
+}: {
+  state: MCPState | null
+  onError: (message: string) => void
+}) {
+  const [client, setClient] = useState<MCPClient>("claude")
+  const [copied, setCopied] = useState("")
+  const url = state?.url || "http://127.0.0.1:8765/mcp"
+  const command =
+    state?.command ||
+    "/Applications/Meeting Transcriber.app/Contents/MacOS/MeetingTranscriber"
+
+  const configs: Record<
+    MCPClient,
+    { title: string; note: string; value: string }
+  > = {
+    claude: {
+      title: "Claude Desktop",
+      note: "Локальний stdio · claude_desktop_config.json",
+      value: JSON.stringify(
+        {
+          mcpServers: {
+            "meeting-transcriber": {
+              command,
+              args: ["--mcp-stdio"],
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    },
+    codex: {
+      title: "Codex",
+      note: "Streamable HTTP · ~/.codex/config.toml",
+      value: `[mcp_servers.meeting-transcriber]\nurl = "${url}"`,
+    },
+    vscode: {
+      title: "VS Code · GitHub Copilot",
+      note: "Streamable HTTP · User Profile mcp.json",
+      value: JSON.stringify(
+        {
+          servers: {
+            "meeting-transcriber": {
+              type: "http",
+              url,
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    },
+  }
+  const selected = configs[client]
+
+  const copy = async (value: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(value)
+      setCopied(key)
+      window.setTimeout(() => setCopied(""), 1600)
+    } catch {
+      onError("Не вдалося скопіювати. Виділіть текст вручну.")
+    }
+  }
+
+  return (
+    <div className="mcp-settings">
+      <div className="mcp-meta">
+        <div className="mcp-labels" aria-label="Доступні дані">
+          {[
+            "Зустрічі",
+            "Розшифровки",
+            "Нотатки",
+            "Проєкти",
+            "Завдання",
+            "Read-only",
+          ].map((label) => (
+            <span key={label}>{label}</span>
+          ))}
+        </div>
+        <div className="mcp-endpoint">
+          <code className="min-w-0 flex-1 truncate text-[11px] text-soft">
+            {url}
+          </code>
+          <button
+            onClick={() => copy(url, "url")}
+            aria-label="Копіювати адресу MCP"
+            className="shrink-0 rounded-md p-1.5 text-faint transition-colors hover:bg-surface hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            {copied === "url" ? <Check size={13} /> : <Copy size={13} />}
+          </button>
+        </div>
+      </div>
+
+      {state?.problem && (
+        <p className="border-t border-line/50 px-4 py-2.5 text-[11px] leading-relaxed text-warn">
+          {state.problem}. Перезапустіть застосунок або змініть MT_MCP_ADDR.
+        </p>
+      )}
+
+      <div className="mcp-connect border-t border-line/50">
+        <div
+          role="tablist"
+          aria-label="Застосунок для підключення"
+          className="flex gap-1 border-b border-line/50 px-4 pt-3"
+        >
+          {(Object.keys(configs) as MCPClient[]).map((id) => (
+            <button
+              key={id}
+              role="tab"
+              aria-selected={client === id}
+              onClick={() => setClient(id)}
+              className={`border-b px-2.5 pb-2 text-[11px] font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                client === id
+                  ? "border-accent text-text"
+                  : "border-transparent text-faint hover:text-soft"
+              }`}
+            >
+              {configs[id].title}
+            </button>
+          ))}
+        </div>
+        <div role="tabpanel" className="px-4 py-3.5">
+          <p className="text-[10.5px] text-faint">
+            {selected.note}
+          </p>
+          <div className="relative mt-2.5">
+            <pre className="max-h-48 overflow-auto rounded-lg bg-ground/70 px-3 py-3 pr-11 text-[10.5px] leading-relaxed text-soft">
+              <code>{selected.value}</code>
+            </pre>
+            <button
+              onClick={() => copy(selected.value, client)}
+              aria-label={
+                copied === client ? "Скопійовано" : "Копіювати конфігурацію"
+              }
+              title={
+                copied === client ? "Скопійовано" : "Копіювати конфігурацію"
+              }
+              className="absolute right-2 top-2 rounded-md border border-line/50 bg-surface/90 p-1.5 text-faint transition-colors hover:border-accent/40 hover:text-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              {copied === client ? <Check size={13} /> : <Copy size={13} />}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }
 
