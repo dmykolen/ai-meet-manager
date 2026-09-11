@@ -7,15 +7,10 @@ import (
 	"strings"
 )
 
-// Passages is what search actually reads: a transcript cut into stretches long
-// enough to mean something on their own.
-//
-// Forty-five seconds, because that is about a paragraph of speech — long enough
-// to carry a thought, short enough that a hit points at a moment rather than at
-// a chapter. The same number the Python edition settled on.
+// Passage is the target duration of one indexed transcript stretch.
 const Passage = 45.0
 
-// A Piece is one indexed stretch of a meeting.
+// Piece is one indexed stretch of a meeting.
 type Piece struct {
 	Recording int64
 	Start     float64
@@ -23,9 +18,7 @@ type Piece struct {
 	Text      string
 }
 
-// Cut folds a transcript into passages. Speaker changes do not break one: a
-// question and its answer belong in the same passage, and searching for the
-// answer should find the question.
+// Cut folds a transcript into passages.
 func Cut(recording int64, turns []Turn) []Piece {
 	var out []Piece
 	var current Piece
@@ -53,9 +46,7 @@ func Cut(recording int64, turns []Turn) []Piece {
 	return out
 }
 
-// Index replaces the passages of one recording. Vectors may be nil — a machine
-// with no key still gets keyword search, and the passages are what the vectors
-// would attach to when a key arrives.
+// Index replaces one recording's passages.
 func (d *DB) Index(recording int64, pieces []Piece, vectors [][]float32) error {
 	tx, err := d.sql.Begin()
 	if err != nil {
@@ -80,12 +71,7 @@ func (d *DB) Index(recording int64, pieces []Piece, vectors [][]float32) error {
 	return tx.Commit()
 }
 
-// Closest is semantic search: the passages nearest a question, whatever words
-// it used.
-//
-// Every vector is compared, in memory. A year of daily meetings is on the order
-// of a hundred thousand passages, which is twenty million multiply-adds — a few
-// milliseconds. An index would be machinery bought before it is needed.
+// Closest is semantic search over stored passage vectors.
 func (d *DB) Closest(vector []float32, limit int) ([]Hit, error) {
 	rows, err := d.sql.Query(`
 		SELECT p.recording, r.title, p.start, p.speaker, p.text, p.vector
@@ -127,16 +113,14 @@ func (d *DB) Closest(vector []float32, limit int) ([]Hit, error) {
 	return out, nil
 }
 
-// Indexed reports how many passages carry a vector, which is what tells the
-// interface whether semantic search is on.
+// Indexed reports how many passages carry vectors.
 func (d *DB) Indexed() (with, without int) {
 	_ = d.sql.QueryRow(`SELECT
 		COUNT(vector), COUNT(*) - COUNT(vector) FROM passages`).Scan(&with, &without)
 	return with, without
 }
 
-// Stale lists recordings whose passages have no vectors, so that adding a key
-// can index everything already recorded rather than only what comes next.
+// Stale lists recordings whose passages still lack vectors.
 func (d *DB) Stale(limit int) ([]int64, error) {
 	rows, err := d.sql.Query(`
 		SELECT DISTINCT recording FROM passages WHERE vector IS NULL
@@ -161,8 +145,6 @@ func (d *DB) Stale(limit int) ([]int64, error) {
 }
 
 // pack and unpack keep vectors as raw little-endian float32 rather than JSON.
-// Five hundred numbers as text is about 6 KB; as bytes it is 2 KB, and it needs
-// no parsing to compare.
 func pack(v []float32) []byte {
 	out := make([]byte, 4*len(v))
 	for i, x := range v {

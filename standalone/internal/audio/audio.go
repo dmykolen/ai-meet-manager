@@ -1,13 +1,5 @@
-// Package source captures the microphone and the system audio as one stereo
+// Package audio captures microphone and optional system audio as one stereo
 // stream: left is the microphone, right is whatever the machine is playing.
-//
-// Keeping them apart is what removes the need for echo cancellation — the other
-// participants arrive clean from the system tap rather than through the room —
-// and it is also the whole meeting detector. Speech on the right channel means
-// somebody is talking to you.
-//
-// Everything platform-specific lives in this package, behind Device. Nothing
-// above it branches on GOOS.
 package audio
 
 import (
@@ -19,40 +11,28 @@ import (
 )
 
 const (
-	// SampleRate is fixed at what Whisper and pyannote both want, so nothing
-	// downstream ever resamples.
+	// SampleRate is fixed end-to-end.
 	SampleRate = 16000
 
-	// FrameSize is Silero's window: 512 samples, 32 ms at 16 kHz. Using it as
-	// the unit everywhere means the VAD never has to buffer or split.
+	// FrameSize matches the VAD window.
 	FrameSize = 512
 
-	// slack is how far the system stream may lag the microphone before the
-	// backlog is dropped; the two are separate clocks and one always drifts.
-	//
-	// Was half a second, which is audible: the backlog only got trimmed at the
-	// bound, so it sat just under it for ever and every remote sentence arrived
-	// twice. 125 ms is four of the 32 ms periods the devices deliver — enough
-	// for jitter, short enough for the fold to switch at the right moments, and
-	// it must stay well above one frame or the system channel starves.
+	// slack is the largest tolerated lag on the system channel. 125 ms keeps
+	// jitter headroom without leaving a persistent audible echo backlog.
 	slack = SampleRate / 8
 )
 
-// A Device is one 16 kHz mono int16 source. Samples arrive on Samples until the
-// device is closed, at which point the channel is closed too.
+// A Device is one 16 kHz mono int16 source.
 type Device interface {
 	Samples() <-chan []int16
 	Close() error
 }
 
-// Stream is the microphone and the system audio interleaved into stereo frames
-// of FrameSize samples per channel.
+// Stream interleaves mic and system audio into stereo frames.
 type Stream struct {
 	frames chan []int16
 
-	// SystemAudio reports whether the right channel has a real device behind
-	// it. When false the right channel is silence and only notes can be
-	// detected — every meeting would look like a monologue.
+	// SystemAudio reports whether the right channel has a real device behind it.
 	SystemAudio bool
 
 	closeOnce sync.Once
@@ -77,17 +57,13 @@ func (s *Stream) Close() error {
 	return err
 }
 
-// Waiting is when Open stops assuming the devices are merely slow and starts
-// saying what it is probably waiting for.
+// Waiting is how long device open can stay quiet before being reported.
 const Waiting = 4 * time.Second
 
-// Open starts capture. A microphone is mandatory; the system tap is not, because
-// a machine without one still records useful notes and saying so is better than
-// refusing to run.
+// Open starts capture.
 func Open(ctx context.Context, system bool) (*Stream, error) {
-	// Opening the microphone blocks until macOS has an answer about the
-	// permission, and when there is a dialog on screen that answer is a person.
-	// There is deliberately no timeout: the wait is legitimate, and the menu bar
+	// Opening the microphone can block on an OS permission dialog, so there is
+	// deliberately no timeout here.
 	// item is already up to show it. An earlier version timed out and retried,
 	// which was worse — every abandoned attempt was still blocked inside
 	// CoreAudio, and when the permission finally arrived three microphones

@@ -5,9 +5,7 @@ import (
 	"time"
 )
 
-// The whole point of Standing is that one commitment made in three meetings is
-// one line that says "three times", not three lines. If the folding breaks, the
-// project page becomes the pile of summaries it exists to replace.
+// Repeated commitments across meetings must fold into one line.
 func TestOneCommitmentSaidThriceIsOneLine(t *testing.T) {
 	db := open(t)
 	g, err := db.NewGroup("Vodafone")
@@ -58,7 +56,6 @@ func TestOneCommitmentSaidThriceIsOneLine(t *testing.T) {
 	if roles.Times != 3 {
 		t.Fatalf("the repeated commitment counted %d mentions, not 3", roles.Times)
 	}
-	// The latest mention decides who owns it.
 	if roles.Owner != "Serhii" {
 		t.Fatalf("owner is %q; the most recent mention should win", roles.Owner)
 	}
@@ -67,7 +64,7 @@ func TestOneCommitmentSaidThriceIsOneLine(t *testing.T) {
 	}
 }
 
-// Ticking a commitment off in any meeting closes it for the project.
+// Completing a commitment in any meeting closes it for the project.
 func TestDoneAnywhereIsDone(t *testing.T) {
 	db := open(t)
 	g, _ := db.NewGroup("Ops")

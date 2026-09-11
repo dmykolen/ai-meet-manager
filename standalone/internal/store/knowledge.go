@@ -7,8 +7,7 @@ import (
 	"strings"
 )
 
-// KnowledgeHit preserves the kind and owner of a source. Only transcript
-// sources promise a timestamp; a handwritten note is never called a quote.
+// KnowledgeHit preserves the source kind and owner.
 type KnowledgeHit struct {
 	Key       string  `json:"key"`
 	Kind      string  `json:"kind"`
@@ -20,6 +19,7 @@ type KnowledgeHit struct {
 	Text      string  `json:"text"`
 }
 
+// Knowledge builds the corpus used for local knowledge search.
 func (d *DB) Knowledge() ([]KnowledgeHit, error) {
 	out := []KnowledgeHit{}
 	add := func(h KnowledgeHit) {
@@ -121,9 +121,11 @@ func (d *DB) Knowledge() ([]KnowledgeHit, error) {
 	return out, rows.Err()
 }
 
+// KnowledgeKey derives the cache key for one knowledge chunk.
 func KnowledgeKey(h KnowledgeHit) string {
 	return fmt.Sprintf("text-embedding-3-small/512/%s/%x", h.Key, sha256.Sum256([]byte(h.Title+"\n"+h.Text)))
 }
+// KnowledgeVectors returns cached embeddings for knowledge chunks.
 func (d *DB) KnowledgeVectors() (map[string][]float32, error) {
 	rows, err := d.sql.Query(`SELECT key,vector FROM knowledge_vectors`)
 	if err != nil {
@@ -141,10 +143,12 @@ func (d *DB) KnowledgeVectors() (map[string][]float32, error) {
 	}
 	return out, rows.Err()
 }
+// CacheKnowledge stores one knowledge embedding.
 func (d *DB) CacheKnowledge(key string, vector []float32) error {
 	_, err := d.sql.Exec(`INSERT OR REPLACE INTO knowledge_vectors(key,vector) VALUES(?,?)`, key, pack(vector))
 	return err
 }
+// DropKnowledgeVector deletes one cached knowledge embedding.
 func (d *DB) DropKnowledgeVector(key string) error {
 	_, err := d.sql.Exec(`DELETE FROM knowledge_vectors WHERE key=?`, key)
 	return err

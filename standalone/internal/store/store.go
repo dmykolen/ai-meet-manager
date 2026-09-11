@@ -1,9 +1,4 @@
-// Package store keeps everything the app remembers, in one SQLite file under
-// ~/MeetingTranscriber.
-//
-// Four tables and no ORM. A meeting's summary is a JSON column rather than five
-// more tables, because nothing ever queries inside it — it is read whole, shown
-// whole, and rewritten whole. Turns are a real table because they are searched.
+// Package store keeps everything the app remembers in one SQLite file.
 package store
 
 import (
@@ -34,8 +29,7 @@ const (
 	Note    Kind = "note"    // thinking aloud
 )
 
-// Status is where a recording is in the pipeline. Every one of these is shown
-// to the person waiting, because a recording that stops moving has to say where.
+// Status is where a recording is in the pipeline.
 type Status string
 
 const (
@@ -65,8 +59,7 @@ type Recording struct {
 	Note     string    `json:"note,omitempty"`
 }
 
-// Summary is stored as JSON; the shape belongs to the insights package, and this
-// is deliberately a loose mirror so the two can move independently.
+// Summary is the stored JSON summary payload.
 type Summary struct {
 	Title         string    `json:"title"`
 	Overview      string    `json:"overview"`
@@ -98,10 +91,10 @@ type Turn struct {
 	Text    string  `json:"text"`
 }
 
-// DB is the handle. One per process.
+// DB is the SQLite handle.
 type DB struct{ sql *sql.DB }
 
-// Open creates the file and the schema if they are not there.
+// Open creates the file and schema if needed.
 func Open(path string) (*DB, error) {
 	// WAL so that the UI can read a transcript while a recording is being
 	// written, which is the normal case and not an edge one.
@@ -265,22 +258,19 @@ func (d *DB) Add(r Recording) (Recording, error) {
 	return r, err
 }
 
-// Progress moves a recording along. Called often, so it touches one row and
-// nothing else.
+// Progress updates one recording's pipeline state.
 func (d *DB) Progress(id int64, status Status, fraction float64) error {
 	_, err := d.sql.Exec(`UPDATE recordings SET status = ?, progress = ? WHERE id = ?`, status, fraction, id)
 	return err
 }
 
-// Fail records why a recording stopped, which is the only thing worth showing
-// when it did.
+// Fail records why a recording stopped.
 func (d *DB) Fail(id int64, cause error) error {
 	_, err := d.sql.Exec(`UPDATE recordings SET status = ?, problem = ? WHERE id = ?`, Failed, cause.Error(), id)
 	return err
 }
 
-// SaveTranscript writes the turns and the searchable copy in one transaction, so
-// the two can never disagree.
+// SaveTranscript writes turns and the FTS copy in one transaction.
 func (d *DB) SaveTranscript(id int64, language string, duration float64, turns []Turn) error {
 	tx, err := d.sql.Begin()
 	if err != nil {
@@ -319,8 +309,7 @@ func (d *DB) SaveTranscript(id int64, language string, duration float64, turns [
 	return tx.Commit()
 }
 
-// SaveSummary stores the summary and takes the recording's title from it, which
-// is what turns a list of file names into a list of subjects.
+// SaveSummary stores the summary and, when allowed, updates the title from it.
 func (d *DB) SaveSummary(id int64, s *Summary) error {
 	blob, err := json.Marshal(s)
 	if err != nil {
@@ -342,9 +331,7 @@ func (d *DB) SaveSummary(id int64, s *Summary) error {
 	return err
 }
 
-// Retitle is the user overruling the model. The title the model wrote is a
-// guess at what the hour was about, and it is sometimes wrong and often just
-// not what you would call it.
+// Retitle stores a user-chosen title.
 func (d *DB) Retitle(id int64, title string) error {
 	title = strings.TrimSpace(title)
 	if title == "" {
@@ -354,13 +341,13 @@ func (d *DB) Retitle(id int64, title string) error {
 	return err
 }
 
-// SaveNote stores what the person typed against a recording.
+// SaveNote stores a recording note.
 func (d *DB) SaveNote(id int64, note string) error {
 	_, err := d.sql.Exec(`UPDATE recordings SET note = ? WHERE id = ?`, note, id)
 	return err
 }
 
-// Rename changes a speaker's label everywhere in one recording.
+// Rename changes a speaker label everywhere in one recording.
 func (d *DB) Rename(id int64, from, to string) error {
 	tx, err := d.sql.Begin()
 	if err != nil {
@@ -384,43 +371,36 @@ func (d *DB) Rename(id int64, from, to string) error {
 	return tx.Commit()
 }
 
-// Dropped records that the audio of a recording has been deleted. The
-// transcript, the summary and everything derived from them stay; only the sound
-// is gone, and the interface has to be able to say so rather than offering a
-// play button that does nothing.
-// Redate moves a recording in time. Everything that orders meetings — the
-// library list, the timeline, the order the project document is replayed in —
-// reads this column.
+// Redate moves a recording in time.
 func (d *DB) Redate(id int64, when time.Time) error {
 	_, err := d.sql.Exec(`UPDATE recordings SET started = ? WHERE id = ?`, when, id)
 	return err
 }
 
+// Dropped records that a recording's audio has been deleted.
 func (d *DB) Dropped(id int64) error {
 	_, err := d.sql.Exec(`UPDATE recordings SET audio = '' WHERE id = ?`, id)
 	return err
 }
 
-// Audio is the file name of a recording, empty when the audio has been deleted.
+// Audio is the file name of a recording, empty after deletion.
 func (d *DB) Audio(id int64) string {
 	var name string
 	_ = d.sql.QueryRow(`SELECT audio FROM recordings WHERE id = ?`, id).Scan(&name)
 	return name
 }
 
-// Recent lists recordings, newest first, without their transcripts.
+// Recent lists recordings, newest first, without transcripts.
 func (d *DB) Recent(limit int) ([]Recording, error) {
 	return d.list(`WHERE r.deleted IS NULL`, limit)
 }
 
-// In is one group's recordings.
+// In lists one group's recordings.
 func (d *DB) In(group int64, limit int) ([]Recording, error) {
 	return d.list(`WHERE r.deleted IS NULL AND r.folder = ?`, limit, group)
 }
 
-// list is the one query shape every listing uses. The where clause is written
-// here and never from anything a person typed; anything variable in it is a
-// placeholder, and its values come in args ahead of the limit.
+// list is the common listing query shape.
 func (d *DB) list(where string, limit int, args ...any) ([]Recording, error) {
 	// A negative limit explicitly asks SQLite for all rows. Zero keeps the default.
 	if limit == 0 {
@@ -439,7 +419,7 @@ func (d *DB) list(where string, limit int, args ...any) ([]Recording, error) {
 	return scan(rows)
 }
 
-// Get is one recording, with its speakers filled in.
+// Get returns one recording with its speakers filled in.
 func (d *DB) Get(id int64) (*Recording, error) {
 	rows, err := d.sql.Query(`
 		SELECT r.id, r.kind, r.title, r.audio, r.started, r.duration, r.language,
@@ -464,7 +444,7 @@ func (d *DB) Get(id int64) (*Recording, error) {
 	return &r, nil
 }
 
-// Turns is the transcript of one recording, in order.
+// Turns returns one recording's transcript in order.
 func (d *DB) Turns(id int64) ([]Turn, error) {
 	rows, err := d.sql.Query(`SELECT start, finish, speaker, text FROM turns WHERE recording = ? ORDER BY seq`, id)
 	if err != nil {
@@ -500,9 +480,7 @@ func (d *DB) speakers(id int64) ([]string, error) {
 	return who, rows.Err()
 }
 
-// Delete forgets a recording and everything attached to it. The audio file is
-// the caller's to remove: the database should not be deleting things it cannot
-// put back.
+// Delete forgets a recording and everything attached to it.
 func (d *DB) Delete(id int64) (string, error) {
 	var audio string
 	if err := d.sql.QueryRow(`SELECT audio FROM recordings WHERE id = ?`, id).Scan(&audio); err != nil {
@@ -549,15 +527,10 @@ func scan(rows *sql.Rows) ([]Recording, error) {
 	return out, rows.Err()
 }
 
-// ErrNotFound is what a missing recording looks like to a caller that should
-// answer 404 rather than 500.
+// ErrNotFound is returned for a missing recording.
 var ErrNotFound = errors.New("no such recording")
 
 // TickAction marks one action item done or undone.
-//
-// Addressed by position rather than by an id of its own: the items live inside
-// the summary, and the summary is rewritten whole whenever it is regenerated.
-// A position survives that; a synthetic id would not.
 func (d *DB) TickAction(id int64, index int, done bool) error {
 	path := fmt.Sprintf("$.action_items[%d]", index)
 	if index < 0 {
@@ -574,8 +547,7 @@ func (d *DB) TickAction(id int64, index int, done bool) error {
 	return nil
 }
 
-// Outstanding is every action item from every meeting, newest meeting first.
-// The inbox that answers "what did I commit to", which no single transcript can.
+// Outstanding is one action item from one meeting.
 type Outstanding struct {
 	Recording int64     `json:"recording"`
 	Title     string    `json:"title"`

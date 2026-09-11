@@ -1,34 +1,4 @@
-// Experiment C — transcribe the two channels separately.
-//
-//	go run ./exp/08_split 74
-//
-// Every attempt at the echo so far has tried to make one good mono signal out
-// of two channels that hold the same voices twice. This asks whether that mix
-// needs to exist at all.
-//
-// The recording is already stereo and already separated at the source: the left
-// channel is the microphone, which is the person sitting here, and the right is
-// the system tap, which is everybody on the call. Nothing has to be untangled —
-// it arrives untangled and the app mixes it together before handing it to the
-// models.
-//
-// Transcribe each side on its own and three problems disappear at once rather
-// than being fixed one at a time:
-//
-//   - Echo stops mattering. The tap is a clean digital copy with no room in it
-//     at all, and the microphone's copy of the far side is simply not read.
-//   - "Me" is known by construction. Whatever is on the microphone is the owner;
-//     no clustering, no voiceprint, no threshold, no chance of being merged into
-//     somebody else.
-//   - Diarization only has to separate the remote people, on audio that never
-//     contained the local one. That is a strictly easier problem than the one
-//     it fails at today.
-//
-// The cost is a second pass over the audio and the two transcripts having to be
-// interleaved by timestamp, which is what this prints so it can be judged.
-//
-// The owner gave ground truth for this meeting by ear — exp/truth/74.txt — so
-// the diarization can be scored rather than admired.
+// Experiment 8 transcribes the microphone and system channels separately.
 package main
 
 import (

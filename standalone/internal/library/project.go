@@ -10,12 +10,7 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/store"
 )
 
-// Advance applies one meeting to its project's living document.
-//
-// Called after a meeting is summarised and once it is filed, so dragging a
-// recording onto a project updates that project there and then. A project the
-// recording does not belong to is left alone; a recording already folded in is
-// not folded in twice.
+// Advance applies one summarised meeting to its project's living document.
 func (l *Library) Advance(ctx context.Context, id int64) error {
 	r, err := l.db.Get(id)
 	if err != nil || r.Group == 0 || r.Summary == nil || !l.llm.Ready() {
@@ -61,7 +56,6 @@ func (l *Library) Advance(ctx context.Context, id int64) error {
 }
 
 // Rebuild throws the document away and replays every meeting from the first.
-// The answer to "this has gone wrong", and the reason drift is survivable.
 func (l *Library) Rebuild(ctx context.Context, group int64) error {
 	if err := l.db.Rebuild(group); err != nil {
 		return err
@@ -70,7 +64,7 @@ func (l *Library) Rebuild(ctx context.Context, group int64) error {
 	if err != nil {
 		return err
 	}
-	// Oldest first: the document is built the way it happened.
+	// Oldest first so the document is rebuilt in chronological order.
 	for i := len(rows) - 1; i >= 0; i-- {
 		if err := l.Advance(ctx, rows[i].ID); err != nil {
 			return err
@@ -79,7 +73,7 @@ func (l *Library) Rebuild(ctx context.Context, group int64) error {
 	return nil
 }
 
-// lines is the document as the prompt reads it.
+// lines renders the kept state for the prompt.
 func lines(k *store.Kept) map[string][]insights.Line {
 	out := map[string][]insights.Line{}
 	for kind, items := range map[string][]store.Item{
@@ -95,7 +89,7 @@ func lines(k *store.Kept) map[string][]insights.Line {
 	return out
 }
 
-// meeting is one meeting's summary, as the prompt reads it.
+// meeting renders one meeting summary for the prompt.
 func meeting(r *store.Recording) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s, %s\n%s\n", r.Title, r.Started.Format("2 January 2006"), r.Summary.Overview)

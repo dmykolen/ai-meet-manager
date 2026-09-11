@@ -7,21 +7,7 @@ import (
 	"strings"
 )
 
-// Advance is one meeting applied to a project's living document.
-//
-// The model is never asked to summarise the project. It is given the document
-// as it stands, with every line's id, and one meeting's summary, and it answers
-// with *changes*: this is new, that one was said again, number 14 is done, the
-// decision numbered 6 has been overturned by this.
-//
-// That is the whole mechanism for keeping duplicates out, and it is why there is
-// no similarity threshold anywhere near it. Asking for a fresh list each time is
-// what produces three wordings of one commitment, and no amount of prompting
-// fixes that; being shown the ids and answering with them cannot produce it.
-//
-// One call per meeting, on its summary rather than its transcript: a few hundred
-// tokens, so a project running for two years costs a few hundred small calls
-// spread over two years.
+// Advance applies one meeting summary to a project's living document.
 func (c *Client) Advance(ctx context.Context, project, held, meeting string) (string, []Change, error) {
 	if !c.Ready() {
 		return "", nil, ErrNoKey
@@ -40,7 +26,7 @@ func (c *Client) Advance(ctx context.Context, project, held, meeting string) (st
 	return out.Status, out.Changes, nil
 }
 
-// A Change is one operation against the document.
+// Change is one operation against the document.
 type Change struct {
 	Do    string `json:"do"`
 	Kind  string `json:"kind"`
@@ -81,8 +67,7 @@ time; it replaces the previous one.
 Write in the language the meeting was held in. State facts, never opinions about
 whether people are doing well. Never invent a commitment nobody made.`
 
-// changes is the shape the answer must take. Strict mode wants every property
-// required, so the unused ones come back empty rather than absent.
+// changes is the structured-output schema the model must fill.
 var changes = object(map[string]any{
 	"status": text("One short paragraph on where the project stands now"),
 	"changes": array(object(map[string]any{
@@ -96,8 +81,7 @@ var changes = object(map[string]any{
 	})),
 })
 
-// Held renders the document the way the model reads it best: one line each,
-// with the id first so referring back to it is the obvious thing to do.
+// Held renders the document in the prompt shape the model consumes.
 func Held(status string, sections map[string][]Line) string {
 	var b strings.Builder
 	if status != "" {
@@ -127,8 +111,7 @@ func Held(status string, sections map[string][]Line) string {
 	return b.String()
 }
 
-// Line is what Held needs of a stored item, so this package does not import the
-// store and the store does not import this one.
+// Line is the stored-item shape Held needs.
 type Line struct {
 	ID    int
 	Text  string

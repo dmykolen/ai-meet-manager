@@ -5,9 +5,7 @@ import (
 	"time"
 )
 
-// feed runs d of frames through the detector and returns every transition it
-// produced, so a test can assert on the shape of a whole conversation rather
-// than on one frame at a time.
+// feed returns every transition produced over the duration.
 func feed(d *Detector, dur time.Duration, mic, sys bool) []Transition {
 	var out []Transition
 	for range frames(dur) {
@@ -20,7 +18,6 @@ func feed(d *Detector, dur time.Duration, mic, sys bool) []Transition {
 
 func TestNothingIsRecordedWithoutSustainedSpeech(t *testing.T) {
 	d := NewDetector()
-	// Nineteen seconds is a phone call from the hallway, not a meeting.
 	if got := feed(d, StartSpeech-time.Second, true, true); got != nil {
 		t.Fatalf("started on %v of speech: %v", StartSpeech-time.Second, got)
 	}
@@ -50,7 +47,6 @@ func TestTalkingToYourselfIsANote(t *testing.T) {
 }
 
 func TestANotificationChimeDoesNotMakeAMeeting(t *testing.T) {
-	// A blip of system audio is a chime, not a second person.
 	d := NewDetector()
 	for i := range frames(StartSpeech) {
 		d.Feed(true, i < frames(MeetingAudio)-10)
@@ -61,7 +57,6 @@ func TestANotificationChimeDoesNotMakeAMeeting(t *testing.T) {
 }
 
 func TestANoteThatGainsASecondVoiceBecomesAMeeting(t *testing.T) {
-	// You are thinking aloud and somebody calls you.
 	d := NewDetector()
 	feed(d, StartSpeech, true, false)
 	if _, kind := d.Recording(); kind != Note {
@@ -108,8 +103,6 @@ func TestQuietEndsTheRecording(t *testing.T) {
 }
 
 func TestALongMeetingRollsToANewFileWithoutAGap(t *testing.T) {
-	// Rolling rather than stopping: making the meeting earn its twenty seconds
-	// of speech again would punch a hole in it every hour.
 	d := NewDetector()
 	feed(d, StartSpeech, true, true)
 	got := feed(d, RollAfter, true, true)
@@ -126,7 +119,6 @@ func TestALongMeetingRollsToANewFileWithoutAGap(t *testing.T) {
 }
 
 func TestASessionCannotRunForever(t *testing.T) {
-	// The runaway case: something the VAD keeps calling speech, all day.
 	d := NewDetector()
 	feed(d, StartSpeech, true, true)
 	got := feed(d, HardCap, true, true)
@@ -144,8 +136,6 @@ func TestAFinishedRecordingDoesNotImmediatelyStartAnother(t *testing.T) {
 	feed(d, StartSpeech, true, true)
 	feed(d, QuietMeeting+time.Second, false, false)
 
-	// One frame of speech must not reopen a recording on the strength of the
-	// window that the previous one filled.
 	if got := feed(d, time.Second, true, true); got != nil {
 		t.Fatalf("restarted on a second of speech: %v", got)
 	}
@@ -166,8 +156,6 @@ func TestQuietIsReportedForTheTray(t *testing.T) {
 }
 
 func TestRecordNowStartsWithoutWaitingForSpeech(t *testing.T) {
-	// Pressing the button in a silent room is somebody about to dictate a
-	// thought, not a meeting. It records immediately, and it records a note.
 	d := NewDetector()
 	d.Force(true)
 	if got := d.Feed(false, false); got != Started {
@@ -179,8 +167,6 @@ func TestRecordNowStartsWithoutWaitingForSpeech(t *testing.T) {
 }
 
 func TestAPressedNoteBecomesAMeetingWhenSomebodyElseTalks(t *testing.T) {
-	// The button does not have to be right. A note that acquires a second voice
-	// was a meeting all along, and gets speakers.
 	d := NewDetector()
 	d.Force(true)
 	d.Feed(false, false)
@@ -195,7 +181,6 @@ func TestAPressedNoteBecomesAMeetingWhenSomebodyElseTalks(t *testing.T) {
 }
 
 func TestRecordNowDuringACallIsAMeeting(t *testing.T) {
-	// Pressing it while a call is already audible is not a note either.
 	d := NewDetector()
 	feed(d, MeetingAudio+time.Second, false, true)
 	d.Force(true)
@@ -206,7 +191,6 @@ func TestRecordNowDuringACallIsAMeeting(t *testing.T) {
 }
 
 func TestAForcedRecordingIgnoresSilence(t *testing.T) {
-	// An in-person meeting has long pauses, and nobody wants it cut short.
 	d := NewDetector()
 	d.Force(true)
 	d.Feed(false, false)
@@ -234,7 +218,6 @@ func TestStopEndsAForcedRecording(t *testing.T) {
 }
 
 func TestAForcedRecordingStillCannotRunForEver(t *testing.T) {
-	// The button is not a licence to record all day by accident.
 	d := NewDetector()
 	d.Force(true)
 	d.Feed(false, false)
@@ -245,10 +228,7 @@ func TestAForcedRecordingStillCannotRunForEver(t *testing.T) {
 	}
 }
 
-// The button in the corner must stop whatever is being recorded, however it
-// began. It used to stop only recordings that had been forced on, so for every
-// meeting the app started by itself — which is almost all of them — pressing
-// Stop did nothing at all.
+// Stop must end recordings that auto-started.
 func TestStopEndsARecordingTheAppStartedByItself(t *testing.T) {
 	d := NewDetector()
 	if got := feed(d, StartSpeech+time.Second, true, true); len(got) == 0 || got[0] != Started {

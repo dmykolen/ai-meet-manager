@@ -1,10 +1,4 @@
-// Package models fetches the model files on first run.
-//
-// They are not in the binary and never will be: together they are the better
-// part of a gigabyte, they change on their own schedule, and a 900 MB download
-// that fails halfway should be resumable rather than a reinstall. So the binary
-// stays small enough to hand somebody, and the first launch spends a few
-// minutes filling ~/MeetingTranscriber/models.
+// Package models fetches model files and helper binaries on first run.
 package models
 
 import (
@@ -25,8 +19,7 @@ import (
 	"time"
 )
 
-// A Model is one downloadable thing. Archives are unpacked; single files are
-// saved as they are.
+// A Model is one downloadable asset.
 type Model struct {
 	Name  string // what a person sees while it downloads
 	Key   string // the folder or file it becomes, under models/
@@ -36,17 +29,11 @@ type Model struct {
 	Run   bool   // an executable rather than weights: unpacked into bin/, +x
 }
 
-// Everything the app needs to work offline. Sizes are the compressed download.
-//
-// The speaker models were chosen by measurement, not by reputation: on a real
-// Ukrainian meeting, wespeaker CAM++ at a 0.9 clustering threshold found the
-// same five speakers pyannote did, at 24x realtime, while a Chinese-trained
-// embedder found twenty-four and NeMo's TitaNet found sixteen.
+// Everything the app needs to work offline. Sizes are compressed download
+// sizes.
 var (
-	// Whisper, quantised. Measured against the full 1.5 GB model on the same
-	// Ukrainian meeting: 170 words against 173, at identical speed. Unlike
-	// Parakeet's int8 — which lost two thirds of the speech — q5_0 costs
-	// almost nothing, and saves a gigabyte of download.
+	// Whisper ships quantized to keep download size down with little measured
+	// loss against the full model.
 	Whisper = Model{
 		Name:  "Transcription",
 		Key:   "whisper.bin",
@@ -54,9 +41,7 @@ var (
 		Bytes: 574_000_000,
 	}
 
-	// Whisper's own VAD. Not optional: without it, three minutes of meeting
-	// with natural pauses produced "Дякую." for each of the first three
-	// thirty-second windows before any real text appeared.
+	// Whisper's own VAD.
 	Vad = Model{
 		Name:  "Speech detection",
 		Key:   "vad.bin",
@@ -64,11 +49,7 @@ var (
 		Bytes: 885_000,
 	}
 
-	// Silero, for deciding second by second whether anybody is talking. This is
-	// the one the always-on part runs on, and it is a different model from Vad
-	// above: that one is ggml, built into whisper.cpp, and answers about a
-	// finished file. This one is ONNX, runs through sherpa-onnx — already
-	// linked in for the speaker models — and answers about the last 32 ms.
+	// Silero VAD for the always-on listener.
 	Speech = Model{
 		Name:  "Listening",
 		Key:   "silero_vad.onnx",
@@ -76,15 +57,7 @@ var (
 		Bytes: 643_854,
 	}
 
-	// ffmpeg, for the containers Core Audio cannot open: webm, ogg, opus, mkv,
-	// avi. macOS reads m4a, mp3, aac, flac and the audio track of an mp4 through
-	// afconvert with nothing installed, which is most of what a meeting is ever
-	// recorded as — but "most" is not "any", and a person holding a file the app
-	// refuses does not care which library was missing.
-	//
-	// Fetched rather than bundled, for the same reason the models are: it is
-	// 45 MB unpacked, and the binary stays small enough to hand somebody. The
-	// hash is pinned because this is the one download that is executed.
+	// ffmpeg covers containers the platform decoders do not handle.
 	FFmpeg = Model{
 		Name:  "Format support",
 		Key:   "ffmpeg",
@@ -94,9 +67,7 @@ var (
 		Run:   true,
 	}
 
-	// Parakeet, for anybody who wants to try it. Not in Required(): 670 MB is
-	// a lot to download for an engine the measurements say to leave off, so it
-	// arrives when it is chosen and not before.
+	// Parakeet is optional and fetched only when selected.
 	ParakeetModel = Model{
 		Name:  "Parakeet",
 		Key:   "parakeet",
@@ -111,10 +82,7 @@ var (
 		Bytes: 7_000_000,
 	}
 
-	// Chosen by measurement, against a meeting whose speakers the owner named
-	// by ear. The English VoxCeleb CAM++ that was here folded a stranger into
-	// an enrolled colleague on every configuration tried; this one, given the
-	// system channel alone, keeps them apart. See exp/out/F-speakers-74.txt.
+	// Embedding is the measured-best speaker model for the current pipeline.
 	Embedding = Model{
 		Name:  "Speaker voices",
 		Key:   "embedding.onnx",
@@ -123,7 +91,7 @@ var (
 	}
 )
 
-// Optional is what a particular choice needs on top of Required.
+// Optional returns extra assets required by a chosen transcriber.
 func Optional(transcriber string) Set {
 	if transcriber == "parakeet" {
 		return Set{ParakeetModel}
@@ -131,11 +99,10 @@ func Optional(transcriber string) Set {
 	return nil
 }
 
-// Everything a working install needs, in the order it is fetched: the small
-// ones first, so that a slow connection shows progress early.
+// Required returns the assets a working install needs, fetched small-first.
 func Required() Set { return Set{Vad, Speech, FFmpeg, Segmentation, Embedding, Whisper} }
 
-// Progress is what the first-run screen watches.
+// Progress is reported to the first-run screen.
 type Progress struct {
 	Model      string
 	Done, Size int64
@@ -151,11 +118,10 @@ func (p Progress) Fraction() float64 {
 	return min(float64(p.Done)/float64(p.Size), 1)
 }
 
-// Set is the group of models a running configuration needs.
+// Set is a group of downloadable assets.
 type Set []Model
 
-// Missing returns the members of the set that are not on disk yet, so that a
-// second launch costs nothing and an interrupted first launch resumes.
+// Missing returns the assets not already present on disk.
 func (s Set) Missing(dir string) Set {
 	var todo Set
 	for _, m := range s {
@@ -166,7 +132,7 @@ func (s Set) Missing(dir string) Set {
 	return todo
 }
 
-// Size is the total download still to do.
+// Size is the total remaining download.
 func (s Set) Size() int64 {
 	var total int64
 	for _, m := range s {
@@ -175,17 +141,13 @@ func (s Set) Size() int64 {
 	return total
 }
 
-// Have reports whether this exact model is already unpacked. The marker is
-// written last, so a half-unpacked archive is never mistaken for a finished
-// one, and it holds the URL it came from — so changing a model here is enough
-// to fetch the new one, with no version suffix to invent and keep in step.
+// Have reports whether this exact model is already unpacked.
 func Have(dir string, m Model) bool {
 	from, err := os.ReadFile(filepath.Join(dir, ".have-"+m.Key))
 	return err == nil && string(from) == m.URL
 }
 
-// Path is where a model ended up. Executables go in a sibling bin/ so that
-// nothing ever has to guess whether a file under models/ can be run.
+// Path is where a model ended up on disk.
 func Path(dir string, m Model) string {
 	if m.Run {
 		return filepath.Join(Tools(dir), m.Key)
@@ -193,14 +155,11 @@ func Path(dir string, m Model) string {
 	return filepath.Join(dir, m.Key)
 }
 
-// Tools is the folder the downloaded executables live in.
+// Tools is the folder downloaded executables live in.
 func Tools(dir string) string { return filepath.Join(filepath.Dir(dir), "bin") }
 
-// Fetch downloads and unpacks everything missing, reporting as it goes.
-//
-// The channel is closed when the last model is done. A failure stops the run
-// and is delivered on the channel rather than returned, because the caller is a
-// progress screen and not a `go build`.
+// Fetch downloads and unpacks everything missing, reporting progress on the
+// channel until close.
 func Fetch(ctx context.Context, dir string, set Set, report chan<- Progress) {
 	defer close(report)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -236,17 +195,14 @@ func fetch(ctx context.Context, dir string, m Model, report chan<- Progress) err
 	}
 	counted := &counter{reader: resp.Body}
 
-	// Hashed as it arrives rather than re-read afterwards: the file may be
-	// 574 MB, and one of these downloads is executed, so "pinned" has to mean
-	// checked and not merely written down.
+	// Hash as bytes arrive; one downloaded asset is executed.
 	var digest io.Reader = counted
 	sum := sha256.New()
 	if m.Check != "" {
 		digest = io.TeeReader(counted, sum)
 	}
 
-	// The reader is watched from here rather than from inside the copy, so that
-	// unpacking a 600 MB archive still moves the bar.
+	// Watch the download stream here so unpacking still moves the progress bar.
 	done := make(chan struct{})
 	go func() {
 		tick := time.NewTicker(200 * time.Millisecond)
@@ -270,13 +226,12 @@ func fetch(ctx context.Context, dir string, m Model, report chan<- Progress) err
 		return fmt.Errorf("%s: the download does not match its published checksum "+
 			"(expected %s, got %s) and has been discarded", m.Name, m.Check[:12], got[:12])
 	}
-	// Last, and only now: this is what Have looks for.
+	// Write the marker last; Have() uses it as the finished signal.
 	return os.WriteFile(filepath.Join(dir, ".have-"+m.Key), []byte(m.URL), 0o644)
 }
 
-// unpack writes a single file straight through, and expands an archive into a
-// folder named after the model rather than after whatever the tarball happens
-// to call its top directory.
+// unpack writes a single file straight through or expands an archive into the
+// model's own folder.
 func unpack(r io.Reader, dir string, m Model) error {
 	switch {
 	case m.Run:
@@ -311,8 +266,7 @@ func unpack(r io.Reader, dir string, m Model) error {
 		if header.Typeflag != tar.TypeReg {
 			continue
 		}
-		// Drop the archive's own top-level directory, and refuse anything that
-		// tries to climb out of ours.
+		// Drop the archive's top-level directory and refuse path traversal.
 		name := strip(header.Name)
 		if name == "" || strings.Contains(name, "..") {
 			continue
@@ -343,7 +297,7 @@ func writeFile(path string, r io.Reader) error {
 	return err
 }
 
-// counter counts bytes on their way past, for the progress bar.
+// counter counts bytes for the progress bar.
 type counter struct {
 	reader io.Reader
 	read   atomic.Int64
@@ -355,7 +309,7 @@ func (c *counter) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// Sum is the sha256 of a file, for pinning a model once its hash is known.
+// Sum is the sha256 of a file.
 func Sum(path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {

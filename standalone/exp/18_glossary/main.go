@@ -1,22 +1,4 @@
-// Experiment 18 — does telling Whisper the vocabulary help, and what does it cost?
-//
-//	go run ./exp/18_glossary
-//
-// The wording that reads worst is always an English term inside Ukrainian
-// speech: "Azure OpenAI" comes back "ажуру ПНІ", "чат-боти" comes back "де за
-// боти". Whisper has a documented cure — an initial prompt naming the words the
-// recording is likely to contain — and the owner's meetings have a small, stable
-// vocabulary worth naming: Vodafone, Kafka, GitLab, SQLModel, DevOps, CRM.
-//
-// There is a catch, and it is the whole experiment. whisper.cpp only reads an
-// initial prompt when n_max_text_ctx > 0 (src/whisper.cpp:7216), and the app
-// sets it to zero on purpose: rolling context is what made one meeting return
-// "Данію." ten times in a row. The Go binding does not expose
-// carry_initial_prompt, so the glossary cannot be pinned — it goes into the same
-// rolling window the model's own output displaces.
-//
-// So this measures both sides: how much agreement a glossary buys, and how much
-// repetition the context it requires brings back.
+// Experiment 18 measures glossary prompting versus repetition cost.
 package main
 
 import (

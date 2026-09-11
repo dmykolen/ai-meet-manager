@@ -1,21 +1,4 @@
-// Experiment 13 — can the microphone alone tell a meeting from thinking aloud?
-//
-//	go run ./exp/13_company
-//
-// With the system channel off the app loses the one signal that made this easy:
-// speech on the second channel is somebody talking to you. What is left is the
-// sound in the room, and the honest question to ask of it is how many different
-// voices it holds. A conversation has two. A monologue has one.
-//
-// The library is the test set and it did not have to be built. Every recording
-// in it already carries a verdict — meeting or note — from the system channel,
-// which is reliable, so the same recordings can be run through the
-// microphone-only detector and the two answers compared.
-//
-// The threshold is swept rather than chosen. The two mistakes are not equal:
-// calling a monologue a meeting costs a summary nobody wanted, and calling a
-// meeting a monologue throws it away, because notes are discarded by default.
-// So the number to look at is how many meetings are missed.
+// Experiment 13 tests microphone-only meeting detection.
 package main
 
 import (

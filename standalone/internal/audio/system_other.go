@@ -14,15 +14,8 @@ import (
 	"github.com/gen2brain/malgo"
 )
 
-// Everywhere except macOS the system audio is just another miniaudio capture
-// device, so it reuses the microphone's machinery and only the way the device
-// is chosen differs:
-//
-//   - Windows has real WASAPI loopback, which miniaudio exposes as its own
-//     device type. This is the one platform where it is free.
-//   - Linux has no loopback device type, but PipeWire and PulseAudio expose a
-//     ".monitor" source for every sink, and a monitor is an ordinary capture
-//     device. A machine running bare ALSA has none, and gets no system audio.
+// Outside macOS the system stream is another miniaudio capture device. Windows
+// uses loopback; Linux looks for a PipeWire/PulseAudio monitor source.
 type systemAudio struct {
 	ctx    *malgo.AllocatedContext
 	dev    *malgo.Device
@@ -61,8 +54,7 @@ func openSystemAudio() (Device, error) {
 			ctx.Free()
 			return nil, err
 		}
-		// A monitor is a plain capture device; asking for Loopback here would
-		// be rejected, since miniaudio only implements it on WASAPI.
+		// Miniaudio loopback is WASAPI-only; Linux monitor sources are plain captures.
 		cfg = malgo.DefaultDeviceConfig(malgo.Capture)
 		cfg.Capture.Format = malgo.FormatS16
 		cfg.Capture.Channels = 1
@@ -94,8 +86,7 @@ func openSystemAudio() (Device, error) {
 	return sys, nil
 }
 
-// findMonitor prefers the monitor of the default sink, which is what "what the
-// machine is playing" means when several sinks exist.
+// findMonitor prefers the default sink's monitor when several exist.
 func findMonitor(ctx *malgo.AllocatedContext) (malgo.DeviceInfo, error) {
 	devices, err := ctx.Devices(malgo.Capture)
 	if err != nil {

@@ -7,8 +7,7 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/media"
 )
 
-// tone makes `seconds` of audio at a given level, so a channel can be made
-// loud, quiet, or digitally silent.
+// tone makes test audio at a fixed level.
 func tone(seconds float64, level float32) []float32 {
 	out := make([]float32, int(seconds*media.Rate))
 	for i := range out {
@@ -22,10 +21,6 @@ func tone(seconds float64, level float32) []float32 {
 }
 
 func TestTheMicrophoneSideIsOnePerson(t *testing.T) {
-	// The bug this exists to stop: a diarizer splits one voice into three as it
-	// changes across a call, and the transcript grows people who were never
-	// there. The channels know better — anything much louder on the microphone
-	// than on the system tap was said by the person sitting here.
 	mic := tone(10, 0)
 	system := tone(10, 0)
 	copy(mic[0*media.Rate:2*media.Rate], tone(2, 0.5))    // you
@@ -59,9 +54,6 @@ func TestTheMicrophoneSideIsOnePerson(t *testing.T) {
 }
 
 func TestAVoiceThroughTheSpeakersIsNotMistakenForYours(t *testing.T) {
-	// Without headphones the room echoes the far side back into the microphone.
-	// The remote voice is still loudest on the side it arrived from, which is
-	// what the ratio is for.
 	mic, system := tone(4, 0.05), tone(4, 0.5) // a quiet echo against the real thing
 	read := engine.Result{Turns: []engine.Turn{{Start: 0, End: 4, Speaker: "SPEAKER_01"}}}
 
@@ -71,8 +63,6 @@ func TestAVoiceThroughTheSpeakersIsNotMistakenForYours(t *testing.T) {
 }
 
 func TestAFragmentClusterIsNotAParticipant(t *testing.T) {
-	// Four rows and ten seconds across an hour is the clusterer noticing that a
-	// voice changed, not a tenth person in the room.
 	var turns []engine.Turn
 	for i := range 100 {
 		at := float64(i) * 20
@@ -94,8 +84,6 @@ func TestAFragmentClusterIsNotAParticipant(t *testing.T) {
 }
 
 func TestAShortRecordingKeepsEverySpeaker(t *testing.T) {
-	// In a two-minute recording ten seconds is a real contribution, and the
-	// arithmetic that makes sense over an hour does not apply.
 	turns := []engine.Turn{
 		{Start: 0, End: 50, Speaker: "SPEAKER_00"},
 		{Start: 50, End: 100, Speaker: "SPEAKER_01"},
@@ -107,9 +95,6 @@ func TestAShortRecordingKeepsEverySpeaker(t *testing.T) {
 }
 
 func TestANameNeedsMoreThanAFragmentToJustifyIt(t *testing.T) {
-	// A voiceprint can be computed from four seconds, and four seconds is
-	// plenty to find a nearest match and nowhere near enough to be right. On a
-	// real meeting an eighteen-second fragment was handed a colleague's name.
 	prints := map[string][]float32{
 		"SPEAKER_00": {1, 0},
 		"SPEAKER_01": {0, 1},

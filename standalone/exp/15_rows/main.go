@@ -1,19 +1,4 @@
-// Experiment 15 — four ways to put a row where the words are.
-//
-//	go run ./exp/15_rows
-//
-// Experiment 14 proved the clock: with whisper.cpp's VAD on, segment times are
-// mapped back to the real recording and token times are not, so the rows the
-// app builds out of token times end 23.86 s early on a 167 s file. This picks
-// the replacement, and it does not pick it by taste.
-//
-// The owner ran the same file through WhisperX. That output — a time and a
-// speaker for every word — is the ground truth here. Scoring is word by word:
-// the two transcripts are aligned the way two versions of a text are, and for
-// every word both of them heard, the question is where each of them put it.
-// That is the thing the owner is complaining about — click a line, land on the
-// wrong moment — measured directly instead of through row boundaries that the
-// two transcripts were never going to draw in the same places.
+// Experiment 15 compares row-placement strategies against word-level reference.
 package main
 
 import (

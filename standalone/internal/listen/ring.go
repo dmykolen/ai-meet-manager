@@ -6,11 +6,7 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/audio"
 )
 
-// Ring keeps the last few minutes in memory so a recording can begin in the
-// past — by the time anything can tell a meeting is happening it has been going
-// a while. Storage is flat and preallocated: ten minutes of stereo int16 at
-// 16 kHz is 38 MB, and churning that through the collector for the life of a
-// background daemon would be strange.
+// Ring keeps the recent audio history so a recording can begin in the past.
 type Ring struct {
 	frames  [][]int16
 	speech  []bool // was anybody talking during that frame
@@ -33,9 +29,7 @@ func NewRing(d time.Duration) *Ring {
 
 const frameDuration = time.Duration(audio.FrameSize) * time.Second / audio.SampleRate
 
-// Add copies one stereo frame in, overwriting the oldest once full. Whether the
-// frame held speech is remembered with it, which is what lets a replay start
-// where the talking started rather than five minutes of nothing earlier.
+// Add copies one stereo frame in and remembers whether it held speech.
 func (r *Ring) Add(frame []int16, speech bool) {
 	copy(r.frames[r.next], frame)
 	r.speech[r.next] = speech
@@ -48,17 +42,11 @@ func (r *Ring) Held() time.Duration {
 	return time.Duration(min(r.written, len(r.frames))) * frameDuration
 }
 
-// Replay yields the most recent d of audio, oldest first. Asking for more than
-// the ring holds gives everything it has.
-//
-// The frames are the ring's own storage and are overwritten as capture
-// continues, so a caller must consume each one before taking the next. In
-// practice that is a write to disk, which is what this is for.
+// Replay yields the most recent d of audio, oldest first.
 func (r *Ring) Replay(d time.Duration) [][]int16 {
 	want := min(int(d/frameDuration), min(r.written, len(r.frames)))
 	out := make([][]int16, 0, want)
-	// r.next is the oldest slot once the ring has wrapped, and the write head
-	// before that; counting back from it covers both cases.
+	// r.next is the oldest slot after wrap, and the write head before wrap.
 	start := ((r.next-want)%len(r.frames) + len(r.frames)) % len(r.frames)
 	for i := range want {
 		out = append(out, r.frames[(start+i)%len(r.frames)])
@@ -66,13 +54,7 @@ func (r *Ring) Replay(d time.Duration) [][]int16 {
 	return out
 }
 
-// ReplaySpeech is Replay, starting at the first frame where anybody was talking.
-//
-// Replaying the whole preroll put up to five minutes of an empty room at the
-// front of every recording — measured on real meetings: first word at 4.6, 4.7
-// and 5.0 minutes into three of them. Whisper then filled that silence with
-// invented text. The ring knows which frames were speech, so it can simply not
-// hand over the ones before the conversation started.
+// ReplaySpeech is Replay starting at the first speech frame.
 func (r *Ring) ReplaySpeech(d time.Duration) [][]int16 {
 	want := min(int(d/frameDuration), min(r.written, len(r.frames)))
 	start := ((r.next-want)%len(r.frames) + len(r.frames)) % len(r.frames)

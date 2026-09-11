@@ -1,19 +1,4 @@
-// Experiment 1 — how much of the far side is still audible twice, and where.
-//
-// Run:  go run ./exp/01_echo "$HOME/MeetingTranscriber/recordings/meeting 2026-09-09 11-58.wav"
-//
-// The question this answers is not "is there echo" but "how much, how late, and
-// in which blocks" — because two rounds of fixing it were guided by an average
-// that hid the answer. Everything below prints per block as well as in summary.
-//
-// Vocabulary, fixed once:
-//
-//	tap    the system-audio channel. A clean digital copy of the far side.
-//	room   the microphone. Holds whoever is here, plus the tap coming back
-//	       out of the speakers a room-delay later.
-//	leak   the part of room that is a copy of tap. This is the echo.
-//	rest   the part of room that is not. This is the person in the chair,
-//	       and it must survive whatever removes the leak.
+// Experiment 1 measures how much far-side audio is still audible twice.
 package main
 
 import (
@@ -25,12 +10,10 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/media"
 )
 
-// Half a second: long enough to hold a word, short enough that one loud moment
-// does not average away ten quiet ones.
+// Half a second balances local detail against noisy spikes.
 const block = media.Rate / 2
 
-// Only where the far side is genuinely talking. Everywhere else there is
-// nothing to echo and the numbers are noise about noise.
+// Only score blocks where the far side is genuinely talking.
 const loud = 0.03
 
 func main() {

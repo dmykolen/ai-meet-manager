@@ -7,13 +7,7 @@ import (
 	"unicode"
 )
 
-// Analytics is what the shape of a meeting looks like from outside the words:
-// who held the floor, for how long, how fast, and who was actually asking
-// things rather than telling.
-//
-// Computed from the stored rows every time it is asked for rather than saved.
-// It is a walk over a few hundred turns, it can never go stale, and it follows
-// a speaker being renamed without a migration.
+// Analytics is a transcript-derived meeting summary.
 type Analytics struct {
 	Speech   float64  `json:"speech"`   // seconds anybody was talking
 	Silence  float64  `json:"silence"`  // seconds nobody was
@@ -25,7 +19,7 @@ type Analytics struct {
 	Busiest  []Moment `json:"busiest"`  // the densest stretches, for the shape of the hour
 }
 
-// A Voice is one person's share of a meeting.
+// Voice is one person's share of a meeting.
 type Voice struct {
 	Speaker   string  `json:"speaker"`
 	Seconds   float64 `json:"seconds"`
@@ -37,20 +31,16 @@ type Voice struct {
 	Questions int     `json:"questions"` // turns of theirs that asked something
 }
 
-// A Moment is one slice of the timeline and how much was said in it, so the
-// meeting can be drawn as a shape rather than a list.
+// Moment is one slice of the meeting timeline.
 type Moment struct {
 	At    float64 `json:"at"`
 	Words int     `json:"words"`
 }
 
-// Moments is how many slices the timeline is cut into. Enough to show where the
-// meeting was dense and where it drifted, few enough to draw as bars in a card.
+// Moments is how many slices the timeline is cut into.
 const Moments = 48
 
-// Analyse measures a transcript. duration is the length of the recording, which
-// is what makes silence meaningful — without it there is nothing to subtract
-// the talking from.
+// Analyse measures a transcript against the full recording duration.
 func Analyse(turns []Turn, duration float64) Analytics {
 	if len(turns) == 0 {
 		return Analytics{Silence: duration}
@@ -83,9 +73,8 @@ func Analyse(turns []Turn, duration float64) Analytics {
 		}
 	}
 
-	// Speech is the union of the rows, not their sum: two people talking at
-	// once is one second of meeting, and the difference between the two is
-	// exactly how much they talked over each other.
+	// Speech is the union of time covered by turns; overlap is measured
+	// separately.
 	spoken := 0.0
 	for _, v := range each {
 		spoken += v.Seconds
@@ -113,7 +102,7 @@ func Analyse(turns []Turn, duration float64) Analytics {
 	return a
 }
 
-// union is the total time covered by the rows, counting an overlap once.
+// union is the total time covered by the rows, counting overlap once.
 func union(turns []Turn) float64 {
 	spans := make([][2]float64, 0, len(turns))
 	for _, t := range turns {
@@ -140,11 +129,7 @@ func union(turns []Turn) float64 {
 	return total
 }
 
-// balance is how evenly the floor was shared, as normalised entropy: 1 when
-// everybody spoke the same amount, 0 when one person spoke and nobody else did.
-//
-// A single number rather than a table, because the useful question is "was this
-// a discussion or a broadcast" and the table is right underneath it anyway.
+// balance is how evenly the floor was shared, as normalized entropy.
 func balance(voices []Voice) float64 {
 	if len(voices) < 2 {
 		return 0
@@ -158,7 +143,7 @@ func balance(voices []Voice) float64 {
 	return h / math.Log(float64(len(voices)))
 }
 
-// shape buckets the words across the timeline, so a meeting can be drawn.
+// shape buckets words across the timeline.
 func shape(turns []Turn, duration float64) []Moment {
 	if duration <= 0 {
 		return nil
@@ -177,10 +162,7 @@ func shape(turns []Turn, duration float64) []Moment {
 	return out
 }
 
-// asksSomething is deliberately crude: a question mark, or an opening that
-// almost always is one. It exists to say "Olena asked most of the questions",
-// which is true often enough to be worth showing and cheap enough not to need a
-// model. Ukrainian and English, since those are what this app hears.
+// asksSomething is a lightweight heuristic for "this turn was a question".
 func asksSomething(text string) bool {
 	if strings.Contains(text, "?") {
 		return true

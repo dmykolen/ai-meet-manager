@@ -7,7 +7,7 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/store"
 )
 
-// Preview deliberately does not save, rename or advance the project.
+// PreviewSummary renders a summary preview without mutating stored state.
 func (l *Library) PreviewSummary(ctx context.Context, id int64) (*store.Summary, error) {
 	if !l.llm.Ready() {
 		return nil, errors.New("Додайте ключ AI в налаштуваннях")

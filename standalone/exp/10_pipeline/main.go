@@ -1,18 +1,4 @@
-// Experiment 10 — the five recommendations, measured.
-//
-//	go run ./exp/10_pipeline 74
-//
-// The recommendations were: an Apple-Silicon model with Metal; VAD and noise
-// reduction before the model; hallucination filtering on confidence and speech
-// activity; forced alignment for word-level timing; and segmentation at phrase
-// boundaries rather than character counts.
-//
-// Metal was already there — 94 ggml_backend_metal symbols in the binary. This
-// measures the other four, which are all in internal/engine now, against the
-// pipeline as it was: rows, repetition, timing granularity, and how much text
-// the confidence check throws away. The last number is the one to watch: a
-// filter that removes inventions is good, and the same filter removing real
-// speech is worse than the inventions were.
+// Experiment 10 measures the main transcription-pipeline recommendations.
 package main
 
 import (

@@ -15,17 +15,12 @@ import (
 	"time"
 )
 
-// handshake is how long the tap gets to announce its format before the daemon
-// gives up on it and listens with the microphone alone.
+// handshake bounds how long the tap may stay silent before the app falls back
+// to mic-only capture.
 const handshake = 10 * time.Second
 
-// miniaudio's loopback is WASAPI-only, so on macOS the system audio has to come
-// from Core Audio process taps — an Objective-C API. Rather than bind it, the
-// daemon runs audiotee, an MIT-licensed Swift CLI that already does exactly
-// this and writes raw PCM to stdout.
-//
-// The subprocess boundary is the point: no cgo, no manual retain/release, and a
-// crash inside the tap cannot take the daemon down with it.
+// macOS system audio comes from the external audiotee CLI. The subprocess
+// boundary keeps Objective-C tap failures out of this process.
 type systemAudio struct {
 	cmd    *exec.Cmd
 	out    chan []int16
@@ -44,10 +39,7 @@ func (s *systemAudio) Close() error {
 	return nil
 }
 
-// wireFormat is the metadata line audiotee prints before any audio. It is
-// checked rather than trusted: the daemon asks for 16 kHz signed 16-bit mono
-// and refuses to run if it is handed anything else, because misreading the
-// wire format produces noise that still sounds plausible in a level meter.
+// wireFormat is the metadata line audiotee prints before audio starts.
 type wireFormat struct {
 	Encoding   string `json:"encoding"`
 	SampleRate int    `json:"sample_rate"`
@@ -93,11 +85,7 @@ func openSystemAudio() (Device, error) {
 	format := make(chan error, 1)
 	go watchAudiotee(stderr, format)
 
-	// Nothing is read from stdout until the format has been declared, so a
-	// mismatch is caught before a single sample is trusted — and the wait is
-	// bounded, because a tap that never announces itself must cost the
-	// microphone nothing. Observed after the previous instance was killed while
-	// it held the device.
+	// Wait for the declared wire format before trusting any samples.
 	select {
 	case err := <-format:
 		if err != nil {
@@ -112,8 +100,7 @@ func openSystemAudio() (Device, error) {
 	return sys, nil
 }
 
-// watchAudiotee parses the JSON-lines log, reports the declared format once,
-// and then keeps relaying anything the tap has to say.
+// watchAudiotee parses the JSON-lines log and reports the declared format once.
 func watchAudiotee(stderr io.Reader, format chan<- error) {
 	type line struct {
 		Type string          `json:"message_type"`

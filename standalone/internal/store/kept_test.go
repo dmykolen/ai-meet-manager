@@ -9,9 +9,7 @@ func fresh() *Kept {
 	return &Kept{Work: []Item{}, Decisions: []Item{}, Questions: []Item{}}
 }
 
-// The whole reason the model answers with operations against ids: one
-// commitment mentioned in three meetings stays one line that says so. Asking
-// for a fresh list each time is what produced three wordings of one thing.
+// Repeated mentions must stay one line.
 func TestOneCommitmentAcrossThreeMeetingsStaysOneLine(t *testing.T) {
 	k := fresh()
 	now := time.Now()
@@ -38,8 +36,7 @@ func TestOneCommitmentAcrossThreeMeetingsStaysOneLine(t *testing.T) {
 	}
 }
 
-// A line somebody has edited is theirs. The model may close it or note that it
-// was said again; it may never reword it.
+// User-pinned wording may not be rewritten.
 func TestTheModelCannotRewordWhatAPersonEdited(t *testing.T) {
 	k := fresh()
 	k.Apply([]Word{{Do: "add", Kind: "work", Text: "модельне формулювання"}}, "", 1, time.Now())
@@ -54,15 +51,13 @@ func TestTheModelCannotRewordWhatAPersonEdited(t *testing.T) {
 	if k.Work[0].Times != 2 {
 		t.Fatal("a pinned line should still count the mention")
 	}
-	// But closing it is allowed.
 	k.Apply([]Word{{Do: "close", Kind: "work", ID: 1, State: "done"}}, "", 3, time.Now())
 	if k.Work[0].State != "done" {
 		t.Fatal("a pinned line could not be closed")
 	}
 }
 
-// An overturned decision is kept, not deleted. A project's history of reversals
-// is the most expensive thing in it to reconstruct.
+// An overturned decision stays as history rather than being deleted.
 func TestAnOverturnedDecisionSurvives(t *testing.T) {
 	k := fresh()
 	k.Apply([]Word{{Do: "add", Kind: "decision", Text: "Відкрити назовні"}}, "", 1, time.Now())
@@ -80,7 +75,7 @@ func TestAnOverturnedDecisionSurvives(t *testing.T) {
 	}
 }
 
-// Ids are never reused and an invented one is ignored.
+// Invented ids are ignored.
 func TestAnInventedIdIsIgnored(t *testing.T) {
 	k := fresh()
 	k.Apply([]Word{{Do: "add", Kind: "work", Text: "справжня"}}, "", 1, time.Now())

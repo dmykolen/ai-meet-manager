@@ -7,11 +7,7 @@ import (
 	"time"
 )
 
-// A Group is a folder for recordings: a project, a team, a client.
-//
-// Manual, not clever. The app could try to guess which project a meeting
-// belongs to, and would be wrong often enough that every card would need
-// checking — which is more work than dragging it once.
+// Group is a user-managed folder for recordings.
 type Group struct {
 	ID     int64  `json:"id"`
 	Name   string `json:"name"`
@@ -19,7 +15,7 @@ type Group struct {
 	Colour string `json:"colour"` // empty means derived from the name
 }
 
-// Groups lists them with how many recordings each holds, busiest first.
+// Groups lists groups with recording counts, busiest first.
 func (d *DB) Groups() ([]Group, error) {
 	rows, err := d.sql.Query(`
 		SELECT g.id, g.name, g.colour, (
@@ -43,11 +39,7 @@ func (d *DB) Groups() ([]Group, error) {
 	return out, rows.Err()
 }
 
-// Loose is how many recordings are in no project at all.
-//
-// The Library draws projects as a strip whose widths are these counts, and a
-// strip that leaves out everything unfiled would show a library twice as tidy
-// as it is.
+// Loose is how many recordings are unfiled.
 func (d *DB) Loose() (int, error) {
 	var n int
 	err := d.sql.QueryRow(
@@ -55,7 +47,7 @@ func (d *DB) Loose() (int, error) {
 	return n, err
 }
 
-// NewGroup makes one, or returns the existing group of that name.
+// NewGroup creates a group or returns the existing one with that name.
 func (d *DB) NewGroup(name string) (Group, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -71,16 +63,13 @@ func (d *DB) NewGroup(name string) (Group, error) {
 	return g, err
 }
 
-// Paint sets a project's colour, or clears it back to the one derived from its
-// name when the value is empty.
+// Paint sets or clears a group's explicit colour.
 func (d *DB) Paint(id int64, colour string) error {
 	_, err := d.sql.Exec(`UPDATE groups SET colour = ? WHERE id = ?`, strings.TrimSpace(colour), id)
 	return err
 }
 
-// RenameGroup changes a project's name. The derived colour follows the name, so
-// a project renamed without an override changes colour — which is the right
-// behaviour: it is a different project now.
+// RenameGroup changes a group's name.
 func (d *DB) RenameGroup(id int64, name string) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -100,7 +89,7 @@ func (d *DB) Assign(recording, group int64) error {
 	return err
 }
 
-// DropGroup removes a group. Its recordings stay, unfiled.
+// DropGroup removes a group while keeping its recordings.
 func (d *DB) DropGroup(id int64) error {
 	tx, err := d.sql.Begin()
 	if err != nil {
@@ -116,11 +105,7 @@ func (d *DB) DropGroup(id int64) error {
 	return tx.Commit()
 }
 
-// Bin is the recordings that have been deleted but not yet thrown away.
-//
-// Deleting is one click and no dialog, which is only reasonable because it can
-// be undone. Everything here still has its audio and its transcript; Empty is
-// what actually destroys them.
+// Bin lists recordings that were deleted but not yet purged.
 func (d *DB) Bin() ([]Recording, error) { return d.list(`WHERE deleted IS NOT NULL`, -1) }
 
 // Bury moves a recording to the bin.
@@ -129,14 +114,13 @@ func (d *DB) Bury(id int64) error {
 	return err
 }
 
-// Restore takes it back out.
+// Restore takes a recording back out of the bin.
 func (d *DB) Restore(id int64) error {
 	_, err := d.sql.Exec(`UPDATE recordings SET deleted = NULL WHERE id = ?`, id)
 	return err
 }
 
-// Buried lists what is in the bin and older than the given age, which is what
-// the daily sweep empties. A zero age means everything in it.
+// Buried lists bin entries older than the given age.
 func (d *DB) Buried(olderThan time.Duration) ([]Recording, error) {
 	cutoff := time.Now().Add(-olderThan).Unix()
 	rows, err := d.sql.Query(
@@ -159,17 +143,14 @@ func (d *DB) Buried(olderThan time.Duration) ([]Recording, error) {
 	return out, rows.Err()
 }
 
-// Skipped records that the listener threw a recording away. Nothing about the
-// recording is kept — only that it happened, so the app can show that the
-// setting is doing something rather than asking to be believed.
+// Skipped records that the listener threw a recording away.
 func (d *DB) Skipped(seconds float64, why string) error {
 	_, err := d.sql.Exec(`INSERT INTO discarded (at, seconds, why) VALUES (?, ?, ?)`,
 		time.Now().Unix(), seconds, why)
 	return err
 }
 
-// Saved is what was thrown away since a moment: how many, and how long they
-// were altogether.
+// Saved reports how much listening work was discarded since a moment.
 func (d *DB) Saved(since time.Time) (count int, seconds float64) {
 	_ = d.sql.QueryRow(
 		`SELECT COUNT(*), COALESCE(SUM(seconds), 0) FROM discarded WHERE at >= ?`,
@@ -177,12 +158,7 @@ func (d *DB) Saved(since time.Time) (count int, seconds float64) {
 	return count, seconds
 }
 
-// A Mark is one recording as the timeline draws it: enough to place a tick and
-// colour it, and nothing else.
-//
-// The timeline shows a year at a time. Reusing list() there would send every
-// transcript, summary and note for four hundred recordings to draw four hundred
-// three-pixel marks.
+// Mark is the lightweight recording shape the timeline draws.
 type Mark struct {
 	ID       int64     `json:"id"`
 	Kind     Kind      `json:"kind"`
@@ -191,7 +167,7 @@ type Mark struct {
 	Folder   int64     `json:"folder"`
 }
 
-// Span is every recording between two moments, oldest first.
+// Span lists recordings between two moments, oldest first.
 func (d *DB) Span(from, to time.Time) ([]Mark, error) {
 	rows, err := d.sql.Query(`
 		SELECT id, kind, started, duration, COALESCE(folder, 0)

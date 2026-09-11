@@ -6,10 +6,7 @@ import (
 	"testing"
 )
 
-// A settings file written by an older version of the app must never be able to
-// stop the app starting. This one could: `summarise` went from a switch to a
-// choice, the decode failed, Load returned an error, and the window never
-// opened — with the reason written to a log file that had already been closed.
+// Older settings files must not prevent startup.
 func TestSettingsFromAnOlderVersionStillOpen(t *testing.T) {
 	dir := t.TempDir()
 	old := `
@@ -32,7 +29,6 @@ summarise = true
 	if cfg.Summarise != "always" {
 		t.Fatalf("summarise = %q; the old true meant every recording", cfg.Summarise)
 	}
-	// And nothing else in the file was lost on the way.
 	if cfg.OpenAIKey != "sk-test" || cfg.Language != "uk" {
 		t.Fatalf("the rest of the settings did not survive: %+v", cfg)
 	}
@@ -57,8 +53,6 @@ func TestAnUnreadableSettingCostsTheSettingAndNotTheApp(t *testing.T) {
 }
 
 func TestAutoIsTheOnlyWayToAskForDetection(t *testing.T) {
-	// Empty means "nobody has chosen", not "detect it" — which is what stops a
-	// Ukrainian meeting with a few borrowed words coming back in Russian.
 	dir := t.TempDir()
 	cfg, err := Load(dir)
 	if err != nil {

@@ -6,14 +6,8 @@ import (
 	"time"
 )
 
-// Kept is a project's state as the model maintains it: one living document that
-// every meeting updates, rather than a pile of summaries.
-//
-// The point of storing it, rather than folding the summaries together on every
-// read, is that the model answers with *operations against these ids*. It sees
-// what is already here before it says anything, so the same commitment made in
-// three meetings comes back as "that is number 14 again" instead of as a
-// fourteenth, fifteenth and sixteenth line. No similarity threshold anywhere.
+// Kept is the model-maintained project document. The model mutates it by
+// operations against stable ids instead of rewriting it from scratch.
 type Kept struct {
 	Status    string    `json:"status"`
 	Work      []Item    `json:"work"`
@@ -24,11 +18,7 @@ type Kept struct {
 	Updated   time.Time `json:"updated"`
 }
 
-// An Item is one line of the document, and where it came from.
-//
-// Provenance is not decoration. Without it the page is a claim nobody can
-// check, and the first time it is wrong about something it stops being trusted
-// entirely. With it, every line is one click from the moment it was said.
+// An Item is one line of the project document plus its provenance.
 type Item struct {
 	ID    int    `json:"id"`
 	Text  string `json:"text"`
@@ -37,20 +27,17 @@ type Item struct {
 	// open, done, dropped for work; standing, overturned for decisions;
 	// open, answered for questions.
 	State string `json:"state"`
-	// How many meetings have said it. A commitment restated three times is one
-	// nobody is doing, and that is visible without any extra machinery.
+	// How many meetings have said it.
 	Times int       `json:"times"`
 	From  int64     `json:"from"` // the meeting that last touched it
 	When  time.Time `json:"when"`
-	// Set once a person has edited the text. The model may close a pinned item
-	// or mark it restated; it may never reword it. Anything else and the app
-	// quietly undoes somebody's work.
+	// Once pinned, the model may close or restate an item but may not rewrite it.
 	Pinned bool `json:"pinned"`
-	// For a decision that was overturned: what replaced it.
+	// For an overturned decision, what replaced it.
 	By string `json:"by"`
 }
 
-// Held reads a project's document, or nil when the model has never run on it.
+// Held reads a project's document, or nil when none exists yet.
 func (d *DB) Held(group int64) (*Kept, error) {
 	var raw string
 	if err := d.sql.QueryRow(`SELECT state FROM groups WHERE id = ?`, group).Scan(&raw); err != nil {
@@ -61,12 +48,12 @@ func (d *DB) Held(group int64) (*Kept, error) {
 	}
 	var kept Kept
 	if err := json.Unmarshal([]byte(raw), &kept); err != nil {
-		return nil, nil // a corrupt document is a document to rebuild, not an error to show
+		return nil, nil // a corrupt document is rebuilt rather than shown as fatal
 	}
 	return &kept, nil
 }
 
-// Keep writes it back.
+// Keep writes a kept-state document back to the group row.
 func (d *DB) Keep(group int64, kept *Kept) error {
 	kept.Updated = time.Now()
 	blob, err := json.Marshal(kept)
@@ -77,14 +64,13 @@ func (d *DB) Keep(group int64, kept *Kept) error {
 	return err
 }
 
-// Forget the document, so the next pass builds it again from the first meeting.
+// Rebuild clears the kept document so it can be replayed from the start.
 func (d *DB) Rebuild(group int64) error {
 	_, err := d.sql.Exec(`UPDATE groups SET state = '' WHERE id = ?`, group)
 	return err
 }
 
-// Word is one change the model asks for. It names an existing line by id or
-// adds a new one; it never hands back a fresh list.
+// Word is one model-requested change against the kept document.
 type Word struct {
 	Do    string `json:"do"`   // add, update, close, restate, answer, overturn
 	Kind  string `json:"kind"` // work, decision, question
@@ -95,11 +81,7 @@ type Word struct {
 	State string `json:"state"`
 }
 
-// Apply folds one meeting's worth of operations into the document.
-//
-// Everything the model can get wrong is bounded here rather than trusted: it
-// cannot invent an id, cannot reword something a person edited, and cannot
-// remove a line at all.
+// Apply folds one meeting's worth of model operations into the document.
 func (k *Kept) Apply(words []Word, status string, from int64, when time.Time) {
 	if status != "" {
 		k.Status = status
@@ -127,7 +109,7 @@ func (k *Kept) Apply(words []Word, status string, from int64, when time.Time) {
 			}
 		}
 		if at < 0 {
-			continue // an id it made up
+			continue // ignore invented ids
 		}
 		it := &(*list)[at]
 		it.From, it.When = from, when
@@ -172,8 +154,7 @@ func firstState(kind string) string {
 	return "open"
 }
 
-// Pin is a person editing a line. From then on the model may close it or note
-// that it was said again, but never rewrite it.
+// Pin marks a line as user-edited and therefore not rewordable by the model.
 func (d *DB) Pin(group int64, id int, text, owner, due string) error {
 	kept, err := d.Held(group)
 	if err != nil || kept == nil {
@@ -196,7 +177,7 @@ func (d *DB) Pin(group int64, id int, text, owner, due string) error {
 	return nil
 }
 
-// Tick ticks a line off, or puts it back.
+// Tick marks a work item done or open.
 func (d *DB) Tick(group int64, id int, done bool) error {
 	kept, err := d.Held(group)
 	if err != nil || kept == nil {

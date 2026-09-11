@@ -10,8 +10,6 @@ import (
 )
 
 // SearchKnowledge uses the existing embedding provider and local SQLite cache.
-// New/edited documents are indexed on explicit semantic search, never during
-// typing or on application startup. Exact mode has no network dependency.
 func (l *Library) SearchKnowledge(ctx context.Context, query string, semantic bool) ([]store.KnowledgeHit, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {

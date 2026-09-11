@@ -6,15 +6,7 @@ import (
 	"time"
 )
 
-// Standing is where a project stands, gathered from the meetings in it.
-//
-// This is the mechanical version of what PROJECTS.md describes: no model, no
-// judgement, only what the summaries already say, folded together so that the
-// same commitment made in three meetings is one line saying it was made three
-// times rather than three lines pretending to be different work.
-//
-// It is deliberately useful on its own. A project page that needs an API key to
-// show anything at all would be a page most days show nothing.
+// Standing is the mechanical project rollup built from stored meetings.
 type Standing struct {
 	Meetings  int       `json:"meetings"`
 	Hours     float64   `json:"hours"`
@@ -24,19 +16,14 @@ type Standing struct {
 	Decisions []Thread  `json:"decisions"`
 	Questions []Thread  `json:"questions"`
 	People    []Face    `json:"people"`
-	// One paragraph on where the project stands, and whether a model wrote it
-	// rather than the mechanical fold below.
+	// Whether a model-authored project document is available.
 	Status  string `json:"status"`
 	Written bool   `json:"written"`
-	// How many of these meetings the model has folded in. During a rebuild it
-	// climbs, which is the only honest progress bar available: the document
-	// itself counts what it has read.
+	// How many meetings the model-authored document has folded in so far.
 	Folded int `json:"folded"`
 }
 
-// A Thread is one thing the project's meetings keep saying: the text, how many
-// meetings said it, and where it was said last. Owner and Due are empty for
-// anything that is not a commitment.
+// Thread is one recurring line of work, one decision, or one open question.
 type Thread struct {
 	// The line's id in the kept document, or zero when this came from the fold.
 	Item   int       `json:"item"`
@@ -53,7 +40,7 @@ type Thread struct {
 	When   time.Time `json:"when"`
 }
 
-// A Face is somebody heard in the project, ever.
+// Face is somebody heard in the project.
 type Face struct {
 	Name     string    `json:"name"`
 	Seconds  float64   `json:"seconds"`
@@ -61,8 +48,7 @@ type Face struct {
 	Last     time.Time `json:"last"`
 }
 
-// Standing gathers a project. Recordings still being transcribed contribute
-// their people but not their summaries, which do not exist yet.
+// Standing gathers one project's current rollup.
 func (d *DB) Standing(group int64) (*Standing, error) {
 	rows, err := d.list(`WHERE r.folder = ? AND r.deleted IS NULL`, 1000, group)
 	if err != nil {
@@ -94,8 +80,7 @@ func (d *DB) Standing(group int64) (*Standing, error) {
 		}
 	}
 
-	// Open work first, and within that the thing that has been promised most
-	// often — which is the honest signal that nobody is doing it.
+	// Open work first, then the most frequently repeated items.
 	out.Work = work.sorted(func(a, b Thread) bool {
 		if a.Done != b.Done {
 			return !a.Done
@@ -118,11 +103,8 @@ func (d *DB) Standing(group int64) (*Standing, error) {
 		return nil, err
 	}
 
-	// Once the model has kept a document for this project, that is the answer:
-	// it deduplicates by talking about ids rather than by matching text, it
-	// carries decisions that were overturned, and it holds a paragraph saying
-	// where things stand. The fold above remains the answer for a project the
-	// model has never seen, and for anybody with no key at all.
+	// Prefer the model-maintained document when present; otherwise keep the
+	// mechanical rollup.
 	kept, err := d.Held(group)
 	if err != nil || kept == nil {
 		return out, nil
@@ -136,7 +118,7 @@ func (d *DB) Standing(group int64) (*Standing, error) {
 	return out, nil
 }
 
-// threads is the stored document in the shape the page already draws.
+// threads maps kept-document items into the page shape.
 func threads(items []Item) []Thread {
 	out := make([]Thread, 0, len(items))
 	for _, it := range items {
@@ -150,9 +132,7 @@ func threads(items []Item) []Thread {
 	return out
 }
 
-// folder collapses repeats. The key is the text with case and punctuation
-// removed, so "Узгодити ролі." and "узгодити ролі" are one commitment — which
-// is as far as this can go without a model, and further than showing both.
+// folder collapses repeats by a normalized text key.
 type folder map[string]*Thread
 
 func (f folder) add(text string, r Recording, index int, a Action) {
@@ -173,8 +153,8 @@ func (f folder) add(text string, r Recording, index int, a Action) {
 		f[k] = held
 	}
 	held.Times++
-	// The most recent mention wins: an owner or a due date named later is the
-	// one that stands, and a thing ticked off anywhere is done.
+	// The latest mention wins for owner/due metadata, and any completed mention
+	// marks the thread done.
 	if r.Started.After(held.When) {
 		held.Text, held.When, held.From, held.Index = text, r.Started, r.ID, index
 		held.Owner, held.Due = a.Owner, a.Due
@@ -191,7 +171,7 @@ func (f folder) sorted(less func(a, b Thread) bool) []Thread {
 	return out
 }
 
-// faces is everybody ever heard in a project, longest-heard first.
+// faces lists everybody heard in a project, longest-heard first.
 func (d *DB) faces(group int64) ([]Face, error) {
 	rows, err := d.sql.Query(`
 		SELECT t.speaker, SUM(t.finish - t.start), COUNT(DISTINCT t.recording), MAX(r.started)
@@ -216,18 +196,11 @@ func (d *DB) faces(group int64) ([]Face, error) {
 	return out, rows.Err()
 }
 
-// Moment finds where in a recording something was said, so a line of the
-// project document can open the meeting at the second rather than at the top.
-//
-// The document stores which meeting a line came from but not the moment inside
-// it — a summary's commitments carry no timestamps. The words are enough: the
-// transcript is already indexed, so the turn that best matches the line is one
-// query away. Nothing is invented; if no turn matches, the meeting opens at the
-// beginning, which is what it did before.
+// Moment finds roughly where in a recording a project line was said.
 func (d *DB) Moment(recording int64, text string) float64 {
 	words := strings.Fields(strings.Map(func(r rune) rune {
 		if strings.ContainsRune(`"'*()[]{}^:-`, r) {
-			return ' ' // FTS5 operators; a commitment is a phrase, not a query
+			return ' ' // strip FTS5 operators from summary text
 		}
 		return r
 	}, text))
@@ -239,8 +212,7 @@ func (d *DB) Moment(recording int64, text string) float64 {
 	}
 
 	var at float64
-	// OR rather than a phrase: the summary rewords what was said, so the turn
-	// that shares the most of these words is the one wanted.
+	// Use OR rather than a phrase because summaries often reword the transcript.
 	_ = d.sql.QueryRow(`
 		SELECT start FROM transcript
 		WHERE recording = ? AND transcript MATCH ?

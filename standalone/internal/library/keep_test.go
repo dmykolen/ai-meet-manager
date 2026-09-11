@@ -9,7 +9,7 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/store"
 )
 
-// recorded puts a file on disk and a row in the database that points at it.
+// recorded puts a file on disk and creates the matching row.
 func recorded(t *testing.T, db *store.DB, dir, name string, age time.Duration, status store.Status) store.Recording {
 	t.Helper()
 	if err := os.WriteFile(filepath.Join(dir, name), make([]byte, 4096), 0o644); err != nil {
@@ -57,8 +57,6 @@ func TestOldAudioGoesAndTheTranscriptStays(t *testing.T) {
 		t.Fatal("a recent recording was deleted")
 	}
 
-	// The row and everything derived from it survive; only the sound is gone,
-	// and the row says so rather than offering a play button that does nothing.
 	kept, err := db.Get(old.ID)
 	if err != nil {
 		t.Fatalf("the recording itself was deleted: %v", err)
@@ -72,8 +70,6 @@ func TestOldAudioGoesAndTheTranscriptStays(t *testing.T) {
 }
 
 func TestNothingIsDeletedBeforeItHasBeenRead(t *testing.T) {
-	// A recording that failed or is still queued is the one case where the
-	// audio is all there is.
 	db, dir := swept(t)
 	recorded(t, db, dir, "queued.wav", 90*24*time.Hour, store.Queued)
 	recorded(t, db, dir, "failed.wav", 90*24*time.Hour, store.Failed)

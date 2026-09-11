@@ -1,22 +1,4 @@
-// Experiment 16 — who is talking, measured against a reference that knows.
-//
-//	go run ./exp/16_speakers2
-//
-// The owner's complaint has two halves. The first was the clock, and experiment
-// 15 settled it. This is the second: even with the rows in the right place the
-// app puts the wrong name on them — 66% of words agree with the reference,
-// where three people are in the room and the reference finds all three.
-//
-// WhisperX ran pyannote on the same file and labelled every word. That is the
-// answer to score against, and the score is the honest one: lay both down on a
-// 100 ms grid over the speech, read each of our speakers as whichever of theirs
-// it most often coincides with, and count the frames that then agree.
-//
-// The sweep is over the three things that decide the answer — which model finds
-// the boundaries, which model describes a voice, and how alike two stretches
-// must be to be one person — plus a row with the number of speakers given away,
-// which is not a shippable setting but says how much of the error is choosing
-// the wrong number of people rather than the wrong people.
+// Experiment 16 scores speaker attribution against a timed reference.
 package main
 
 import (

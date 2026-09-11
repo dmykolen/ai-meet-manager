@@ -1,34 +1,4 @@
-// Experiment 11 — better speakers: which segmentation, which embedding, which
-// channel.
-//
-//	go run ./exp/11_speakers 74
-//
-// The owner's complaint, in his own words: at 3:04-4:56 and 5:00-6:12 the
-// speaker was Сергій, whom the app has never been introduced to, and at
-// 4:56-4:59 it was Diatlenko Bohdan, whom it has. The app labels all three as
-// Diatlenko Bohdan — a stranger folded into somebody enrolled, which is the one
-// mistake internal/engine/diarize.go says must never happen.
-//
-// Three things could move that, and this measures all three against
-// exp/truth/74.txt rather than against an opinion:
-//
-//	segmentation  pyannote-3.0 is what ships. Rev's reverb-diarization-v2 is
-//	              the same architecture fine-tuned on far more data. NOTE: its
-//	              licence is non-production, so this is a measurement of what is
-//	              possible, not a proposal to ship it.
-//	embedding     wespeaker CAM++ is what ships and is trained on English
-//	              VoxCeleb. 3D-Speaker's campplus is trained on Chinese AND
-//	              English; ERes2NetV2 is a newer architecture entirely. Neither
-//	              has seen Ukrainian, but neither has the incumbent.
-//	channel       the mixed mono is what ships. The tap alone holds only the
-//	              remote people — the owner is on the microphone, known by
-//	              construction — so clustering it is a strictly smaller problem.
-//
-// Scored on what the owner actually asked for, not on DER:
-//
-//	purity        in each window he named, what share one label holds
-//	consistency   do his two Сергій windows agree with each other
-//	separation    is the Diatlenko window a different label from Сергій's
+// Experiment 11 compares diarization setups against a speaker reference.
 package main
 
 import (

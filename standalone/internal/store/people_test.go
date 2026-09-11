@@ -7,8 +7,7 @@ import (
 	"testing"
 )
 
-// voice makes a repeatable vector that is close to itself and far from the
-// others, which is the only property any of this depends on.
+// voice makes a repeatable test vector.
 func voice(seed uint64, drift float64) []float32 {
 	r := rand.New(rand.NewPCG(seed, 7))
 	noise := rand.New(rand.NewPCG(seed+999, 11))
@@ -39,7 +38,6 @@ func TestARememberedVoiceIsRecognisedInTheNextMeeting(t *testing.T) {
 		t.Fatalf("people %+v err %v", people, err)
 	}
 
-	// The same person again, recorded a little differently.
 	names := Recognise(map[string][]float32{
 		"SPEAKER_00": voice(1, 0.25),
 		"SPEAKER_01": voice(2, 0),
@@ -60,8 +58,6 @@ func TestOnePersonIsNotGivenTwoSeatsAtTheTable(t *testing.T) {
 	}
 	people, _ := db.People()
 
-	// Two labels that both sound like Olena — a diarizer splitting one person
-	// in half, which happens. Only the better match may take the name.
 	names := Recognise(map[string][]float32{
 		"SPEAKER_00": voice(3, 0.2),
 		"SPEAKER_01": voice(3, 0.4),
@@ -105,8 +101,6 @@ func TestVoicesTravelWithARename(t *testing.T) {
 	if err := db.Rename(r.ID, "SPEAKER_00", "Serhii"); err != nil {
 		t.Fatal(err)
 	}
-	// Renaming again must still find it, which is what moving it under the new
-	// label buys.
 	if got := db.VoiceIn(r.ID, "Serhii"); len(got) == 0 {
 		t.Fatal("the voiceprint did not follow the rename")
 	}
@@ -126,9 +120,7 @@ func TestCosineSeparatesAVoiceFromAStranger(t *testing.T) {
 	}
 }
 
-// The prints and their sources are two arrays that have to be cut in the same
-// place. If they drift, the app plays back the wrong meeting when somebody asks
-// what a saved sample sounds like — which is worse than not offering it at all.
+// Prints and sources must be trimmed in lockstep.
 func TestASampleKeepsTrackOfWhereItCameFrom(t *testing.T) {
 	db := openDB(t)
 	for i := range Keep + 5 {
@@ -151,8 +143,6 @@ func TestASampleKeepsTrackOfWhereItCameFrom(t *testing.T) {
 			t.Fatalf("sample %d has no source", i)
 		}
 	}
-	// The most recent sample is always kept: crowded drops a near-duplicate,
-	// never the arrival.
 	newest := int64(Keep + 5)
 	found := false
 	for _, src := range p.Sources {
@@ -165,14 +155,12 @@ func TestASampleKeepsTrackOfWhereItCameFrom(t *testing.T) {
 	}
 }
 
-// A person enrolled before sources existed has prints and no sources. Adding
-// one more must not shift every source onto the wrong print.
+// Adding a source must not shift legacy source-free samples.
 func TestAnOlderPersonWithoutSourcesIsPaddedNotShifted(t *testing.T) {
 	db := openDB(t)
 	if err := db.Remember("Serhii", voice(11, 0), Source{}); err != nil {
 		t.Fatal(err)
 	}
-	// Simulate the pre-sources row: prints kept, sources emptied.
 	if _, err := db.sql.Exec(`UPDATE people SET sources = '[]' WHERE name = 'Serhii'`); err != nil {
 		t.Fatal(err)
 	}
@@ -189,10 +177,7 @@ func TestAnOlderPersonWithoutSourcesIsPaddedNotShifted(t *testing.T) {
 	}
 }
 
-// The clusterer is set to split too eagerly, because no single threshold suits
-// both a meeting of two and a meeting of six. Two clusters that are the same
-// enrolled person have to come back together, or every meeting arrives with
-// twice as many speakers as it had.
+// Split clusters of one enrolled person must be rejoined.
 func TestTwoClustersOfOneKnownVoiceAreRejoined(t *testing.T) {
 	db := openDB(t)
 	if err := db.Remember("Olena", voice(7, 0), Source{Recording: 1, Speaker: "Olena"}); err != nil {
@@ -200,7 +185,6 @@ func TestTwoClustersOfOneKnownVoiceAreRejoined(t *testing.T) {
 	}
 	people, _ := db.People()
 
-	// Two labels that are both her, and one that is nobody the app knows.
 	prints := map[string][]float32{
 		"SPEAKER_00": voice(7, 0.04),
 		"SPEAKER_02": voice(7, 0.09),
@@ -220,7 +204,7 @@ func TestTwoClustersOfOneKnownVoiceAreRejoined(t *testing.T) {
 	}
 }
 
-// Somebody the app has not been introduced to must stay their own speaker.
+// Unknown voices must stay distinct.
 func TestStrangersAreNotFoldedTogether(t *testing.T) {
 	db := openDB(t)
 	_ = db.Remember("Olena", voice(7, 0), Source{Recording: 1, Speaker: "Olena"})
@@ -235,9 +219,7 @@ func TestStrangersAreNotFoldedTogether(t *testing.T) {
 	}
 }
 
-// Merging on "both resemble Olena" alone is what turned a six-voice meeting
-// into two, because at Match several different people in one room clear the bar
-// for whoever they resemble most. Two clusters have to sound like each other.
+// Resembling the same enrolled person is not enough to merge clusters.
 func TestTwoDifferentVoicesAreNotMergedJustForResemblingTheSamePerson(t *testing.T) {
 	db := openDB(t)
 	// Enrol somebody with a broad enough set of samples to resemble both.

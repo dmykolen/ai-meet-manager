@@ -1,34 +1,6 @@
 //go:build speex
 
-// Experiment 5 — align the two channels first, then cancel.
-//
-//	go run ./exp/05_aligned "$HOME/MeetingTranscriber/recordings/meeting 2026-09-09 11-58.wav"
-//
-// Experiment 4 found the thing every previous attempt missed. The delay between
-// the microphone and the system tap is not 0 to 250 ms of room spread and it is
-// not drifting: it is a steady MINUS 215 ms across the whole recording. The
-// microphone holds the far side *before* the tap channel does.
-//
-// Acoustically that cannot happen — sound has to be played before a room can
-// hear it. What it means is that the two channels are not aligned in the file:
-// audiotee's system-audio stream is written about 215 ms later than the
-// microphone it is interleaved with. The recording is correct in every other
-// way; the two halves simply do not line up in time.
-//
-// That single fact explains every failure so far. An echo canceller models a
-// causal impulse response — it can only look forward from the reference — so an
-// echo sitting 215 ms *behind* the reference is outside the model entirely.
-// SpeexDSP removed 0.0 dB. The app's own NLMS removed 0.0 dB. Neither was
-// broken; both were shown a reference that arrives after the echo it explains.
-//
-// It also means one of my own earlier "fixes" made this worse. Seeing align()
-// answer -230 ms, I decided a negative delay was a search artefact and forbade
-// it. The -230 ms was the measurement being right and me being wrong.
-//
-// So: shift the tap earlier, then cancel. This sweeps the shift so the number
-// is measured rather than assumed, and prints echo return loss at each one.
-// A canceller that was removing nothing should start removing a great deal at
-// the correct shift, and nothing again on either side of it.
+// Experiment 5 aligns the channels before echo cancellation.
 package main
 
 /*

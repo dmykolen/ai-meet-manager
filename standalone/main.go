@@ -1,9 +1,4 @@
-// Command mt is Meeting Transcriber: one binary that records meetings, writes
-// them down, works out who said what, and summarises them.
-//
-// Nothing here talks to a server. The models run on this machine; the only
-// thing that leaves it is the text of a meeting, and only when there is a key
-// to send it with.
+// Command mt runs the standalone Meeting Transcriber desktop app.
 package main
 
 import (
@@ -36,32 +31,24 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-// sound serves the recordings folder at /audio/<file>, so a transcript can be
-// listened to while it is read.
-//
-// http.ServeFile rather than reading the file ourselves, because it answers
-// range requests — which is what lets an audio element seek an hour-long file
-// instead of downloading 230 MB before it will play a note.
+// sound serves playback files under /audio/<file>.
 func sound(dir, cache string) application.Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// net/http has already decoded the path, so unescaping again here
-			// would corrupt any name containing a per-cent sign.
+			// net/http has already decoded the path.
 			name, is := strings.CutPrefix(r.URL.Path, "/audio/")
 			if !is {
 				next.ServeHTTP(w, r)
 				return
 			}
-			// The name comes from the database, but it reaches us through the
-			// webview, so it is checked rather than trusted. Base of itself
-			// means no directory anywhere in it, "..", "/" and all.
+			// Playback filenames still come through the webview, so keep them to
+			// a single basename.
 			if name == "" || name != filepath.Base(name) {
 				http.NotFound(w, r)
 				return
 			}
-			// Folded to mono first. The raw file has the far side twice over —
-			// once from the tap and once through the room — and playing that
-			// back is an echo on every sentence somebody else said.
+			// Serve the folded mono cache when available; raw stereo app files
+			// replay the far side twice.
 			listen, err := media.Listenable(filepath.Join(dir, name), cache)
 			if err != nil {
 				slog.Warn("playing the raw recording", "file", name, "err", err)
@@ -72,10 +59,7 @@ func sound(dir, cache string) application.Middleware {
 }
 
 func main() {
-	// The log is opened here, not in run, because run's defers have already
-	// closed everything by the time it returns — which meant that the one
-	// message worth having, the reason the app would not start, was written to
-	// a closed file and lost. Found by an app that exited 1 in silence.
+	// Open the log before run(); startup failures still need somewhere to go.
 	dir, err := home.Dir()
 	if err == nil {
 		if logs, err := os.OpenFile(filepath.Join(home.Logs(dir), "mt.log"),
@@ -100,8 +84,7 @@ func run() error {
 		return err
 	}
 	slog.Info("starting", "folder", dir)
-	// Where the decoders the app downloaded live, so a machine with an ancient
-	// ffmpeg on its PATH does not get to decide what this app can open.
+	// Use app-managed decoder tools, not whatever happens to be on PATH.
 	media.Tools = models.Tools(home.Models(dir))
 
 	cfg, err := home.Load(dir)
@@ -118,27 +101,21 @@ func run() error {
 	}
 	defer db.Close()
 
-	// Voiceprints saved before they carried a source are matched back to the
-	// meetings they came from, so a sample can be played rather than taken on
-	// trust. Does nothing on every start after the first.
+	// Backfill provenance for older saved voiceprints once.
 	if err := db.Trace(); err != nil {
 		slog.Warn("could not trace where the saved voices came from", "err", err)
 	}
 
-	// The models are fetched and loaded behind the window rather than in front
-	// of it: the app appears at once and says what it is doing, instead of
-	// spending the first two minutes of its life as a bouncing icon.
+	// Fetch and load models behind the window.
 	setup := service.NewSetup(home.Models(dir))
-	// Parakeet is 670 MB and is not the default; it is downloaded only once
-	// somebody has chosen it in the settings.
+	// Only fetch Parakeet when the setting asks for it.
 	setup.Want(models.Optional(cfg.Transcriber))
 	lib := library.New(db, nil, insights.New(cfg.OpenAIKey, cfg.OpenAIModel, cfg.Language), home.Recordings(dir))
 	lib.Policy(store.When(cfg.Summarise))
 	lib.Owner(cfg.Me)
 	meetings := service.New(db, lib, dir, cfg)
 
-	// Anything left half-written when the app last died holds no readable
-	// audio, and should be reported rather than left to puzzle somebody.
+	// Stale partial WAVs are not recoverable.
 	listen.Recover(home.Recordings(dir))
 
 	go func() {
@@ -162,9 +139,7 @@ func run() error {
 		slog.Info("models ready")
 		lib.Use(e)
 
-		// The listener needs one of the same models, so it starts here rather
-		// than at launch. It runs alongside the queue: transcribing a finished
-		// meeting must never stop the app hearing the next one.
+		// The listener shares loaded models and still runs beside the queue.
 		ears := listen.New(home.Recordings(dir),
 			models.Path(home.Models(dir), models.Speech), cfg.Listen,
 			func(path string, kind store.Kind, started time.Time) {
@@ -177,8 +152,7 @@ func run() error {
 					slog.Warn("could not record what was discarded", "err", err)
 				}
 			},
-			// The live transcript. One utterance at a time through the same
-			// Whisper the queue uses, which is why the queue steps aside below.
+			// One live utterance at a time through the same ASR the queue uses.
 			func(samples []float32) (string, error) {
 				turns, err := e.Transcribe(samples)
 				if err != nil {
@@ -190,20 +164,15 @@ func run() error {
 				}
 				return strings.TrimSpace(strings.Join(said, " ")), nil
 			},
-			// How the listener tells one voice from another when it has only
-			// the microphone to go on. The same embedder the speaker models
-			// use, so "a different person" means the same thing everywhere.
+			// Reuse the speaker embedder when mic-only company detection needs it.
 			e.Print)
 		meetings.Listener(ears)
 		go ears.Run(ctx)
 
-		// Transcribing yesterday's meeting takes every core the machine has. Do
-		// it while today's is being recorded and the fans come on during the
-		// call, the live transcript falls minutes behind, and both jobs are
-		// worse. The queue waits; nothing is lost but a few minutes.
+		// Let live capture win CPU over backlog transcription.
 		lib.Wait(ears.Recording)
 
-		// Old audio goes on a schedule the settings own. Transcripts stay.
+		// Retention only affects audio files.
 		go lib.Tidy(ctx.Done(), func() int { return meetings.Settings().KeepAudioDays })
 
 		lib.Run(ctx)

@@ -12,9 +12,7 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/audio"
 )
 
-// Writer streams frames into one WAV file. The header is patched on Close, so a
-// recording that is killed mid-way leaves a file with a zero length rather than
-// a corrupt one.
+// Writer streams frames into one WAV file.
 type Writer struct {
 	path     string
 	file     *os.File
@@ -25,7 +23,7 @@ type Writer struct {
 	closeErr error
 }
 
-// Create opens a recording. The caller must Close it to get a valid file.
+// Create opens a recording.
 func Create(path string) (*Writer, error) {
 	file, err := os.Create(path)
 	if err != nil {
@@ -35,9 +33,7 @@ func Create(path string) (*Writer, error) {
 		path: path,
 		file: file,
 		enc:  wav.NewEncoder(file, audio.SampleRate, 16, 2, 1),
-		// One buffer, reused for every frame: the encoder copies what it needs
-		// and does not hold on to it, and a three-hour meeting is a lot of
-		// allocations to make for nothing.
+		// Reuse one buffer for every frame.
 		buf: &goaudio.IntBuffer{
 			Format:         &goaudio.Format{NumChannels: 2, SampleRate: audio.SampleRate},
 			SourceBitDepth: 16,
@@ -64,9 +60,7 @@ func (w *Writer) Duration() time.Duration {
 	return time.Duration(w.samples) * time.Second / audio.SampleRate
 }
 
-// Rename moves the finished file. A recording that started as a note and turned
-// out to have somebody on the other end has to change its name before the
-// uploader reads the kind back out of it.
+// Rename moves the finished file.
 func (w *Writer) Rename(to string) error {
 	if to == w.path {
 		return nil
@@ -78,8 +72,7 @@ func (w *Writer) Rename(to string) error {
 	return nil
 }
 
-// Close patches the header and is safe to call twice, so a caller can close
-// explicitly to check the error and still defer a close for the failure paths.
+// Close patches the header and is safe to call twice.
 func (w *Writer) Close() error {
 	w.closed.Do(func() {
 		if err := w.enc.Close(); err != nil {

@@ -7,11 +7,7 @@ import (
 	"time"
 )
 
-// Two meetings a few minutes apart used to share the minutes between them: the
-// second one's five-minute preroll replayed audio the first one had already
-// been filed with. One overlap, three faults — the same commitment summarised
-// twice, two library rows for one conversation, and both rows pointing at one
-// file because the name carries the start time to the minute.
+// Preroll must stop at the previous recording boundary.
 func TestPrerollStopsWhereTheLastRecordingEnded(t *testing.T) {
 	now := time.Now()
 	preroll := 5 * time.Minute
@@ -27,8 +23,7 @@ func TestPrerollStopsWhereTheLastRecordingEnded(t *testing.T) {
 	}
 }
 
-// The stamp is minute-resolution. Capping the preroll makes a collision rare;
-// this is what makes it impossible.
+// Finished recordings must never reuse an existing filename.
 func TestAFinishedRecordingNeverOverwritesAnother(t *testing.T) {
 	dir := t.TempDir()
 	taken := filepath.Join(dir, "meeting 2026-09-08 17-50.wav")

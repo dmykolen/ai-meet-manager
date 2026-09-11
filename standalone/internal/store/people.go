@@ -10,33 +10,16 @@ import (
 	"strings"
 )
 
-// Keep is how many voiceprints one person may accumulate.
-//
-// Not one: a headset and a laptop microphone are measurably different voices.
-// Not unbounded: matching takes the *best* sample, so every extra one can only
-// make a false positive likelier. The cost is not arithmetic — fifty people at
-// ten samples is under a millisecond.
+// Keep is the per-person cap on stored voiceprints.
 const Keep = 10
 
-// Match is how close two voiceprints have to be to be called the same person.
-//
-// Higher than the 0.9 the diarizer clusters at, because the cost of being wrong
-// is different: mislabelling two speakers inside one meeting is visible and
-// correctable, but putting a colleague's name on a stranger's words in the
-// Library is worse than leaving them as SPEAKER_01.
+// Match is the recognition threshold against enrolled people.
 const Match = 0.55
 
-// Rejoin is how alike two clusters of one recording have to be before they are
-// called the same person and put back together.
-//
-// Well above Match, and for a different reason: Match asks "could this be
-// Olena", which several people in a room can answer yes to, while this asks
-// "are these two the same voice". Two recordings of one person sit around 0.7
-// and two different people near 0, so this sits just under the first.
+// Rejoin is the stricter threshold for merging two clusters from one recording.
 const Rejoin = 0.75
 
-// A Person is somebody the app has been told the name of, and the voiceprints
-// it has collected for them since.
+// Person is an enrolled speaker with saved voiceprints.
 type Person struct {
 	ID          int64       `json:"id"`
 	Name        string      `json:"name"`
@@ -47,9 +30,7 @@ type Person struct {
 	Sources     []Source    `json:"sources"`
 }
 
-// A Source is where one voiceprint was taken from. Without it a saved sample is
-// a vector nobody can examine; with it, "this is what I think Olena sounds
-// like" is one click from being played and disagreed with.
+// Source is where one voiceprint was taken from.
 type Source struct {
 	Recording int64   `json:"recording"`
 	Speaker   string  `json:"speaker"`
@@ -59,7 +40,7 @@ type Source struct {
 	Finish    float64 `json:"finish"`
 }
 
-// People is everybody enrolled, most heard first.
+// People lists enrolled speakers.
 func (d *DB) People() ([]Person, error) {
 	rows, err := d.sql.Query(`
 		SELECT p.id, p.name, p.voiceprints, p.colour, p.sources,
@@ -88,13 +69,7 @@ func (d *DB) People() ([]Person, error) {
 	return people, rows.Err()
 }
 
-// Remember files another sample of a voice under a name, so that recognition
-// improves every time somebody is named rather than staying as good as the
-// first thirty seconds it ever heard.
-//
-// The source travels with the sample. A voiceprint on its own is 512 numbers
-// nobody can check; with the meeting and the moment it came from, the claim
-// "this is Olena" can be played back and disagreed with.
+// Remember files another sample of a voice under a name.
 func (d *DB) Remember(name string, print []float32, from Source) error {
 	if name == "" || len(print) == 0 {
 		return errors.New("nothing to remember")
@@ -142,20 +117,14 @@ func (d *DB) Remember(name string, print []float32, from Source) error {
 	return err
 }
 
-// Paint sets a person's colour, or clears it back to the derived one.
-//
-// Derived from the name means Olena is the same colour in every meeting without
-// anybody choosing; this is for when the owner already pictures somebody in a
-// particular colour and the derivation disagrees.
+// PaintPerson sets or clears a person's explicit colour.
 func (d *DB) PaintPerson(name, colour string) error {
 	_, err := d.sql.Exec(`UPDATE people SET colour = ? WHERE name = ?`,
 		strings.TrimSpace(colour), name)
 	return err
 }
 
-// Sample is the moment a voiceprint was taken from, filled in with the meeting
-// title and the longest thing that person said in it — which is the stretch
-// worth listening to when checking whether the app has the right voice.
+// Sample fills in the best playback span for a saved source.
 func (d *DB) Sample(from Source) (Source, bool) {
 	if from.Recording == 0 {
 		return from, false
@@ -178,15 +147,10 @@ func (d *DB) Sample(from Source) (Source, bool) {
 	return from, true
 }
 
-// SaveVoices keeps this recording's voiceprints, one per speaker label as the
-// transcript shows it. They are what makes naming a speaker afterwards teach
-// the app a voice rather than only relabel four hundred rows.
-// An empty map is written, not skipped. These are this recording's voices as
-// of now, and a transcription that found none has to say so: transcribing again
-// renumbers the clusters, so prints left over from the previous run are keyed to
-// labels that belong to different people. Naming a speaker then enrols the
-// wrong voice, and every later meeting inherits the mistake.
+// SaveVoices keeps this recording's current speaker voiceprints.
 func (d *DB) SaveVoices(recording int64, prints map[string][]float32) error {
+	// Even an empty map must be written; retranscription can renumber clusters,
+	// so stale labels would poison later renames.
 	if prints == nil {
 		prints = map[string][]float32{}
 	}
@@ -198,8 +162,7 @@ func (d *DB) SaveVoices(recording int64, prints map[string][]float32) error {
 	return err
 }
 
-// VoiceIn is the voiceprint of one speaker in one recording, or nil when that
-// speaker said too little to have one.
+// VoiceIn returns one speaker's voiceprint in one recording.
 func (d *DB) VoiceIn(recording int64, speaker string) []float32 {
 	var raw sql.NullString
 	if err := d.sql.QueryRow(`SELECT voices FROM recordings WHERE id = ?`, recording).Scan(&raw); err != nil {
@@ -212,22 +175,13 @@ func (d *DB) VoiceIn(recording int64, speaker string) []float32 {
 	return prints[speaker]
 }
 
-// Forget removes a person entirely, which is the only way to undo a name that
-// was given to the wrong voice.
+// Forget removes a person entirely.
 func (d *DB) Forget(name string) error {
 	_, err := d.sql.Exec(`DELETE FROM people WHERE name = ?`, name)
 	return err
 }
 
-// crowded names the voiceprint that teaches the least — the sample nearest
-// another sample, since a near-duplicate adds nothing that its twin did not
-// already say. Ties drop the older of the pair, so a fresh sample displaces the
-// stale twin and somebody who changed headset is learnt again instead of being
-// remembered as they sounded on day one.
-//
-// It returns an index rather than a filtered slice because each print now has a
-// source beside it, and the two arrays have to be cut in the same place.
-// Returns -1 when there is still room.
+// crowded returns the least useful sample to drop, or -1 when there is room.
 func crowded(samples [][]float32) int {
 	if len(samples) <= Keep {
 		return -1
@@ -246,12 +200,7 @@ func crowded(samples [][]float32) int {
 	return twin
 }
 
-// Recognise pairs the voiceprints of one recording with the people already
-// enrolled: best match first, and one label per person.
-//
-// Greedy rather than optimal. The alternative is the Hungarian algorithm for a
-// problem that is almost always three voices against five names, where the two
-// agree, and where being wrong is one click to correct.
+// Recognise pairs one recording's voiceprints with enrolled people.
 func Recognise(prints map[string][]float32, people []Person) map[string]string {
 	type pair struct {
 		label string
@@ -285,8 +234,7 @@ func Recognise(prints map[string][]float32, people []Person) map[string]string {
 	return names
 }
 
-// Cosine is the similarity of two voiceprints, in -1..1. Two recordings of the
-// same person sit around 0.7; two different people sit near 0.
+// Cosine is the similarity of two voiceprints in -1..1.
 func Cosine(a, b []float32) float64 {
 	if len(a) != len(b) || len(a) == 0 {
 		return -1
@@ -303,23 +251,14 @@ func Cosine(a, b []float32) float64 {
 	return dot / (math.Sqrt(na) * math.Sqrt(nb))
 }
 
-// RawVoices is the stored voiceprints of a recording, as written. Only the
-// probe in this package's cmd uses it.
+// RawVoices returns a recording's stored voiceprints as written.
 func (d *DB) RawVoices(recording int64) string {
 	var raw sql.NullString
 	_ = d.sql.QueryRow(`SELECT voices FROM recordings WHERE id = ?`, recording).Scan(&raw)
 	return raw.String
 }
 
-// Trace fills in where existing voiceprints came from.
-//
-// Sources were added after people had already been enrolled, so the samples
-// already saved are bare vectors. They are not lost, though: the identical
-// vector is still sitting in some recording's `voices`, which is where it was
-// copied from. Matching them back is exact — the same float32s, not a
-// similarity — so a sample either finds its meeting or honestly has none.
-//
-// Runs once and then does nothing, because after it every source is filled.
+// Trace backfills source metadata for older saved voiceprints.
 func (d *DB) Trace() error {
 	people, err := d.People()
 	if err != nil {
@@ -393,8 +332,7 @@ func (d *DB) Trace() error {
 	return nil
 }
 
-// same is exact equality, not similarity: these are copies of one another or
-// they are unrelated.
+// same is exact equality, not similarity.
 func same(a, b []float32) bool {
 	if len(a) != len(b) || len(a) == 0 {
 		return false
@@ -407,9 +345,7 @@ func same(a, b []float32) bool {
 	return true
 }
 
-// Appearances is the projects one person has been heard in, most meetings
-// first. Unfiled meetings are counted under the zero group, so somebody who
-// only ever appears outside a project still says so.
+// Appearances lists the groups one person has been heard in.
 func (d *DB) Appearances(name string) ([]Group, error) {
 	rows, err := d.sql.Query(`
 		SELECT COALESCE(g.id, 0), COALESCE(g.name, ''), COALESCE(g.colour, ''),
@@ -435,16 +371,7 @@ func (d *DB) Appearances(name string) ([]Group, error) {
 	return out, rows.Err()
 }
 
-// Same rejoins the labels of one recording that belong to one enrolled person.
-// This is what lets the clusterer split too eagerly: splitting is recoverable
-// here, merging two people never is.
-//
-// Labels matching nobody are left alone — a stranger stays their own speaker.
-//
-// Resembling the same person is necessary but not sufficient. At Match alone,
-// several genuinely different people clear the bar for whoever they resemble
-// most, and a six-voice meeting came back as two with the owner folded in. So
-// the clusters must also sound like each other.
+// Same rejoins labels from one recording that likely belong to one person.
 func Same(prints map[string][]float32, people []Person) map[string]string {
 	best := map[string]struct {
 		who   string

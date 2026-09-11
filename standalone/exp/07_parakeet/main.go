@@ -1,22 +1,4 @@
-// Experiment B — Parakeet instead of Whisper.
-//
-//	go run ./exp/07_parakeet 74
-//
-// Whisper loops because it is autoregressive: it predicts the next token from
-// the ones before it, so a phrase it has already emitted makes the same phrase
-// likelier next time. Parakeet is a transducer trained with CTC-style
-// alignment; there is no free-running language model to fall into a groove, so
-// it structurally cannot produce nine copies of "Данію." in nine seconds.
-//
-// What it can do instead is decide the meeting is in a different language.
-// Measured before on three minutes of a real Ukrainian meeting: Whisper found
-// 320 Ukrainian words, Parakeet 161 Russian ones, and Parakeet picks the
-// language itself and cannot be told. That is the trade this experiment has to
-// price, so it prints both the repetition count and the alphabet the words came
-// out in.
-//
-// Both engines are given exactly the audio the app gives them today, so the
-// comparison is about the models and not about the mixing.
+// Experiment 7 compares Parakeet with Whisper on the same audio.
 package main
 
 import (

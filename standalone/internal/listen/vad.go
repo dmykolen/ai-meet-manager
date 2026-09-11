@@ -8,19 +8,14 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/audio"
 )
 
-// Ears is one channel's answer to "is somebody talking right now".
-//
-// Silero rather than WebRTC's: WebRTC's finds silence and is weak on music, and
-// ignoring sounds that are not a conversation is the whole job. Through
-// sherpa-onnx, already linked for the speaker models, which also carries the
-// context Silero needs — fed a bare 512-sample hop it scores real speech 0.003.
+// Ears answers whether one channel currently contains speech.
 type Ears struct {
 	vad     *sherpa.VoiceActivityDetector
 	samples []float32
 }
 
-// Listen loads the detector. One per channel: the model is recurrent, so the
-// microphone and the system audio each need their own.
+// Listen loads one detector. The microphone and system channels each need
+// their own instance.
 func Listen(model string) (*Ears, error) {
 	cfg := &sherpa.VadModelConfig{
 		SampleRate: audio.SampleRate,
@@ -30,18 +25,14 @@ func Listen(model string) (*Ears, error) {
 	cfg.SileroVad.Model = model
 	cfg.SileroVad.Threshold = 0.5
 	cfg.SileroVad.WindowSize = audio.FrameSize
-	// Shorter than sherpa's own defaults on purpose. This is not the thing that
-	// decides a meeting is over — the detector's own quiet period does that,
-	// and it is measured in minutes. All that is wanted here is a per-frame
-	// answer that does not flicker between words.
+	// These are only per-frame speech gates; meeting-end timing lives higher up.
 	cfg.SileroVad.MinSpeechDuration = 0.1
 	cfg.SileroVad.MinSilenceDuration = 0.25
-	// Long, because a segment ending is of no interest: nothing reads the
-	// segments, only whether speech is happening.
+	// Segment endings are unimportant here; callers only need speech state and
+	// completed utterances.
 	cfg.SileroVad.MaxSpeechDuration = 60
 
-	// One second of buffer. The segments it collects are dropped on every
-	// frame, so this only has to be larger than one hop.
+	// One second of buffer is enough because segments are drained every frame.
 	vad := sherpa.NewVoiceActivityDetector(cfg, 1)
 	if vad == nil {
 		return nil, fmt.Errorf("could not load the speech detector from %s", model)
@@ -49,13 +40,8 @@ func Listen(model string) (*Ears, error) {
 	return &Ears{vad: vad, samples: make([]float32, audio.FrameSize)}, nil
 }
 
-// Speaking reports whether this frame is inside speech, and hands back any
-// utterance that finished on it. The frame must be exactly audio.FrameSize
-// samples, which every buffer in this package is built from in the first place.
-//
-// The utterance is the reason the detector earns its keep twice: the same pass
-// that decides a meeting is happening also cuts the audio at the places a
-// person stopped talking, which is exactly what a transcriber wants to be fed.
+// Speaking reports whether this frame is inside speech and returns any
+// utterances that finished on it.
 func (e *Ears) Speaking(frame []int16) (bool, []Utterance, error) {
 	if len(frame) != audio.FrameSize {
 		return false, nil, fmt.Errorf("vad: got %d samples, want %d", len(frame), audio.FrameSize)
@@ -78,14 +64,13 @@ func (e *Ears) Speaking(frame []int16) (bool, []Utterance, error) {
 	return e.vad.IsSpeech(), done, nil
 }
 
-// An Utterance is one stretch of somebody talking, cut where they stopped.
+// Utterance is one stretch of speech, cut where it stopped.
 type Utterance struct {
 	At      float64 // seconds from when this detector started listening
 	Samples []float32
 }
 
-// Forget drops the conversation so far, so that the tail of one recording
-// cannot colour the start of the next.
+// Forget resets detector history between recordings.
 func (e *Ears) Forget() { e.vad.Reset() }
 
 func (e *Ears) Close() { sherpa.DeleteVoiceActivityDetector(e.vad) }

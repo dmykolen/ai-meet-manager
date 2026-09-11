@@ -119,8 +119,7 @@ func (d *DB) AcceptSummary(id int64, before, after *Summary) error {
 	return nil
 }
 
-// EditAction changes only the selected JSON item, preserving concurrent checks
-// and the rest of the summary. A negative index appends a manual commitment.
+// EditAction changes one stored action item, or appends one when index < 0.
 func (d *DB) EditAction(id int64, index int, a Action) error {
 	a.Task = strings.TrimSpace(a.Task)
 	if a.Task == "" {

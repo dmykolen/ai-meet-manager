@@ -6,16 +6,14 @@ import (
 	"time"
 )
 
-// fake stands in for a capture device. The mixer under test is the real one —
-// stubbing the mixer would hide exactly the bug worth catching, since its whole
-// job is reconciling two clocks that never agree.
+// fake stands in for one capture device.
 type fake struct{ out chan []int16 }
 
 func newFake() *fake                    { return &fake{out: make(chan []int16, 256)} }
 func (f *fake) Samples() <-chan []int16 { return f.out }
 func (f *fake) Close() error            { return nil }
 
-// send pushes n samples all of value v, in FrameSize blocks.
+// send pushes n samples of value v in FrameSize blocks.
 func (f *fake) send(v int16, n int) {
 	for sent := 0; sent < n; sent += FrameSize {
 		block := make([]int16, min(FrameSize, n-sent))
@@ -66,8 +64,6 @@ func TestChannelsLandOnTheirOwnSides(t *testing.T) {
 }
 
 func TestASilentSystemChannelDoesNotStallTheMicrophone(t *testing.T) {
-	// The case that matters on a machine with no tap, and during the ~1.5 s the
-	// macOS tap needs to warm up: the microphone must keep flowing regardless.
 	mic, sys := newFake(), newFake()
 	stream := newStream(context.Background(), mic, sys)
 	defer stream.Close()
@@ -87,8 +83,6 @@ func TestASilentSystemChannelDoesNotStallTheMicrophone(t *testing.T) {
 }
 
 func TestSystemAudioRunningAheadIsTrimmedNotAccumulated(t *testing.T) {
-	// Two clocks drift. If the faster one were simply queued, the right channel
-	// would slide further behind the left for as long as the meeting lasts.
 	mic, sys := newFake(), newFake()
 	stream := newStream(context.Background(), mic, sys)
 	defer stream.Close()
@@ -100,10 +94,6 @@ func TestSystemAudioRunningAheadIsTrimmedNotAccumulated(t *testing.T) {
 	if len(frames) < 4 {
 		t.Fatalf("got %d frames, want 4", len(frames))
 	}
-	// What matters is that the right channel is still live after the trim, not
-	// which samples survived: dropping the oldest is the point. Only the first
-	// frame is checked, because the bound is deliberately small — a backlog
-	// that outlives it is the audible echo this trim exists to prevent.
 	for i := 1; i < len(frames[0]); i += 2 {
 		if frames[0][i] != -1 {
 			t.Fatalf("right went dead immediately after the trim: %d", frames[0][i])
@@ -112,13 +102,6 @@ func TestSystemAudioRunningAheadIsTrimmedNotAccumulated(t *testing.T) {
 }
 
 func TestTheSystemChannelIsNeverHeldLongEnoughToEcho(t *testing.T) {
-	// The bug this bound exists for: the backlog used to be half a second and
-	// was only ever trimmed at the bound, so it sat just under it for the whole
-	// meeting. Anybody without headphones heard every remote sentence twice.
-	//
-	// Thirty to forty milliseconds is where a delayed copy stops being heard as
-	// part of the same sound, and one frame is the floor below which the system
-	// channel would starve. The bound has to sit between them.
 	if held := float64(slack) / SampleRate; held > 0.15 {
 		t.Fatalf("the system channel may lag by %.0f ms, which is heard as an echo", held*1000)
 	}

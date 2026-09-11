@@ -5,8 +5,7 @@ import (
 	"testing"
 )
 
-// tone is something with structure, so that a correlation between two signals
-// means they are related rather than that both are noise.
+// tone has enough structure for correlation tests.
 func tone(n int, hz float64, level float32) []float32 {
 	out := make([]float32, n)
 	for i := range out {
@@ -17,9 +16,7 @@ func tone(n int, hz float64, level float32) []float32 {
 	return out
 }
 
-// hiss is noise, for the delay tests. A tone correlates with itself at every
-// period, so it matches equally well at a dozen different lags and the search
-// picks whichever one rounding favours — which says nothing about the search.
+// hiss avoids the periodic ambiguity of a tone in delay tests.
 func hiss(n int, level float32) []float32 {
 	out := make([]float32, n)
 	seed := uint32(20260909)
@@ -30,7 +27,7 @@ func hiss(n int, level float32) []float32 {
 	return out
 }
 
-// room is what the microphone hears of the far side: quieter, and late.
+// room simulates acoustic bleed from the far side into the microphone.
 func room(system []float32, level float32, delay int) []float32 {
 	out := make([]float32, len(system))
 	for i := delay; i < len(system); i++ {
@@ -47,9 +44,7 @@ func loudest(a []float32) float64 {
 	return top
 }
 
-// The whole point. The microphone holds the far side coming back off the
-// speakers, so adding the two channels put every remote sentence in the mix
-// twice — once cleanly and once from the room. The mix must contain it once.
+// The far side should survive once rather than once plus echo.
 func TestTheFarSideIsHeardOnceAndNotTwice(t *testing.T) {
 	n := 3 * Rate
 	system := tone(n, 220, 0.35)
@@ -57,8 +52,6 @@ func TestTheFarSideIsHeardOnceAndNotTwice(t *testing.T) {
 
 	out := Fold(mic, system)
 
-	// Whatever is left after taking the far side out of the mix must be small:
-	// there is nothing else in this recording but their voice and its echo.
 	var left, theirs float64
 	for i := Rate; i < n; i++ { // skip the first second: the fade starts on the mic
 		d := float64(out[i] - system[i])
@@ -71,9 +64,7 @@ func TestTheFarSideIsHeardOnceAndNotTwice(t *testing.T) {
 	}
 }
 
-// The other half of the promise. Where the far side is silent the mix is the
-// microphone and nothing else — a mix that fixed the echo by removing the
-// person in the chair would pass the test above and be useless.
+// Local-only audio should pass through unchanged.
 func TestYourOwnVoiceComesThroughUntouched(t *testing.T) {
 	n := 2 * Rate
 	mic := tone(n, 160, 0.4)
@@ -87,9 +78,7 @@ func TestYourOwnVoiceComesThroughUntouched(t *testing.T) {
 	}
 }
 
-// A notification chime is loud on the system channel and lasts a moment. It
-// must not take the meeting away from whoever is speaking: the microphone is
-// far louder than the chime, and that is what Louder is for.
+// A brief system chime must not steal the mix from the speaker.
 func TestAChimeDoesNotTakeTheMomentFromYou(t *testing.T) {
 	n := 2 * Rate
 	mic := tone(n, 160, 0.5)
@@ -108,9 +97,7 @@ func TestAChimeDoesNotTakeTheMomentFromYou(t *testing.T) {
 	}
 }
 
-// Handing the mix from one channel to the other is a crossfade, not a cut. A
-// step between two unrelated signals is a click, and a click on every change of
-// speaker would be worse than the echo this replaces.
+// Channel handover should crossfade rather than click.
 func TestTheHandoverIsNotAClick(t *testing.T) {
 	n := 4 * Rate
 	mic := tone(n, 160, 0.5)
@@ -119,9 +106,6 @@ func TestTheHandoverIsNotAClick(t *testing.T) {
 
 	out := Fold(mic, system)
 
-	// The biggest step anywhere in the output, against the biggest step either
-	// input takes on its own. A crossfade cannot invent a jump bigger than the
-	// signals it is fading between.
 	var mixJump, inputJump float64
 	for i := 1; i < n; i++ {
 		mixJump = math.Max(mixJump, math.Abs(float64(out[i]-out[i-1])))
@@ -134,8 +118,7 @@ func TestTheHandoverIsNotAClick(t *testing.T) {
 	}
 }
 
-// Two signals crossfaded can only be as loud as the louder of them. Clipping
-// the result would be distortion on exactly the loudest moments of a meeting.
+// The mix must stay within range.
 func TestTheMixNeverClips(t *testing.T) {
 	n := 2 * Rate
 	mic := tone(n, 160, 0.95)
@@ -146,29 +129,17 @@ func TestTheMixNeverClips(t *testing.T) {
 	}
 }
 
-// Offset is the fact everything else rests on: the system tap is written into
-// the file later than the microphone beside it, and until that is undone no
-// echo canceller can converge and a switch cuts a quarter of a second late at
-// both ends of every sentence.
+// Offset measures tap lateness relative to the microphone channel.
 func TestOffsetFindsATapThatWasWrittenLate(t *testing.T) {
 	const late = 3680 // 230 ms, which is what a real meeting measured
 	n := 20 * Rate
 
-	// Their voice, and the microphone's copy of it arriving through the room a
-	// few milliseconds later — the ordinary acoustic delay, not the file's.
 	played := hiss(n, 0.5)
 	mic := room(played, 0.5, Rate/200)
 
-	// The file writes the tap late, so at index i it holds what was played
-	// `late` samples ago.
 	tap := make([]float32, n)
 	copy(tap[late:], played)
 
-	// What has to come out is the gap between the two CHANNELS, which is the
-	// file's lateness minus the time the sound spent crossing the room: the
-	// microphone already held it 80 samples before the tap channel caught up.
-	// That 80 is real acoustics and must survive — undoing it would move the
-	// microphone ahead of the sound that made it.
 	want := late - Rate/200
 	got := Offset(mic, tap)
 	if off := got - want; off < -Rate/500 || off > Rate/500 {
@@ -177,8 +148,7 @@ func TestOffsetFindsATapThatWasWrittenLate(t *testing.T) {
 	}
 }
 
-// And it must do nothing when there is nothing to do, or every already-correct
-// recording would be shifted out of true.
+// Already-aligned channels should stay put.
 func TestOffsetLeavesAlignedChannelsAlone(t *testing.T) {
 	n := 20 * Rate
 	system := hiss(n, 0.5)

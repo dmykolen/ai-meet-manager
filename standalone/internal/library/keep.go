@@ -9,14 +9,8 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/store"
 )
 
-// Sweep deletes audio the settings say has stopped being interesting.
-//
-// Transcripts are kept for ever — they are text, and text is free. Audio is
-// not: an hour of stereo at 16 kHz is 230 MB, and a folder that grows for ever
-// is a promise the app cannot keep on somebody's laptop.
-//
-// The recording row stays, with its transcript, its summary and its analytics.
-// Only the file goes, and the row says so.
+// Sweep deletes audio older than the retention setting while keeping transcript
+// data.
 func Sweep(db *store.DB, dir string, days int) (int, int64, error) {
 	if days <= 0 {
 		return 0, 0, nil // 0 means keep everything, which is a real answer
@@ -29,8 +23,8 @@ func Sweep(db *store.DB, dir string, days int) (int, int64, error) {
 
 	gone, freed := 0, int64(0)
 	for _, r := range recent {
-		// Nothing is deleted before it has been read: a recording that failed
-		// or is still queued is the one case where the audio is all there is.
+		// Keep audio until processing has completed; otherwise the file is still
+		// the source of truth.
 		if r.Audio == "" || r.Status != store.Done || r.Started.After(cutoff) {
 			continue
 		}
@@ -43,8 +37,7 @@ func Sweep(db *store.DB, dir string, days int) (int, int64, error) {
 			slog.Warn("could not delete old audio", "file", r.Audio, "err", err)
 			continue
 		}
-		// The folded copy the player was served is derived from it and has no
-		// reason to outlive it.
+		// The cached folded copy is derived from the source audio.
 		_ = os.Remove(filepath.Join(filepath.Dir(dir), "cache", r.Audio))
 		if err := db.Dropped(r.ID); err != nil {
 			slog.Warn("deleted the audio but could not record it", "id", r.ID, "err", err)
@@ -58,12 +51,7 @@ func Sweep(db *store.DB, dir string, days int) (int, int64, error) {
 	return gone, freed, nil
 }
 
-// Tidy runs Sweep now and once a day after that. Daily rather than hourly
-// because the setting is measured in days: checking more often can only find
-// the same nothing.
-// Fortnight is how long something stays in the bin before it is really gone.
-// Long enough that "I deleted the wrong one" is recoverable a week later,
-// short enough that the folder does not fill up with things nobody wants.
+// Fortnight is how long something stays in the bin before final deletion.
 const Fortnight = 14 * 24 * time.Hour
 
 func (l *Library) Tidy(stop <-chan struct{}, days func() int) {

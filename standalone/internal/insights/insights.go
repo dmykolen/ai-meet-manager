@@ -1,12 +1,4 @@
-// Package insights is everything the app asks a language model to do: the
-// summary of a meeting, and questions asked across all of them.
-//
-// The only part of the app that sends anything anywhere. Audio, transcripts and
-// voices stay on the machine; a summary sends one meeting's text, a question
-// sends the passages that match it.
-//
-// Everything goes through Ask and Structured, so the day this grows an agent
-// loop no caller changes.
+// Package insights contains the app's LLM-backed features.
 package insights
 
 import (
@@ -22,12 +14,11 @@ import (
 	"github.com/openai/openai-go/v3/responses"
 )
 
-// ErrNoKey is what every function here returns when there is no API key, so
-// that the app can disable these features rather than fail a recording.
+// ErrNoKey is returned when LLM features are unavailable.
 var ErrNoKey = errors.New("no OpenAI key: summaries and questions are off, " +
 	"and transcription is unaffected")
 
-// Client talks to the model. The zero value is unusable; use New.
+// Client talks to the model.
 type Client struct {
 	api      openai.Client
 	model    string
@@ -35,17 +26,14 @@ type Client struct {
 	ready    bool
 }
 
-// Tongue turns a language code into something to put in a prompt. Written out
-// rather than passed as "uk", because a model told to answer in "uk" sometimes
-// decides that is a country.
+// Tongue maps language codes to prompt-friendly names.
 var Tongue = map[string]string{
 	"uk": "Ukrainian", "en": "English", "pl": "Polish", "de": "German",
 	"fr": "French", "es": "Spanish", "it": "Italian", "cs": "Czech",
 	"nl": "Dutch", "pt": "Portuguese", "ro": "Romanian", "tr": "Turkish",
 }
 
-// New takes the language the summaries and answers must be written in. Empty
-// means the language of the meeting, whatever that turns out to be.
+// New creates an insights client.
 func New(key, model, language string) *Client {
 	if key == "" {
 		return &Client{}
@@ -65,8 +53,7 @@ func New(key, model, language string) *Client {
 	}
 }
 
-// Ready reports whether these features are available at all, which the UI shows
-// rather than discovering on a click.
+// Ready reports whether LLM-backed features are available.
 func (c *Client) Ready() bool { return c != nil && c.ready }
 
 // ActionItem is something somebody committed to.
@@ -76,15 +63,14 @@ type ActionItem struct {
 	Due   string `json:"due"`
 }
 
-// Chapter is a stretch of the meeting on one topic, with the timestamp that
-// makes it clickable.
+// Chapter is one summary chapter with a jump timestamp.
 type Chapter struct {
 	Start   float64 `json:"start"`
 	Title   string  `json:"title"`
 	Summary string  `json:"summary"`
 }
 
-// Summary is what a person wants instead of the transcript.
+// Summary is the meeting summary payload.
 type Summary struct {
 	Title         string       `json:"title"`
 	Overview      string       `json:"overview"`
@@ -95,8 +81,7 @@ type Summary struct {
 	OpenQuestions []string     `json:"open_questions"`
 }
 
-// Turn is the shape this package needs from a transcript, so that it does not
-// depend on the store or the engine.
+// Turn is the transcript shape this package needs.
 type Turn struct {
 	Start   float64
 	Speaker string
@@ -126,7 +111,7 @@ Write in %s. This holds even when the transcript itself contains other
 languages, borrowed words or whole sentences in another language — those are
 what people say, and they do not change what you answer in.`
 
-// Summarise turns a transcript into the thing people actually read.
+// Summarise turns a transcript into a structured summary.
 func (c *Client) Summarise(ctx context.Context, turns []Turn) (*Summary, error) {
 	if !c.Ready() {
 		return nil, ErrNoKey
@@ -158,8 +143,7 @@ func (c *Client) Answer(ctx context.Context, question string, passages []string)
 	return c.Ask(ctx, askPrompt, body)
 }
 
-// Ask is one prompt in, text out. Exported because it is the seam: an agent
-// loop, when one is needed, replaces the inside of this and nothing else.
+// Ask sends one prompt and returns plain text.
 func (c *Client) Ask(ctx context.Context, instructions, input string) (string, error) {
 	if !c.Ready() {
 		return "", ErrNoKey
@@ -175,7 +159,7 @@ func (c *Client) Ask(ctx context.Context, instructions, input string) (string, e
 	return resp.OutputText(), nil
 }
 
-// Structured is Ask with a schema the model must obey, decoded into out.
+// Structured is Ask with a schema the model must obey.
 func (c *Client) Structured(ctx context.Context, instructions, input, name string, jsonSchema map[string]any, out any) error {
 	if !c.Ready() {
 		return ErrNoKey
@@ -200,8 +184,7 @@ func (c *Client) Structured(ctx context.Context, instructions, input, name strin
 	return json.Unmarshal([]byte(resp.OutputText()), out)
 }
 
-// Transcript renders turns the way the model reads them best: one line each,
-// with the time and who said it.
+// Transcript renders turns into the prompt format.
 func Transcript(turns []Turn) string {
 	var b strings.Builder
 	for _, t := range turns {

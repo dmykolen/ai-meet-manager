@@ -1,9 +1,5 @@
-// Package library is the queue: a recording arrives, and some time later it is
-// a titled, searchable transcript with a summary.
-//
-// One worker, not a pool. Whisper and the speaker models each want every core
-// they can get, and running two recordings at once makes both slower and the
-// machine hot. A queue of one is the honest shape of the work.
+// Package library owns the transcription queue and transcript-derived
+// artifacts.
 package library
 
 import (
@@ -23,27 +19,22 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/store"
 )
 
-// Engine is what the library needs from the models, so that tests can hand it
-// something that does not take a gigabyte to load.
+// Engine is the transcription boundary the library needs.
 type Engine interface {
 	Run(heard, apart []float32) (engine.Result, error)
 	Solo(samples []float32, who string) (engine.Result, error)
 }
 
-// Me is what the person holding the laptop is called until they enrol their
-// own voice and it starts using their name.
+// Me is the provisional label for the laptop owner.
 const Me = "You"
 
-// Library owns the queue.
 type Library struct {
 	db   *store.DB
 	llm  *insights.Client
 	dir  string
 	wake chan struct{}
 
-	// The engine arrives late: on a fresh install the models are still
-	// downloading when the window opens, and nothing should be processed until
-	// they are here.
+	// The engine may arrive after startup while models are still downloading.
 	mu     sync.Mutex
 	engine Engine
 	busy   func() bool
@@ -51,8 +42,7 @@ type Library struct {
 	owner  string
 }
 
-// Owner is the name the person holding the laptop goes by, set by "This is me".
-// Empty until they say.
+// Owner sets the laptop owner's display name.
 func (l *Library) Owner(name string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -65,16 +55,14 @@ func (l *Library) who() string {
 	return l.owner
 }
 
-// Policy sets which recordings are worth a model call.
+// Policy sets which recordings are worth summarising.
 func (l *Library) Policy(when store.When) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.policy = when
 }
 
-// Wait tells the queue when to stand aside. It is asked before every job, and
-// while it says yes the queue sleeps rather than competing with a live meeting
-// for the same cores.
+// Wait tells the queue when to stand aside.
 func (l *Library) Wait(busy func() bool) {
 	l.mu.Lock()
 	l.busy = busy
@@ -91,8 +79,7 @@ func New(db *store.DB, e Engine, llm *insights.Client, recordings string) *Libra
 	return &Library{db: db, engine: e, llm: llm, dir: recordings, wake: make(chan struct{}, 1)}
 }
 
-// Use hands over the engine once the models have loaded, and starts the queue
-// moving on whatever accumulated while they were downloading.
+// Use installs the engine once models have loaded and wakes the queue.
 func (l *Library) Use(e Engine) {
 	l.mu.Lock()
 	l.engine = e
@@ -106,7 +93,7 @@ func (l *Library) ready() Engine {
 	return l.engine
 }
 
-// Add takes a file that is already in the recordings folder and queues it.
+// Add queues a file already in the recordings folder.
 func (l *Library) Add(kind store.Kind, audio string, started time.Time, title string) (store.Recording, error) {
 	if title == "" {
 		title = filepath.Base(audio)
@@ -123,7 +110,7 @@ func (l *Library) Add(kind store.Kind, audio string, started time.Time, title st
 	return r, err
 }
 
-// Wake asks the worker to look now rather than at the next tick.
+// Wake asks the worker to check the queue now.
 func (l *Library) Wake() {
 	select {
 	case l.wake <- struct{}{}:
@@ -132,10 +119,6 @@ func (l *Library) Wake() {
 }
 
 // Run works through the queue until the context is cancelled.
-//
-// It catches whatever one recording throws, because a single unreadable file
-// must not stop every recording behind it — the failure mode that leaves a
-// listener quietly filling a folder nobody is processing.
 func (l *Library) Run(ctx context.Context) {
 	for {
 		for l.ready() != nil && !l.waiting() {
@@ -160,9 +143,7 @@ func (l *Library) Run(ctx context.Context) {
 	}
 }
 
-// next is the oldest recording that is not finished. Anything left half-done by
-// a crash is picked up again, which is why the status is checked rather than a
-// flag held in memory.
+// next returns the oldest unfinished recording.
 func (l *Library) next() (int64, bool) {
 	recent, err := l.db.Recent(200)
 	if err != nil {
@@ -180,7 +161,7 @@ func (l *Library) next() (int64, bool) {
 	return 0, false
 }
 
-// process is the whole pipeline for one recording.
+// process runs the full pipeline for one recording.
 func (l *Library) process(ctx context.Context, id int64) error {
 	r, err := l.db.Get(id)
 	if err != nil {
@@ -192,9 +173,7 @@ func (l *Library) process(ctx context.Context, id int64) error {
 	if err := l.db.Progress(id, store.Transcribing, 0.05); err != nil {
 		return err
 	}
-	// Folded, not averaged: without headphones the microphone also hears the
-	// far side coming out of the speakers, and averaging hands the transcriber
-	// a signal summed with a room recording of itself.
+	// Folded, not averaged: averaging keeps echoed far-side speech in-band.
 	samples, err := media.Voices(path)
 	if err != nil {
 		return fmt.Errorf("could not read the audio: %w", err)
@@ -202,18 +181,14 @@ func (l *Library) process(ctx context.Context, id int64) error {
 	seconds := float64(len(samples)) / media.Rate
 	slog.Info("transcribing", "id", id, "minutes", seconds/60)
 
-	// The microphone side is the person sitting here; the system side is
-	// everybody else. Knowing which is which is the one thing this app has that
-	// a file dropped into a generic transcriber does not, and using it is worth
-	// more than any amount of tuning the clusterer.
+	// The microphone side is the local speaker; the system side is everybody
+	// else.
 	mic, system, stereo := media.Sides(path)
 	solo := stereo && media.Loud(system) < media.Loud(mic)/64
 
 	var read engine.Result
 	if solo {
-		// Nobody on the other end. Asking a clustering algorithm how many
-		// people are in a recording of one person can only be wrong, and was:
-		// seven minutes of one voice came back as three speakers.
+		// Skip diarization when the far side is effectively silent.
 		slog.Info("one voice only: the system channel is silent", "id", id)
 		read, err = l.ready().Solo(samples, Me)
 	} else {
@@ -234,22 +209,16 @@ func (l *Library) process(ctx context.Context, id int64) error {
 		slog.Warn("speakers unavailable", "id", id, "err", err)
 	}
 
-	// Anybody the app has been told the name of before gets their name back,
-	// here, before the transcript is written — so naming somebody is something
-	// you do once ever rather than once per meeting.
+	// Apply any previously learned speaker names before writing the transcript.
 	people, err := l.db.People()
 	if err != nil {
 		slog.Warn("could not read the voices", "err", err)
 	}
 
-	// The clusterer is set to split too eagerly on purpose, because no single
-	// threshold suits both a meeting of two and a meeting of six. Whatever it
-	// split that the app can put a name to is joined back up here; whatever it
-	// cannot name stays a speaker of its own, which is right — that is somebody
-	// nobody has introduced yet.
+	// The clusterer is intentionally biased toward over-splitting; named voices
+	// can be merged back later.
 	same := store.Same(read.Voices, people)
-	// The microphone channel is the one thing the app is certain about, so the
-	// owner's label is never the one folded away. A cluster may still join it.
+	// Never fold the microphone owner label away.
 	delete(same, Me)
 	if len(same) > 0 {
 		for i := range turns {
@@ -270,8 +239,7 @@ func (l *Library) process(ctx context.Context, id int64) error {
 			}
 		}
 		for label, name := range names {
-			// Another sample of a voice already known, so recognition keeps
-			// improving instead of staying as good as the first meeting.
+			// Another sample of a known voice improves later recognition.
 			if err := l.db.Remember(name, read.Voices[label],
 				store.Source{Recording: id, Speaker: name}); err != nil {
 				slog.Warn("could not file a voice", "name", name, "err", err)
@@ -282,8 +250,7 @@ func (l *Library) process(ctx context.Context, id int64) error {
 		slog.Info("voices recognised", "id", id, "who", values(names))
 	}
 
-	// The owner's own turns carry their name from the setting, not from a
-	// match. Nothing else in the app is this certain about who somebody is.
+	// The microphone owner is named from settings, not recognition.
 	if owner := l.who(); owner != "" {
 		for i := range turns {
 			if turns[i].Speaker == Me {
@@ -296,16 +263,13 @@ func (l *Library) process(ctx context.Context, id int64) error {
 		}
 	}
 
-	// Kept under whatever label the transcript ended up showing, so that naming
-	// a speaker later — which is when people actually do it — can still reach
-	// the voice that said those words.
+	// Store voiceprints under the label that ended up in the transcript.
 	if err := l.db.SaveVoices(id, read.Voices); err != nil {
 		slog.Warn("could not keep the voices of this recording", "id", id, "err", err)
 	}
 
 	if len(turns) == 0 {
-		// Not a failure: a recording of an empty room is a real thing, and it
-		// should end up as a finished, empty transcript rather than an error.
+		// Silence is still a finished recording, not a failure.
 		slog.Info("nothing was said", "id", id)
 	}
 
@@ -319,12 +283,8 @@ func (l *Library) process(ctx context.Context, id int64) error {
 	return l.summarise(ctx, id, turns)
 }
 
-// index cuts the transcript into passages and embeds them, so that a question
-// can find a passage that does not contain any of its words.
-//
-// The passages are written whether or not there is a key: without one they are
-// still the rows keyword search reads, and Reindex fills in the vectors the day
-// a key is added.
+// index cuts a transcript into searchable passages and embeds them when
+// possible.
 func (l *Library) index(ctx context.Context, id int64, turns []store.Turn) {
 	pieces := store.Cut(id, turns)
 	if len(pieces) == 0 {
@@ -346,8 +306,7 @@ func (l *Library) index(ctx context.Context, id int64, turns []store.Turn) {
 	}
 }
 
-// Reindex embeds everything that has no vector yet. Run when a key appears, so
-// that semantic search covers the meetings recorded before it did.
+// Reindex embeds recordings that are still missing vectors.
 func (l *Library) Reindex(ctx context.Context) (int, error) {
 	if !l.llm.Ready() {
 		return 0, errors.New("indexing needs an OpenAI key, which is in Settings")
@@ -366,17 +325,11 @@ func (l *Library) Reindex(ctx context.Context) (int, error) {
 	return len(ids), nil
 }
 
-// Evidence is how much somebody must say before the app will name their voice.
-// Four seconds is enough to find *a* nearest match and nowhere near enough to
-// be right: an eighteen-second fragment once got a colleague's name, which is
-// worse than SPEAKER_02 because a name asserts something. Below the bar the
-// label stands and anybody can name it by hand.
+// Evidence is the minimum speech duration required before assigning a learned
+// name.
 const Evidence = 30.0
 
-// enough keeps only the voiceprints that may be given a name: anybody under
-// Evidence, and the microphone side, are excluded. The microphone is always the
-// same person and the app knows it without a model — matching it once put a
-// colleague's name on nineteen minutes of the owner's own speech.
+// enough keeps only voiceprints eligible for naming.
 func enough(prints map[string][]float32, turns []engine.Turn) map[string][]float32 {
 	held := map[string]float64{}
 	for _, t := range turns {
@@ -391,10 +344,7 @@ func enough(prints map[string][]float32, turns []engine.Turn) map[string][]float
 	return out
 }
 
-// mine folds everything the microphone heard into one speaker. A diarizer does
-// not know that half a call arrives through a codec and half through the room,
-// so it splits one person into three; the channels do know. A voice is always
-// loudest on the side it arrived from.
+// mine folds microphone-dominant turns into one speaker.
 func mine(read engine.Result, mic, system []float32) engine.Result {
 	loudest, best := "", 0.0
 	for i, t := range read.Turns {
@@ -412,9 +362,7 @@ func mine(read engine.Result, mic, system []float32) engine.Result {
 	if loudest == "" {
 		return read
 	}
-	// One voiceprint for the person sitting here — the one from whichever
-	// cluster held the floor longest — and the labels that were folded away
-	// take their voiceprints with them.
+	// Keep one voiceprint for the local speaker and drop folded-away labels.
 	if print, have := read.Voices[loudest]; have {
 		read.Voices[Me] = print
 	}
@@ -426,18 +374,10 @@ func mine(read engine.Result, mic, system []float32) engine.Result {
 	return read
 }
 
-// Scrap is the most speech a cluster can hold and still be a fragment rather
-// than a person. Ten seconds across an hour is not somebody who was in the
-// meeting; it is the clusterer noticing that a voice changed.
+// Scrap is the maximum speech a disposable fragment cluster may hold.
 const Scrap = 10.0
 
-// settle absorbs clusters too small to be anybody into whoever was speaking
-// around them.
-//
-// Only in recordings long enough for the arithmetic to mean something. In a
-// two-minute recording ten seconds is a real contribution; in an hour it is
-// four rows out of nine hundred, and it puts a SPEAKER_09 in the transcript
-// that nobody can match to a human being.
+// settle absorbs tiny clusters into neighbouring substantial speakers.
 func settle(turns []engine.Turn) []engine.Turn {
 	held, total := map[string]float64{}, 0.0
 	for _, t := range turns {
@@ -451,9 +391,7 @@ func settle(turns []engine.Turn) []engine.Turn {
 		if t.Speaker == "" || t.Speaker == Me || held[t.Speaker] > Scrap {
 			continue
 		}
-		// Whoever was speaking just before, or just after at the very start.
-		// The audio is contiguous, so the nearest turn is the best guess there
-		// is without asking the model something it already answered wrongly.
+		// Reassign to the nearest substantial neighbour in the contiguous stream.
 		if near := neighbour(turns, i, held); near != "" {
 			turns[i].Speaker = near
 		}
@@ -481,12 +419,7 @@ func stillUsed(turns []engine.Turn, label string) bool {
 	return false
 }
 
-// worth decides whether a recording earns a model call.
-//
-// Every summary is money and a round trip, and most of what an always-on
-// recorder catches is not a meeting: half of a phone call, a thought said out
-// loud, somebody testing the microphone. The Summarise button is always there,
-// so being wrong here costs one click rather than a lost summary.
+// worth decides whether a recording should be summarised.
 func (l *Library) worth(id int64, turns []engine.Turn) bool {
 	l.mu.Lock()
 	policy := l.policy
@@ -498,9 +431,8 @@ func (l *Library) worth(id int64, turns []engine.Turn) bool {
 	if policy == store.Never {
 		return false
 	}
-	// Meetings only: somebody other than the person holding the laptop said
-	// something. That is the whole distinction, and the channels already know
-	// it — it is what made this a meeting rather than a note in the first place.
+	// Meetings-only mode requires speech from someone other than the laptop
+	// owner.
 	r, err := l.db.Get(id)
 	if err != nil {
 		return true // rather summarise than lose one to a database error
@@ -512,12 +444,7 @@ func (l *Library) worth(id int64, turns []engine.Turn) bool {
 	return false
 }
 
-// Again puts a finished recording back in the queue, from the audio.
-//
-// Everything derived from it is written over: the transcript, the speakers, the
-// passages, the summary. The audio is the only thing that was ever the truth,
-// and it is untouched — so this is also how a recording made before some fix
-// gets the benefit of it.
+// Again reprocesses a finished recording from its audio.
 func (l *Library) Again(id int64) error {
 	r, err := l.db.Get(id)
 	if err != nil {
@@ -536,9 +463,7 @@ func (l *Library) Again(id int64) error {
 	return nil
 }
 
-// Summarise is the button: read this meeting again, now that there is a key or
-// now that the speakers have names. Re-runs the summary only — the transcript
-// is expensive and has not changed.
+// Summarise reruns summary generation without retranscribing audio.
 func (l *Library) Summarise(ctx context.Context, id int64) error {
 	if !l.llm.Ready() {
 		return errors.New("summaries need an OpenAI key, which is in Settings")
@@ -566,10 +491,8 @@ func values(m map[string]string) []string {
 	return out
 }
 
-// summarise is the step that turns a transcript into something worth opening.
-// Its failure is recorded but does not fail the recording: the transcript is
-// already saved and searchable, and a missing summary is a smaller loss than a
-// recording marked failed.
+// summarise adds summary artifacts without failing an otherwise usable
+// recording.
 func (l *Library) summarise(ctx context.Context, id int64, turns []engine.Turn) error {
 	if !l.llm.Ready() || len(turns) == 0 || !l.worth(id, turns) {
 		return l.db.Progress(id, store.Done, 1)
@@ -591,15 +514,15 @@ func (l *Library) summarise(ctx context.Context, id int64, turns []engine.Turn) 
 		return err
 	}
 	slog.Info("summarised", "id", id, "title", summary.Title, "actions", len(summary.ActionItems))
-	// And the project it belongs to moves on. A failure here is logged inside
-	// and never fails the recording: the summary is already saved.
+	// Advance the project document, but do not fail the recording if that step
+	// breaks.
 	if err := l.Advance(ctx, id); err != nil {
 		slog.Warn("the project document did not move", "id", id, "err", err)
 	}
 	return l.db.Progress(id, store.Done, 1)
 }
 
-// Ask answers a question from the transcripts, and says which passages it used.
+// Ask answers a question from the transcripts and returns its sources.
 func (l *Library) Ask(ctx context.Context, question string) (string, []store.Hit, error) {
 	hits, err := l.Find(ctx, question, 20)
 	if err != nil {
@@ -612,13 +535,7 @@ func (l *Library) Ask(ctx context.Context, question string) (string, []store.Hit
 	return answer, hits, err
 }
 
-// Find is search: what was said about this, however it was phrased.
-//
-// Both indexes, not one. Keywords find a name, a number or a spelling that a
-// vector will happily paraphrase away; vectors find the meeting where somebody
-// asked "чи можемо ми взагалі це відкрити назовні" when the question typed was
-// "external access". Neither alone is search, and the union is cheap because
-// both are already there.
+// Find searches both keyword and semantic indexes when available.
 func (l *Library) Find(ctx context.Context, query string, limit int) ([]store.Hit, error) {
 	words, err := l.db.Search(query, limit)
 	if err != nil {
@@ -639,9 +556,7 @@ func (l *Library) Find(ctx context.Context, query string, limit int) ([]store.Hi
 	return blend(words, near, limit), nil
 }
 
-// blend interleaves the two result lists without repeating a passage. Not
-// scored together: a keyword rank and a cosine are not the same quantity, and a
-// formula adding them would be a number nobody could check.
+// blend interleaves keyword and semantic hits without rescoring across systems.
 func blend(words, near []store.Hit, limit int) []store.Hit {
 	seen := map[string]bool{}
 	out := []store.Hit{}
@@ -658,16 +573,13 @@ func blend(words, near []store.Hit, limit int) []store.Hit {
 	return out
 }
 
-// Delete moves a recording to the bin. Nothing is destroyed, which is what
-// makes deleting one click and no dialog.
+// Delete moves a recording to the bin.
 func (l *Library) Delete(id int64) error { return l.db.Bury(id) }
 
-// Restore takes it back out of the bin.
+// Restore takes a recording back out of the bin.
 func (l *Library) Restore(id int64) error { return l.db.Restore(id) }
 
-// Empty destroys everything in the bin older than the given age, audio and
-// all. A zero age empties it completely, which is the button in the interface;
-// the daily sweep passes a fortnight.
+// Empty permanently deletes buried recordings older than the given age.
 func (l *Library) Empty(olderThan time.Duration) (int, error) {
 	buried, err := l.db.Buried(olderThan)
 	if err != nil {
@@ -688,13 +600,7 @@ func (l *Library) Empty(olderThan time.Duration) (int, error) {
 	return len(buried), nil
 }
 
-// convert is the one road from the engine to the database, and it sorts.
-//
-// Everything downstream reads the rows back in the order they were written and
-// assumes that order is time: settle gives a nameless row the speaker of its
-// neighbour, store.Cut ends a passage when it has run 45 seconds, and the
-// speaker map merges a row into the bar before it. A row out of place makes all
-// three quietly wrong, and one line here is cheaper than three guards there.
+// convert is the engine-to-store boundary and sorts by start time.
 func convert(turns []engine.Turn) []store.Turn {
 	out := make([]store.Turn, len(turns))
 	for i, t := range turns {

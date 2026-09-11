@@ -1,25 +1,4 @@
-// Experiment 2 — cancel the echo instead of turning it down.
-//
-// Run:  go run ./exp/02_aec "$HOME/MeetingTranscriber/recordings/meeting 2026-09-09 11-58.wav"
-//
-// Experiment 1 said the shipping fold leaves a second copy of the far side in
-// 71% of the loud blocks, and that a per-block delay-and-gain subtraction would
-// take that to 8%. Ducking is the wrong tool: it turns the room down while the
-// far side talks, which also turns *you* down, and it never removes anything.
-//
-// This tries the thing the problem actually is. The room is not a delay and a
-// gain, it is a filter: the same voice arrives by several paths, each with its
-// own delay and its own colour. So solve for that filter — a short FIR, fitted
-// per block by least squares — and subtract what it predicts.
-//
-// Two guards decide whether the fit is used at all, and they are the whole
-// difference between this and something that eats the person in the chair:
-//
-//   - it must reduce the block's energy by a real margin, and
-//   - the far side must actually be present.
-//
-// Both are printed for every block that fails them, because "it removed my
-// voice" is the failure that matters and it must be visible, not averaged.
+// Experiment 2 tries FIR echo cancellation instead of ducking.
 package main
 
 import (

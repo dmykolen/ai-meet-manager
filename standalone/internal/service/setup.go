@@ -9,7 +9,7 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/models"
 )
 
-// Stage is what the app is doing before it can transcribe anything.
+// Stage is the first-run setup stage.
 type Stage string
 
 const (
@@ -19,8 +19,7 @@ const (
 	Broken      Stage = "broken"
 )
 
-// State is the first-run screen, and afterwards the thing that says whether the
-// app can work at all.
+// State is the first-run status snapshot.
 type State struct {
 	Stage    Stage   `json:"stage"`
 	What     string  `json:"what"`     // which model, in words
@@ -30,11 +29,7 @@ type State struct {
 	Problem  string  `json:"problem,omitempty"`
 }
 
-// Setup drives the first run and reports it.
-//
-// It is a service of its own because the interface needs to ask "can I show the
-// library yet?" before anything else exists, and because a 582 MB download on a
-// hotel connection is a screen, not a spinner.
+// Setup drives model download and load state.
 type Setup struct {
 	dir   string
 	extra models.Set
@@ -53,18 +48,13 @@ func NewSetup(modelsDir string) *Setup {
 	}
 }
 
-// Want adds a model that a setting asked for — Parakeet, today. Chosen rather
-// than required, so it is not in everybody's first run.
+// Want adds optional assets requested by the current config.
 func (s *Setup) Want(extra models.Set) { s.extra = extra }
 
-// Status is what the interface is given: one method, deliberately.
-//
-// Setup itself is not bound. Its other methods take a context and return a Go
-// channel, neither of which has a shape in TypeScript — and the binding
-// generator does not decline them, it crashes.
+// Status is the narrow Wails-bound setup surface.
 type Status struct{ setup *Setup }
 
-// Bound returns the narrow view of this Setup for the frontend.
+// Bound returns the Wails-safe setup view.
 func (s *Setup) Bound() *Status { return &Status{setup: s} }
 
 // State is polled by the first-run screen.
@@ -76,11 +66,10 @@ func (s *Setup) snapshot() State {
 	return s.state
 }
 
-// Wait blocks until the models are on disk, which is what the rest of the app
-// waits on before loading anything.
+// Wait closes once required assets are on disk.
 func (s *Setup) Wait() <-chan struct{} { return s.ready }
 
-// Fetch downloads whatever is missing. Safe to call when nothing is.
+// Fetch downloads whatever is missing.
 func (s *Setup) Fetch(ctx context.Context) {
 	missing := append(models.Required(), s.extra...).Missing(s.dir)
 	if len(missing) == 0 {
@@ -121,8 +110,7 @@ func (s *Setup) Fetch(ctx context.Context) {
 	s.finish()
 }
 
-// Loaded is called once the engine is up, which is the last thing between a
-// fresh install and a working app.
+// Loaded reports the result of engine initialization.
 func (s *Setup) Loaded(err error) {
 	if err != nil {
 		s.set(State{Stage: Broken, What: "Loading the models", Problem: err.Error()})
@@ -139,7 +127,7 @@ func (s *Setup) set(state State) {
 
 func (s *Setup) finish() { s.once.Do(func() { close(s.ready) }) }
 
-// Human renders a byte count the way a download dialog should.
+// Human renders a byte count for the setup UI.
 func Human(bytes int64) string {
 	const unit = 1024
 	if bytes < unit {

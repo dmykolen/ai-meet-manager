@@ -6,8 +6,6 @@ import (
 )
 
 func TestAPassageIsLongEnoughToMeanSomething(t *testing.T) {
-	// Speaker changes must not break a passage: a question and its answer
-	// belong together, and searching for one should find the other.
 	var turns []Turn
 	for i := range 8 {
 		at := float64(i) * 20
@@ -44,8 +42,6 @@ func TestSearchByMeaningFindsTheNearestPassageAndStopsThere(t *testing.T) {
 		{Recording: r.ID, Start: 0, Text: "про доступ ззовні"},
 		{Recording: r.ID, Start: 45, Text: "про обід"},
 	}
-	// Deliberately unlike each other, so "near" and "unrelated" are not a
-	// matter of opinion.
 	if err := db.Index(r.ID, pieces, [][]float32{{1, 0, 0}, {0, 0, 1}}); err != nil {
 		t.Fatal(err)
 	}
@@ -61,8 +57,6 @@ func TestSearchByMeaningFindsTheNearestPassageAndStopsThere(t *testing.T) {
 		t.Fatalf("the wrong passage came first: %q", hits[0].Text)
 	}
 
-	// A question about nothing in the database gets nothing, rather than the
-	// least unrelated passage presented as an answer.
 	if hits, _ := db.Closest([]float32{0, 1, 0}, 10); len(hits) != 0 {
 		t.Fatalf("an unrelated question returned %d hits", len(hits))
 	}
@@ -102,7 +96,6 @@ func TestPassagesWithoutAKeyAreStillStored(t *testing.T) {
 	if with != 0 || without != 1 {
 		t.Fatalf("with=%d without=%d; a machine with no key should still have the passage", with, without)
 	}
-	// And that recording is what Reindex will pick up when a key arrives.
 	stale, err := db.Stale(10)
 	if err != nil || len(stale) != 1 || stale[0] != r.ID {
 		t.Fatalf("stale=%v err=%v, want the unindexed recording", stale, err)

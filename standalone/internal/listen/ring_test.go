@@ -15,8 +15,7 @@ func frame(v int16) []int16 {
 	return f
 }
 
-// values reads the first sample of each replayed frame, which is enough to say
-// which frames came back and in what order.
+// values reads the first sample of each replayed frame.
 func values(frames [][]int16) []int16 {
 	out := make([]int16, len(frames))
 	for i, f := range frames {
@@ -48,8 +47,6 @@ func TestTheRingOverwritesTheOldestAudio(t *testing.T) {
 }
 
 func TestAPartlyFilledRingReplaysOnlyWhatItHas(t *testing.T) {
-	// The case that matters at startup, when a meeting begins before the ring
-	// has had time to fill.
 	r := NewRing(time.Minute)
 	for i := range int16(3) {
 		r.Add(frame(i), true)
@@ -81,9 +78,6 @@ func TestReplayingNothingIsNotAnError(t *testing.T) {
 }
 
 func TestReplaySpeechSkipsTheEmptyRoomBeforeTheTalking(t *testing.T) {
-	// The bug this fixes, measured on real meetings: the first word arrived 4.6,
-	// 4.7 and 5.0 minutes into three of them, because the whole preroll was
-	// replayed whether anybody had been talking in it or not.
 	r := NewRing(10 * frameDuration)
 	for i := range int16(6) {
 		r.Add(frame(i), false) // an empty room
@@ -109,8 +103,6 @@ func TestReplaySpeechOfASilentRingIsEmpty(t *testing.T) {
 }
 
 func TestReplaySpeechKeepsPausesOnceTalkingHasStarted(t *testing.T) {
-	// Only the silence *before* the conversation is dropped. A pause in the
-	// middle of one is part of the meeting.
 	r := NewRing(10 * frameDuration)
 	r.Add(frame(0), false)
 	r.Add(frame(1), true)

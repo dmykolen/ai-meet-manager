@@ -7,13 +7,7 @@ import (
 	"time"
 )
 
-// Scribe writes the meeting down while it is happening. The detector already
-// cuts the audio into utterances, so each one goes through Whisper as it
-// finishes and appears a second or two later.
-//
-// Deliberately not the transcript: Whisper on a four-second fragment has no
-// context, cannot spell an unheard name and cannot be diarized. The real
-// transcript is written afterwards from the file and replaces this.
+// Scribe keeps a rough live transcript while recording is still running.
 type Scribe struct {
 	transcribe func([]float32) (string, error)
 
@@ -23,37 +17,29 @@ type Scribe struct {
 	started time.Time
 }
 
-// A Line is one utterance, written down.
+// Line is one live-transcribed utterance.
 type Line struct {
 	At   int    `json:"at"`  // seconds into the recording
 	Who  string `json:"who"` // "you" or "them" — which channel it came from
 	Text string `json:"text"`
 }
 
-// Lines is how much of the live transcript is kept in memory. A long meeting
-// scrolls; nobody reads back an hour of it in the sidebar, and the file has
-// every word regardless.
+// Lines is how much of the live transcript is kept in memory.
 const Lines = 400
 
-// NewScribe takes the one function it needs from the engine, so that this
-// package never learns that Whisper exists.
+// NewScribe builds a Scribe from a transcription callback.
 func NewScribe(transcribe func([]float32) (string, error)) *Scribe {
 	return &Scribe{transcribe: transcribe}
 }
 
-// Start clears the board for a new recording.
+// Start clears state for a new recording.
 func (s *Scribe) Start() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.lines, s.pending, s.started = nil, 0, time.Now()
 }
 
-// Hear queues an utterance. It returns immediately: this is called from the
-// capture loop, which must not wait for a model.
-//
-// One in flight at a time. Whisper's encoder runs a thirty-second window
-// whatever it is fed, so two at once is not twice as fast — it is two things
-// queueing on the same cores while the microphone waits for neither.
+// Hear queues an utterance without blocking the capture loop.
 func (s *Scribe) Hear(who string, u Utterance) {
 	s.mu.Lock()
 	if s.pending > 0 || s.transcribe == nil || s.started.IsZero() {
@@ -83,16 +69,14 @@ func (s *Scribe) Hear(who string, u Utterance) {
 	}()
 }
 
-// Said is the live transcript so far, oldest first.
+// Said returns the live transcript so far, oldest first.
 func (s *Scribe) Said() []Line {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]Line(nil), s.lines...)
 }
 
-// Stop puts the board away. The finished recording is transcribed properly from
-// the file, and keeping the rough version around would only invite somebody to
-// read it instead.
+// Stop discards the rough live transcript.
 func (s *Scribe) Stop() {
 	s.mu.Lock()
 	defer s.mu.Unlock()

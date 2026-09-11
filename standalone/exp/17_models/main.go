@@ -1,20 +1,4 @@
-// Experiment 17 — is the strange wording the model, or the quantisation?
-//
-//	go run ./exp/17_models
-//
-// The app ships ggml-large-v3-turbo-q5_0: 574 MB, which is large-v3 distilled
-// down to four decoder layers and then squeezed to five bits. The owner's
-// reference run used plain large-v3 at full precision, and it writes "Azure
-// OpenAI" where ours writes "ажуру ПНІ" and "чат-боти" where ours writes "де за
-// боти". Two things could be doing that and they are separable: run the same
-// audio through turbo at full precision to see what the five bits cost, and
-// through large-v3 at full precision to see what the distillation costs.
-//
-// The number reported is agreement with the reference, not accuracy — the
-// reference is itself a large-v3 run, so large-v3 is flattered by construction.
-// It is still the right target here, because "sound like the reference" is
-// exactly what was asked for. The transcripts are written out side by side so
-// the wording can be judged by somebody who was in the room.
+// Experiment 17 separates model choice from quantization effects.
 package main
 
 import (

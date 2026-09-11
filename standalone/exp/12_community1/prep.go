@@ -1,11 +1,4 @@
-// Writes the two signals experiment 11 measured, so pyannote can be given
-// exactly the same input as sherpa was.
-//
-//	go run ./exp/12_community1/prep.go 74
-//
-// The mix has to come from Go: it is media.Fold, and the alignment inside
-// media.Sides is what makes it correct. The tap is written aligned too, though
-// for diarizing one channel on its own the alignment does not matter.
+// Experiment 12 writes the inputs experiment 11 measures.
 package main
 
 import (

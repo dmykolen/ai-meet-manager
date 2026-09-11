@@ -1,28 +1,6 @@
 //go:build speex
 
-// Experiment 3 — SpeexDSP's echo canceller, against the fold that ships.
-//
-//	brew install speexdsp
-//	go run ./exp/03_speex "$HOME/MeetingTranscriber/recordings/meeting 2026-09-09 11-58.wav"
-//
-// Experiments 1 and 2 established two things. The shipping fold leaves a copy
-// of the far side above the audibility threshold in 89% of the loud blocks — it
-// sits at about -19 dB, which is exactly "I can still hear it". And a short FIR
-// fitted per block does not fix that, because the room's delay spread on this
-// recording runs from 0 to 250 ms and sixty-four taps cover four milliseconds.
-//
-// Covering 250 ms means four thousand taps, and four thousand taps is not
-// something to hand-roll: it is a block frequency-domain adaptive filter with
-// leakage estimation and a double-talk-safe step size. SpeexDSP has had exactly
-// that for twenty years in about a hundred kilobytes of C, and this is what the
-// instruction to reach for a library rather than write one looks like when it
-// is taken seriously.
-//
-// The two knobs that matter:
-//
-//	frame   how much audio goes in per call. 20 ms is what the docs suggest.
-//	tail    how long the room's response is allowed to be. This is the one
-//	        that has to cover the delay spread, so it is swept below.
+// Experiment 3 compares SpeexDSP echo cancellation with the shipping fold.
 package main
 
 /*

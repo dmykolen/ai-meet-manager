@@ -1,23 +1,4 @@
-// Experiment 14 — why the transcript does not line up with the audio.
-//
-//	go run ./exp/14_timeline exp/truth/meet-test.m4a
-//
-// The owner ran the same file through WhisperX and got rows that sit where the
-// words are. The app's rows drift earlier and earlier until, on a 167-second
-// file, the last row ends at 143. Twenty-three seconds is not a rounding error
-// and it is not a model being wrong; it is a clock.
-//
-// The suspicion this measures: whisper.cpp's VAD deletes the silence before the
-// model sees the audio, so everything the model says is on a shorter timeline.
-// whisper.cpp knows this and maps SEGMENT times back for you. It also offers
-// mapped TOKEN times — whisper_full_get_token_t0 — but the Go binding does not
-// call them. It reads the raw struct fields instead, which are still on the
-// short timeline. Our phrases() builds every row out of those.
-//
-// So the test is simple: for each segment print the mapped time and the raw
-// token time side by side. If the suspicion is right the gap between them is
-// zero at the start, grows only across pauses, and ends at the total silence
-// the VAD removed.
+// Experiment 14 measures why transcript rows drift from the audio clock.
 package main
 
 import (

@@ -10,8 +10,7 @@ import (
 	"testing"
 )
 
-// wav writes a WAV the way an ordinary encoder would, so the decoder is tested
-// against the shape it will actually meet.
+// wav writes a test WAV in a conventional layout.
 func wav(t *testing.T, channels int, rate int, samples []int16, extraChunk bool) string {
 	t.Helper()
 	body := make([]byte, len(samples)*2)
@@ -38,7 +37,6 @@ func wav(t *testing.T, channels int, rate int, samples []int16, extraChunk bool)
 	u16(16)                          // bits
 
 	if extraChunk {
-		// The thing that breaks every "the header is 44 bytes" decoder.
 		put([]byte("LIST")...)
 		u32(4)
 		put([]byte("INFO")...)
@@ -71,7 +69,6 @@ func TestAPlainMonoWavIsDecoded(t *testing.T) {
 }
 
 func TestAChunkBeforeTheDataDoesNotBreakIt(t *testing.T) {
-	// The reason the decoder walks chunks instead of skipping 44 bytes.
 	plain := wav(t, 1, Rate, []int16{1000, 2000, 3000}, false)
 	padded := wav(t, 1, Rate, []int16{1000, 2000, 3000}, true)
 
@@ -89,8 +86,6 @@ func TestAChunkBeforeTheDataDoesNotBreakIt(t *testing.T) {
 }
 
 func TestStereoIsMixedDownToOne(t *testing.T) {
-	// The listener writes the microphone left and the system audio right; the
-	// models want one signal.
 	path := wav(t, 2, Rate, []int16{16384, 0, 0, 16384}, false)
 	got, err := Decode(path)
 	if err != nil {
@@ -124,8 +119,6 @@ func TestSomethingThatIsNotAWavIsRefusedClearly(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "not.wav")
 	os.WriteFile(path, []byte("this is not audio at all"), 0o644)
 
-	// Either ffmpeg says so, or we say ffmpeg is missing. Both are answers; a
-	// panic or a slice of noise is not.
 	if _, err := Decode(path); err == nil {
 		t.Fatal("a text file decoded as audio")
 	}
@@ -150,13 +143,7 @@ func TestATruncatedFileDoesNotPanic(t *testing.T) {
 	}
 }
 
-// TestEveryContainerTheAppClaimsToOpen builds each format from the same tone
-// and decodes it back, so that "any format" is a test rather than a promise.
-//
-// The fixtures are made with the same tools the decoder uses, which sounds
-// circular and is not: the point is that Decode picks a working path for each
-// container without being told which, and that is exactly what broke — an m4a
-// landed on the ffmpeg branch, ffmpeg was not installed, and the card said so.
+// TestEveryContainerTheAppClaimsToOpen verifies each advertised container path.
 func TestEveryContainerTheAppClaimsToOpen(t *testing.T) {
 	dir := t.TempDir()
 	source := filepath.Join(dir, "tone.wav")

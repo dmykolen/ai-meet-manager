@@ -1,27 +1,4 @@
-// Experiment A — stop Whisper repeating itself.
-//
-//	go run ./exp/06_whisper_loops 74
-//
-// Meeting 74 holds this, one row per second, nine rows running:
-//
-//	934.0  Данію.
-//	935.0  Данію.
-//	936.0  Данію.
-//	...
-//
-// That is not echo and it was never in the audio. It is Whisper's best known
-// failure: the decoder is autoregressive and, by default, is fed its own
-// previous output as context for the next window. Once it emits a phrase twice
-// the phrase is in its own context twice, which makes a third copy likelier
-// still, and it locks. whisper.cpp calls the switch `n_max_text_ctx`; setting
-// it to zero is "condition_on_previous_text = False", the one setting every
-// Whisper wrapper eventually grows a flag for.
-//
-// The other three are the sampler's own escape hatches. When a window decodes
-// with suspiciously low entropy or low average log-probability, whisper.cpp can
-// throw the result away and decode again at a higher temperature. Loops score
-// exactly that way — a repeated phrase is confident and low-entropy — so the
-// fallback is aimed at this and is off by default because it costs time.
+// Experiment 6 probes settings that stop Whisper repetition loops.
 //
 // This runs the same recording through several settings and counts the loops,
 // so the choice is made on the meeting rather than on the documentation.

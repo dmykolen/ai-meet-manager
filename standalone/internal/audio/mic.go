@@ -9,10 +9,7 @@ import (
 	"github.com/gen2brain/malgo"
 )
 
-// microphone is the one device that works the same way on all three systems.
-// miniaudio resamples and remixes whatever the hardware offers down to the
-// 16 kHz mono int16 the rest of the daemon speaks, so no platform ever appears
-// above this file.
+// microphone is the cross-platform capture device.
 type microphone struct {
 	ctx    *malgo.AllocatedContext
 	dev    *malgo.Device
@@ -69,9 +66,7 @@ func openMicrophone() (Device, error) {
 	return mic, nil
 }
 
-// onData runs on the audio thread, so it copies and returns. Blocking here
-// would stall the device itself; a dropped frame is a recoverable 32 ms hole,
-// a stalled callback is a broken recording.
+// onData must not block the audio thread.
 func (m *microphone) onData(_, in []byte, frames uint32) {
 	if frames == 0 || len(in) < int(frames)*2 {
 		return

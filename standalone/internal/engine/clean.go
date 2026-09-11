@@ -5,33 +5,23 @@ import (
 	"slices"
 )
 
-// Preparing the audio before Whisper sees it, and judging what it gives back:
-// the model is fixed, so the leverage is in the input and in what is let out.
+// Helpers for preparing ASR input and filtering implausible output.
 
-// Quiet is the level audio is brought to before transcription, in dBFS. Real
-// recordings here sit near -18; -14 lifts a mumbled word off the model's floor
-// without approaching clipping.
+// Quiet is the target active level before transcription, in dBFS.
 const Quiet = -14.0
 
-// Rumble is the high-pass corner. Below it is desk knocks, air conditioning and
-// fan noise; the lowest male fundamental is around 85 Hz. Whisper's mel
-// front-end starts at 0 Hz, so that energy reaches the model as if it meant
-// something.
+// Rumble is the high-pass corner.
 const Rumble = 80.0
 
-// prepare cleans a recording before the model sees it: no offset, no rumble,
-// and a level the model was trained around.
-//
-// Deliberately not a denoiser. Whisper is trained on noisy audio, and spectral
-// subtraction leaves musical artefacts it reads as words. Invention over
-// non-speech is handled by the VAD in front and the confidence check behind.
+// prepare high-passes and normalizes audio before ASR. It is deliberately not
+// a denoiser.
 func prepare(samples []float32, rate int) []float32 {
 	if len(samples) == 0 {
 		return samples
 	}
 	out := make([]float32, len(samples))
 
-	// One-pole high-pass, which takes the DC offset with it.
+	// One-pole high-pass; this also removes DC offset.
 	rc := 1 / (2 * math.Pi * Rumble)
 	a := float32(rc / (rc + 1/float64(rate)))
 	var prevIn, prevOut float32
@@ -41,14 +31,13 @@ func prepare(samples []float32, rate int) []float32 {
 		out[i] = prevOut
 	}
 
-	// To a level, not to full scale: peak normalisation rides on whatever door
-	// slam was loudest.
+	// Normalize to active speech level, not peak level.
 	loud := active(out)
 	if loud <= 0 {
 		return out
 	}
 	gain := float32(math.Pow(10, Quiet/20) / loud)
-	// Never quieter, and never so much louder that noise becomes a signal.
+	// Never attenuate, and do not amplify enough to turn noise into signal.
 	gain = min(max(gain, 1), 8)
 	if gain == 1 {
 		return out
@@ -59,8 +48,7 @@ func prepare(samples []float32, rate int) []float32 {
 	return out
 }
 
-// active is how loud the talking is, not how loud the file is: averaging in the
-// silence between sentences makes a quiet meeting look quieter than it sounds.
+// active estimates speech loudness without averaging in silence.
 func active(samples []float32) float64 {
 	const window = 1600 // 100 ms
 	var levels []float64
@@ -89,22 +77,17 @@ func active(samples []float32) float64 {
 
 func clamp(v float32) float32 { return max(min(v, 1), -1) }
 
-// Doubtful is the mean token probability under which a row is invention rather
-// than speech. Low on purpose: this catches inventions, it does not second-guess
-// a difficult passage.
+// Doubtful is the mean token probability below which a row is treated as
+// invention rather than speech.
 const Doubtful = 0.35
 
-// Brief is how short a row must be before its confidence is worth doubting. A
-// long stretch of poor audio is still somebody talking.
+// Brief is the token-count threshold for stricter confidence filtering.
 const Brief = 3
 
-// believable rejects rows the model is not confident it heard — Whisper's habit
-// of writing fluent text over silence, "Дякую за перегляд!" being the canonical
-// one. Judged on the model's own numbers rather than a list of phrases, so it
-// catches inventions nobody has seen yet.
+// believable rejects rows the model is not confident it heard.
 func believable(tokens []float32) bool {
 	if len(tokens) == 0 {
-		return true // nothing to judge on; the VAD already had its say
+		return true // nothing to judge on; the VAD already gated the span
 	}
 	var sum float64
 	for _, p := range tokens {
@@ -115,7 +98,7 @@ func believable(tokens []float32) bool {
 	if mean < Doubtful {
 		return false
 	}
-	// A short row is cheap to invent and cheap to lose, so it is held to a
-	// higher bar than a paragraph.
+	// Short rows are cheap to invent and cheap to lose, so hold them to a
+	// higher bar.
 	return len(tokens) > Brief || mean > Doubtful*1.6
 }

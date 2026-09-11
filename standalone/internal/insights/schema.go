@@ -1,11 +1,6 @@
 package insights
 
-// schema is the shape the model must return.
-//
-// Written out rather than reflected from the struct: strict mode wants every
-// property required and additionalProperties false everywhere, which is not
-// what a Go struct tag says, and a generator that got it subtly wrong would
-// fail at request time with a message about JSON Schema rather than about us.
+// schema is the strict JSON shape the summary model must return.
 var schema = object(map[string]any{
 	"title":    text("Four to eight words naming what this meeting was about"),
 	"overview": text("Two or three sentences on what happened"),

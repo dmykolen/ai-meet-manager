@@ -1,43 +1,6 @@
 //go:build old
 
-// Experiment 9 — a switch instead of a sum.  [kept as the record; does not build]
-//
-// This is the experiment that decided the mix, and it compares against a fold
-// that summed and an adaptive filter that has since been deleted, so it no
-// longer compiles against internal/media. Kept under a build tag rather than
-// thrown away, because the numbers in exp/out/D-switch-74.txt came from it and
-// the reasoning should stay next to them.
-//
-// Sides also aligns the channels now, so the shift sweep below would be
-// correcting something already corrected.
-//
-//	go run ./exp/09_switch 74
-//
-// The owner worked out what days of echo cancellation did not: the recording is
-// fine, the mixing is not.
-//
-// media/fold.go ends with this line:
-//
-//	out[i] = system[i] + mic[i]*gain
-//
-// It is a SUM. The microphone is turned down while the far side talks — gain
-// falls to 0.25 — but it is still added, and it still holds the far side coming
-// back out of the speakers. So every remote sentence is in the mix twice: once
-// cleanly from the tap, once from the room about twelve decibels under it. That
-// is precisely what "I hear every phrase twice" sounds like, and no amount of
-// ducking removes it, because ducking makes the second copy quieter rather than
-// absent.
-//
-// A meeting only ever has one owner of any given instant. So hand that instant
-// to whoever owns it instead of adding both:
-//
-//	they are talking  → the tap, which has no room in it at all
-//	you are talking   → the microphone
-//	both              → the tap plus you, where their room copy is masked
-//	                    by your own voice anyway
-//
-// Two channels recorded, one channel served. Every voice appears exactly once
-// by construction rather than by filtering.
+// Experiment 9 records the switch-based fold that replaced summing.
 //
 // This measures four mixes on the same recording: the fold as it ships, the
 // fold ducked far harder, and two switches. Both numbers that matter are

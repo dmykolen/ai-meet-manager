@@ -1,27 +1,4 @@
-// Experiment 4 — is the delay drifting?
-//
-//	go run ./exp/04_drift "$HOME/MeetingTranscriber/recordings/meeting 2026-09-09 11-58.wav"
-//
-// Two proven echo cancellers — SpeexDSP's MDF and the app's own NLMS — both
-// remove exactly nothing from this recording: 0.0 dB of echo return loss. When
-// two independent, well-tested adaptive filters agree on zero, the fault is not
-// in either of them. It is that the far-end reference does not linearly predict
-// the echo, and there is one overwhelmingly likely reason for that here.
-//
-// The microphone and the system tap are two different capture devices with two
-// different clocks. Nothing keeps them in step. Ten parts per million of drift
-// is 14 ms over a twenty-three minute meeting, and an adaptive filter models a
-// *fixed* impulse response: if the delay walks out from under it, it spends the
-// whole recording chasing and never converges.
-//
-// Experiment 1 measured the room delay at 0 ms minimum and 250 ms maximum, and
-// called that "delay spread". If instead the delay rises steadily with time,
-// that was never spread — it was drift, and it explains every failed attempt at
-// this problem so far.
-//
-// This prints the delay against the clock. A flat line means room acoustics and
-// the cancellers should have worked. A ramp means the clocks are sliding and
-// nothing can be cancelled until one channel is resampled onto the other.
+// Experiment 4 checks whether the tap/mic delay drifts over time.
 package main
 
 import (

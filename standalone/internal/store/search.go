@@ -16,12 +16,7 @@ type Hit struct {
 	Text      string  `json:"text"`
 }
 
-// Search finds passages across every transcript.
-//
-// SQLite's own full-text index rather than embeddings: it is already in the file,
-// it needs no key and no network, and for "find where somebody said Vodafone" it
-// is the right tool. Meaning-based search is what Ask is for, and Ask uses these
-// hits as its passages.
+// Search finds passages across every transcript with SQLite FTS.
 func (d *DB) Search(query string, limit int) ([]Hit, error) {
 	query = strings.TrimSpace(query)
 	if query == "" {
@@ -52,11 +47,7 @@ func (d *DB) Search(query string, limit int) ([]Hit, error) {
 	return hits, rows.Err()
 }
 
-// fts turns what somebody typed into something FTS5 will accept.
-//
-// Every word is quoted and the last gets a prefix star, so "vodafone доку"
-// matches "документи" while an apostrophe or a stray quote cannot end the query
-// and start a new one.
+// fts turns user text into a safe FTS5 query.
 func fts(query string) string {
 	words := strings.Fields(query)
 	quoted := make([]string, 0, len(words))
@@ -71,8 +62,7 @@ func fts(query string) string {
 	return strings.Join(quoted, " ")
 }
 
-// Passages renders hits the way the model reads them: labelled with where they
-// came from, so an answer can cite the meeting and the minute.
+// Passages renders hits the way the model reads them.
 func Passages(hits []Hit) []string {
 	out := make([]string, 0, len(hits))
 	for _, h := range hits {

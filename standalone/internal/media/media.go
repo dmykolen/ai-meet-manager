@@ -1,9 +1,5 @@
-// Package media turns any recording into the 16 kHz mono float32 the models
-// want.
-//
-// Three decoders in order of cost: WAV here (the listener writes it, so most of
-// the traffic), then afconvert for anything Core Audio knows, then ffmpeg for
-// webm/ogg/opus/mkv/avi. Writing a container parser was never the job.
+// Package media decodes recordings into the audio shapes the rest of the app
+// expects.
 package media
 
 import (
@@ -18,20 +14,14 @@ import (
 	"strings"
 )
 
-// Rate is what everything downstream assumes, and nothing resamples again.
+// Rate is the canonical downstream sample rate.
 const Rate = 16000
 
-// Tools is where the app keeps the decoders it downloaded. Set once at startup;
-// an empty value just means the PATH is the only place to look.
+// Tools points to app-managed helper binaries when present.
 var Tools string
 
-// Sides splits one of our recordings into the microphone (the person here) and
-// the system tap (everybody else). Anything else comes back ok false.
-//
-// The two are aligned before they are handed over, and everything downstream
-// assumes that happened. They do not arrive aligned — the tap is interleaved
-// about 230 ms late — and that quarter-second is why every echo canceller tried
-// here removed 0.0 dB: they model a causal response and cannot look backwards.
+// Sides splits one of our stereo WAVs into aligned microphone and system
+// channels.
 func Sides(path string) (mic, system []float32, ok bool) {
 	if !strings.EqualFold(filepath.Ext(path), ".wav") {
 		return nil, nil, false
@@ -53,8 +43,7 @@ func Sides(path string) (mic, system []float32, ok bool) {
 	return mic, ahead(system, Offset(mic, system)), true
 }
 
-// ahead moves a channel earlier in time, which is what "it was written late"
-// means once the file exists.
+// ahead shifts a channel earlier in time.
 func ahead(samples []float32, n int) []float32 {
 	if n <= 0 || n >= len(samples) {
 		return samples
@@ -64,7 +53,7 @@ func ahead(samples []float32, n int) []float32 {
 	return out
 }
 
-// Clock is a position in a recording, written the way a person reads it.
+// Clock renders a recording position.
 func Clock(seconds float64) string {
 	s := int(seconds)
 	if s >= 3600 {
@@ -73,8 +62,7 @@ func Clock(seconds float64) string {
 	return fmt.Sprintf("%d:%02d", s/60, s%60)
 }
 
-// Loud is the RMS of a stretch of samples, which is all anything here needs to
-// ask about a channel.
+// Loud is RMS loudness.
 func Loud(samples []float32) float64 {
 	if len(samples) == 0 {
 		return 0
@@ -87,18 +75,13 @@ func Loud(samples []float32) float64 {
 }
 
 // Decode reads a file and returns mono samples at Rate.
-//
-// Stereo is mixed down rather than refused: the listener records the microphone
-// on the left and the system audio on the right, and the models want one signal.
-// Keeping both channels on disk is what makes per-speaker work possible later.
 func Decode(path string) ([]float32, error) {
 	if strings.EqualFold(filepath.Ext(path), ".wav") {
 		samples, err := decodeWAV(path)
 		if err == nil {
 			return samples, nil
 		}
-		// An unusual WAV — 24-bit, a-law, an odd chunk layout — is a decoder's
-		// problem rather than ours.
+		// Fall through to slower decoders for unusual WAVs.
 	}
 
 	var failed []string
@@ -118,8 +101,7 @@ func Decode(path string) ([]float32, error) {
 	return nil, fmt.Errorf("%s could not be read (%s)", filepath.Base(path), strings.Join(failed, "; "))
 }
 
-// trim keeps an error short enough to show on a card. ffmpeg in particular
-// writes a paragraph about the file before saying what went wrong.
+// trim keeps decoder errors short enough for the UI.
 func trim(s string) string {
 	if line := strings.TrimSpace(strings.Split(s, "\n")[0]); len(line) > 90 {
 		return line[:90] + "…"
@@ -128,12 +110,7 @@ func trim(s string) string {
 	}
 }
 
-// viaAfconvert uses the converter that ships with macOS. It reads everything
-// Core Audio does, which is most of what a meeting is ever recorded as, and it
-// is on every Mac — no download, no bundling, no licence to think about.
-//
-// It writes a file rather than a stream, so the result goes to a temporary WAV
-// and comes back through the reader above.
+// viaAfconvert uses the converter that ships with macOS.
 func viaAfconvert(path string) ([]float32, error) {
 	if runtime.GOOS != "darwin" {
 		return nil, errors.New("only on macOS")
@@ -153,12 +130,10 @@ func viaAfconvert(path string) ([]float32, error) {
 	return decodeWAV(out.Name())
 }
 
-// viaFFmpeg is the catch-all: webm, ogg, opus, mkv, avi, wmv, and anything else
-// somebody hands the app.
+// viaFFmpeg is the catch-all decoder.
 func viaFFmpeg(path string) ([]float32, error) { return decodeWith(path, "ffmpeg") }
 
-// decodeWAV handles the ordinary case without spawning anything: 16-bit PCM,
-// any channel count, any sample rate that is a multiple of ours.
+// decodeWAV handles ordinary PCM WAV files in-process.
 func decodeWAV(path string) ([]float32, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
@@ -180,9 +155,7 @@ func decodeWAV(path string) ([]float32, error) {
 	frames := len(data) / 2 / channels
 	out := make([]float32, 0, frames/step)
 
-	// Mix the channels and take every step'th frame. Decimation without a filter
-	// is crude, but the listener already writes 16 kHz, so this path is for the
-	// occasional 48 kHz file rather than the common case.
+	// Mix channels and decimate. Most app-owned WAVs are already 16 kHz.
 	for f := 0; f < frames; f += step {
 		var sum float32
 		for c := range channels {
@@ -201,8 +174,7 @@ type wavFormat struct {
 	bits        uint16
 }
 
-// chunks walks the RIFF structure instead of assuming a 44-byte header, because
-// plenty of encoders put a LIST or a fact chunk in front of the data.
+// chunks walks the RIFF structure instead of assuming a 44-byte header.
 func chunks(raw []byte) (wavFormat, []byte, error) {
 	var format wavFormat
 	if len(raw) < 12 || string(raw[0:4]) != "RIFF" || string(raw[8:12]) != "WAVE" {
@@ -239,7 +211,7 @@ func chunks(raw []byte) (wavFormat, []byte, error) {
 	return format, nil, errors.New("wav: no data chunk")
 }
 
-// decodeWith runs ffmpeg and reads raw samples from its stdout.
+// decodeWith runs an external decoder and reads raw samples from stdout.
 func decodeWith(path, tool string) ([]float32, error) {
 	bin, err := find(tool)
 	if err != nil {
@@ -269,8 +241,7 @@ func decodeWith(path, tool string) ([]float32, error) {
 	return samples, nil
 }
 
-// find prefers the app's own copy, so a machine with an ancient ffmpeg on its
-// PATH does not get to decide what this app can open.
+// find prefers the app's own copy over PATH.
 func find(tool string) (string, error) {
 	if Tools != "" {
 		if candidate := filepath.Join(Tools, tool); usable(candidate) {

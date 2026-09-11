@@ -8,21 +8,12 @@ import (
 	sherpa "github.com/k2-fsa/sherpa-onnx-go-macos"
 )
 
-// parakeet is NVIDIA's Parakeet TDT 0.6B v3, through sherpa-onnx. Offered, not
-// recommended.
-//
-// Measured against Whisper on the same 23-minute meeting: 11 rows to Whisper's
-// 281, and largely nonsense. On three minutes of another it managed 161 words
-// to Whisper's 320, and in Russian — the transducer takes no language argument,
-// so there is nothing to set that stops it.
-//
-// Kept because it cannot loop, being non-autoregressive, and because NVIDIA's
-// own numbers put it ahead on clean read speech. A headset is not a room.
+// parakeet is the optional sherpa-onnx Parakeet recognizer.
 type parakeet struct {
 	rec *sherpa.OfflineRecognizer
 }
 
-// Parakeet is the name this engine goes by in the settings and on disk.
+// Parakeet is the engine name used in settings and on disk.
 const Parakeet = "parakeet"
 
 func openParakeet(dir string, opts Options) (*parakeet, error) {
@@ -53,21 +44,10 @@ func (p *parakeet) close() error {
 	return nil
 }
 
-// Chunk is how much audio Parakeet is given at a time.
-//
-// The whole recording in one call works and is fastest, but a transducer holds
-// its whole hypothesis in memory and an hour of meeting is 3.5 million samples;
-// splitting it keeps that bounded and gives the rows something to hang
-// timestamps on. Two minutes, because the model has no sentence context beyond
-// what it is fed and cutting more finely costs accuracy at every seam.
+// Chunk bounds Parakeet memory use and gives timestamps coarse anchors.
 const Chunk = 120.0
 
-// transcribe returns rows with a timestamp per chunk.
-//
-// Coarser than Whisper's, which knows where each word was. sherpa's offline
-// transducer hands back the text of what it was given and nothing about when —
-// so a row here covers two minutes, and the speaker attribution that follows is
-// correspondingly rougher. Another reason this is not the default.
+// transcribe returns one timestamped row per chunk.
 func (p *parakeet) transcribe(samples []float32) ([]Turn, error) {
 	if p.rec == nil {
 		return nil, errors.New("no transcription model")

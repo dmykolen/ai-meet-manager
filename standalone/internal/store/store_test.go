@@ -72,8 +72,6 @@ func TestATranscriptIsStoredAndReadBackInOrder(t *testing.T) {
 }
 
 func TestSavingATranscriptTwiceDoesNotDuplicateIt(t *testing.T) {
-	// Re-transcribing is a real operation — a better model, a fixed bug — and it
-	// must replace rather than append.
 	db := open(t)
 	r := add(t, db, Meeting)
 	turns := []Turn{{Start: 0, End: 1, Text: "один"}}
@@ -94,7 +92,6 @@ func TestSavingATranscriptTwiceDoesNotDuplicateIt(t *testing.T) {
 }
 
 func TestTheSummaryBecomesTheTitle(t *testing.T) {
-	// The whole point: a Library of subjects rather than of file names.
 	db := open(t)
 	r := add(t, db, Meeting)
 
@@ -152,7 +149,6 @@ func TestSearchFindsPassagesAcrossRecordings(t *testing.T) {
 }
 
 func TestSearchMatchesAPartialLastWord(t *testing.T) {
-	// People type as they think. "доку" should find "документи".
 	db := open(t)
 	r := add(t, db, Meeting)
 	db.SaveTranscript(r.ID, "uk", 5, []Turn{{Text: "документи для клієнта"}})
@@ -163,8 +159,6 @@ func TestSearchMatchesAPartialLastWord(t *testing.T) {
 }
 
 func TestSearchSurvivesWhatPeopleActuallyType(t *testing.T) {
-	// Quotes and operators are text, not syntax: an unescaped one used to end
-	// the query and start a new one.
 	db := open(t)
 	r := add(t, db, Meeting)
 	db.SaveTranscript(r.ID, "uk", 5, []Turn{{Text: "нормальний текст"}})
@@ -261,9 +255,7 @@ type simpleError struct{ s string }
 
 func (e *simpleError) Error() string { return e.s }
 
-// Summarising again is a button in the app, and it must not undo a title the
-// user typed. This is the one thing about renaming that is easy to break later
-// and impossible to notice until somebody loses their title.
+// Re-summarising must not overwrite a user title.
 func TestAChosenTitleSurvivesBeingSummarisedAgain(t *testing.T) {
 	db := open(t)
 	r := add(t, db, Meeting)
@@ -281,7 +273,6 @@ func TestAChosenTitleSurvivesBeingSummarisedAgain(t *testing.T) {
 	if got.Title != "Vodafone: доступ" {
 		t.Fatalf("the model overwrote a chosen title with %q", got.Title)
 	}
-	// The summary itself must still have been replaced.
 	if got.Summary == nil || got.Summary.Overview != "kept" {
 		t.Fatal("the new summary was not stored")
 	}

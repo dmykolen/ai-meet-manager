@@ -14,9 +14,7 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/store"
 )
 
-// fakeEngine stands in for the models, which take a gigabyte and thirty seconds
-// to load. Everything else in the pipeline — decoding, the database, the search
-// index, the failure paths — is the real thing.
+// fakeEngine stands in for the models while the rest of the pipeline stays real.
 type fakeEngine struct {
 	turns  []engine.Turn
 	voices map[string][]float32
@@ -51,11 +49,10 @@ func setup(t *testing.T, e Engine) (*Library, *store.DB, string) {
 
 	recordings := filepath.Join(dir, "recordings")
 	os.MkdirAll(recordings, 0o755)
-	// No key: summarising is skipped, which is its own tested path.
 	return New(db, e, insights.New("", "", "uk"), recordings), db, recordings
 }
 
-// silence writes a real, decodable WAV so that media.Decode is exercised.
+// silence writes a real, decodable WAV.
 func silence(t *testing.T, dir, name string, seconds int) string {
 	t.Helper()
 	samples := 16000 * seconds
@@ -112,7 +109,6 @@ func TestARecordingBecomesASearchableTranscript(t *testing.T) {
 }
 
 func TestAnUnreadableFileFailsThatRecordingAndNothingElse(t *testing.T) {
-	// The failure that matters: one bad file must not stop the queue behind it.
 	fake := &fakeEngine{turns: []engine.Turn{{Text: "fine"}}}
 	lib, db, dir := setup(t, fake)
 
@@ -150,7 +146,6 @@ func TestAnUnreadableFileFailsThatRecordingAndNothingElse(t *testing.T) {
 }
 
 func TestSilenceFinishesRatherThanFailing(t *testing.T) {
-	// A recording of an empty room is a real thing, not an error.
 	lib, db, dir := setup(t, &fakeEngine{turns: nil})
 	silence(t, dir, "quiet.wav", 3)
 
@@ -168,7 +163,6 @@ func TestSilenceFinishesRatherThanFailing(t *testing.T) {
 }
 
 func TestATranscriptSurvivesTheSpeakerModelFailing(t *testing.T) {
-	// Half an answer beats none: the words are what people came for.
 	fake := &fakeEngine{
 		turns: []engine.Turn{{Start: 0, End: 1, Text: "щось сказали"}},
 		err:   errors.New("speaker model unavailable"),
@@ -187,8 +181,6 @@ func TestATranscriptSurvivesTheSpeakerModelFailing(t *testing.T) {
 }
 
 func TestAnInterruptedRecordingIsPickedUpAgain(t *testing.T) {
-	// A crash mid-transcription leaves a row that is neither done nor failed.
-	// The next run must find it rather than leave it there for ever.
 	fake := &fakeEngine{turns: []engine.Turn{{Text: "продовжили"}}}
 	lib, db, dir := setup(t, fake)
 	silence(t, dir, "a.wav", 2)
@@ -222,9 +214,6 @@ func TestTheQueueRunsOldestFirst(t *testing.T) {
 }
 
 func TestDeletingIsRecoverableAndEmptyingIsNot(t *testing.T) {
-	// Deleting is one click and no dialog, which is only reasonable because it
-	// can be undone. What makes that true is that nothing is destroyed until
-	// the bin is emptied.
 	lib, db, dir := setup(t, &fakeEngine{})
 	path := silence(t, dir, "a.wav", 1)
 	r, _ := lib.Add(store.Meeting, "a.wav", time.Now(), "")
@@ -249,7 +238,6 @@ func TestDeletingIsRecoverableAndEmptyingIsNot(t *testing.T) {
 		t.Fatal("restoring did not bring it back to the Library")
 	}
 
-	// And emptying is what really destroys it.
 	_ = lib.Delete(r.ID)
 	if gone, err := lib.Empty(0); err != nil || gone != 1 {
 		t.Fatalf("emptied %d (err %v), want 1", gone, err)
@@ -263,8 +251,6 @@ func TestDeletingIsRecoverableAndEmptyingIsNot(t *testing.T) {
 }
 
 func TestOnlyMeetingsAreWorthAModelCall(t *testing.T) {
-	// Most of what an always-on recorder catches is half a phone call or a
-	// thought said out loud. Summarising those is money spent on nothing.
 	lib, _, dir := setup(t, &fakeEngine{})
 	silence(t, dir, "a.wav", 1)
 	note, _ := lib.Add(store.Note, "a.wav", time.Now(), "")

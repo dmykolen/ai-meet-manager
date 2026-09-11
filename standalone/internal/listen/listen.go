@@ -1,11 +1,4 @@
-// Package listen is the always-on part: it hears a meeting start, records it
-// from before it noticed, and hands the file to the library when it ends.
-//
-// The file is a stereo WAV — left is the microphone, right is whatever the
-// machine is playing. Keeping the two apart is what removes the need for echo
-// cancellation, and it is also the entire meeting detector: speech on the right
-// channel means somebody is talking to you, and that is the difference between
-// a meeting and thinking aloud.
+// Package listen records meetings from an always-on stereo capture loop.
 package listen
 
 import (
@@ -22,13 +15,12 @@ import (
 	"github.com/dmykolen/meetings-transcript-and-diarize/standalone/internal/home"
 )
 
-// Phase is what the app is doing, for the window to show. Every wait is a
-// visible state; a pause with no name is a bug.
+// Phase is the capture state shown in the UI.
 type Phase string
 
 const (
 	Off        Phase = "off"     // listening is switched off in the settings
-	Opening    Phase = "opening" // waiting for the devices, and often for a permission dialog
+	Opening    Phase = "opening" // waiting for devices, often on a permission dialog
 	Listening  Phase = "listening"
 	Recording  Phase = "recording"
 	WrappingUp Phase = "wrapping up" // it has gone quiet, and this may be the end
@@ -36,7 +28,7 @@ const (
 	Broken     Phase = "broken"
 )
 
-// Status is the snapshot the window polls.
+// Status is the polled UI snapshot.
 type Status struct {
 	Phase   Phase  `json:"phase"`
 	Kind    Kind   `json:"kind"`
@@ -46,24 +38,19 @@ type Status struct {
 	Problem string `json:"problem"`
 }
 
-// Done is what the app does with a finished recording: in practice, add it to
-// the library queue.
+// Done handles a finished recording.
 type Done func(path string, kind Kind, started time.Time)
 
-// Threw is called when a recording is discarded rather than kept, so that the
-// app can show what the setting is saving rather than asking to be believed.
+// Threw reports a discarded recording.
 type Threw func(seconds float64, why string)
 
-// stamp is the file name, which is also how a recording is found again on disk.
-// Dashes rather than colons: a colon in a POSIX name shows up as a slash in
-// Finder, and these files are meant to be found by a person.
+// stamp is the human-facing recording filename layout.
 const stamp = "2006-01-02 15-04"
 
-// partial is the suffix a recording wears while it is still being written, so
-// that a file killed mid-write can never be mistaken for a finished one.
+// partial marks a file that was still being written.
 const partial = ".part"
 
-// Recorder is the whole loop: audio in, finished recordings out.
+// Recorder is the capture loop.
 type Recorder struct {
 	dir       string
 	model     string
@@ -76,44 +63,33 @@ type Recorder struct {
 
 	mic, sys *Ears
 	scribe   *Scribe
-	// Who else is in the room, worked out from the microphone alone. Only
-	// consulted when the system channel is off; with it, speech on the second
-	// channel answers the same question for nothing.
+	// Mic-only “someone else is here” detector used when system audio is off.
 	company *Company
 
-	// Quiet frames are held back rather than written: if the talking resumes
-	// they are flushed, and if the recording ends they are dropped. Without
-	// this every meeting ended with the minutes of silence the detector needed
-	// to be sure it was over, and Whisper filled them with invented text.
+	// Hold quiet frames until the detector decides whether they belong.
 	pending [][]int16
 
-	// Everything below is read by the window from another goroutine.
+	// UI-facing state, read from another goroutine.
 	mu     sync.Mutex
 	writer *Writer
 	kind   Kind
 	begun  time.Time
-	// When the last recording ended. The preroll is never allowed to reach
-	// back past it — see begin.
+	// The preroll must never reach back past the previous finished recording.
 	ended  time.Time
 	asked  bool // somebody pressed Record, rather than the app deciding
 	paused bool
-	// The app's own player is playing. See Muffle.
+	// Muffle suppresses the app's own playback on the system channel.
 	muffled bool
-	// Whether to capture the machine's own audio. Changing it reopens the
-	// devices rather than waiting for a restart — see Run.
+	// Changing system capture reopens devices instead of waiting for restart.
 	system bool
 	want   *bool // Record now / Stop, waiting to be applied by the capture loop
 	snap   Status
 }
 
-// Write turns an utterance into words. Handed in rather than imported so that
-// this package still knows nothing about Whisper; nil switches the live
-// transcript off.
+// Write turns one utterance into words. Nil disables live transcript.
 type Write func([]float32) (string, error)
 
-// New wires the pieces from the settings. Nothing is opened yet — Run does
-// that, because opening the microphone can block on a person answering a
-// permission dialog.
+// New wires the recorder from config. Devices are opened later in Run.
 func New(recordings, vadModel string, cfg home.Listen, done Done, threw Threw, write Write, voice Voice) *Recorder {
 	return &Recorder{
 		dir:       recordings,
@@ -135,19 +111,17 @@ func New(recordings, vadModel string, cfg home.Listen, done Done, threw Threw, w
 	}
 }
 
-// KeepNotes changes whether notes the app started by itself are kept, without
-// waiting for a restart.
+// KeepNotes updates note retention without restart.
 func (r *Recorder) KeepNotes(keep bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.keepNotes = keep
 }
 
-// Said is the live transcript of the recording in progress.
+// Said returns the live transcript of the current recording.
 func (r *Recorder) Said() []Line { return r.scribe.Said() }
 
-// Recover clears recordings that were still being written when the app last
-// died. Their WAV headers were never patched, so they hold no readable audio.
+// Recover removes stale partial recordings from a previous crash.
 func Recover(dir string) {
 	stale, _ := filepath.Glob(filepath.Join(dir, "*"+partial))
 	for _, path := range stale {
@@ -162,8 +136,7 @@ func Recover(dir string) {
 	}
 }
 
-// Run opens the devices and records until the context is cancelled. A recording
-// in progress is finished rather than abandoned.
+// Run opens devices and records until ctx is cancelled.
 func (r *Recorder) Run(ctx context.Context) error {
 	var err error
 	if r.mic, err = Listen(r.model); err != nil {
@@ -184,13 +157,12 @@ func (r *Recorder) Run(ctx context.Context) error {
 		if ctx.Err() != nil {
 			return nil
 		}
-		// hear returned because the system-audio setting changed. Reopen with
-		// the new answer rather than making somebody restart the app.
+		// hear returned because the system-audio setting changed.
 	}
 }
 
-// hear opens the devices and reads them until the context ends or the
-// system-audio setting is changed under it.
+// hear reads one device configuration until ctx ends or the system-audio
+// setting changes.
 func (r *Recorder) hear(ctx context.Context) error {
 	system := r.System()
 	stream, err := audio.Open(ctx, system)
@@ -227,7 +199,7 @@ func (r *Recorder) hear(ctx context.Context) error {
 			for i := range audio.FrameSize {
 				left[i], right[i] = frame[2*i], frame[2*i+1]
 			}
-			// The far side of a recording being played back is not a meeting.
+			// Ignore the app's own playback when asked.
 			if r.Muffled() {
 				for i := range audio.FrameSize {
 					right[i], frame[2*i+1] = 0, 0
@@ -241,11 +213,9 @@ func (r *Recorder) hear(ctx context.Context) error {
 	}
 }
 
-// step is one frame: remember it, ask each channel whether anybody is talking,
-// and act on whatever the detector makes of it.
+// step handles one captured frame.
 func (r *Recorder) step(frame, left, right []int16, system bool) error {
-	// The window only ever leaves a note; the detector is touched here and
-	// nowhere else.
+	// Touch the detector from one goroutine only.
 	r.mu.Lock()
 	if want := r.want; want != nil {
 		r.want = nil

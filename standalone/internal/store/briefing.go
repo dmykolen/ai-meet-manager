@@ -7,12 +7,7 @@ import (
 	"unicode"
 )
 
-// Briefing is the answer to the two questions somebody actually opens this app
-// with: what did I miss, and what did I say I would do.
-//
-// Everything here is read out of summaries that were already written. No model
-// is called, nothing is sent anywhere, and it is the same few hundred rows the
-// Library screen reads — so it is instant and it works with no key.
+// Briefing is the cross-meeting dashboard view.
 type Briefing struct {
 	Since    time.Time     `json:"since"`
 	Meetings []Recording   `json:"meetings"` // in the window, newest first
@@ -26,7 +21,7 @@ type Briefing struct {
 	Spared   int           `json:"spared"`   // minutes it did not have to transcribe
 }
 
-// Said is one line from a summary, and the meeting it came from.
+// Said is one line from a summary, with its source meeting.
 type Said struct {
 	Recording int64     `json:"recording"`
 	Title     string    `json:"title"`
@@ -35,18 +30,13 @@ type Said struct {
 }
 
 // Nagging is a question that keeps coming back.
-//
-// This is the thing a pile of transcripts knows and a person does not: the same
-// thing was left unresolved in three meetings, and nobody noticed because each
-// meeting only remembers itself.
 type Nagging struct {
 	Text  string `json:"text"`
 	Times int    `json:"times"`
 	Said  []Said `json:"said"`
 }
 
-// Brief looks back over a window — a day for a morning check, a week for a
-// Friday one.
+// Brief builds a briefing over a recent window.
 func (d *DB) Brief(days int) (*Briefing, error) {
 	if days <= 0 {
 		days = 1
@@ -87,17 +77,15 @@ func (d *DB) Brief(days int) (*Briefing, error) {
 				b.Decided = append(b.Decided, line)
 			}
 		}
-		// Open questions are gathered from everything, not just the window: a
-		// question asked a month ago and again yesterday is exactly the case
-		// worth surfacing.
+		// Open questions come from the whole history so repeats outside the
+		// window still surface.
 		for _, q := range r.Summary.OpenQuestions {
 			line := where
 			line.Text = q
 			key := fingerprint(q)
 			asked[key] = append(asked[key], line)
 		}
-		// Commitments too — an overdue item does not become less overdue for
-		// being older than the window.
+		// Older unresolved commitments can still be overdue.
 		for i, a := range r.Summary.ActionItems {
 			if a.Done {
 				continue
@@ -132,14 +120,7 @@ func (d *DB) Brief(days int) (*Briefing, error) {
 	return b, nil
 }
 
-// fingerprint reduces a sentence to the words that carry it, so that "Which IP
-// ranges do we need to allow?" and "What IP ranges should be allowed?" land in
-// the same bucket.
-//
-// Crude on purpose. The alternative is embedding every open question of every
-// meeting, which costs a key, a network round trip and a vector index to catch
-// a handful more — and being wrong here shows a person two lines instead of
-// one, which is a small thing to be wrong about.
+// fingerprint buckets similar open questions without embeddings.
 func fingerprint(text string) string {
 	words := strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
@@ -157,8 +138,7 @@ func fingerprint(text string) string {
 	return strings.Join(kept, " ")
 }
 
-// filler is the words that say nothing about which question this is. Ukrainian
-// and English, since those are what this app hears.
+// filler are low-information words ignored when bucketing questions.
 var filler = map[string]bool{
 	"який": true, "яка": true, "яке": true, "які": true, "треба": true, "потрібно": true,
 	"можна": true, "буде": true, "було": true, "щодо": true, "цього": true, "цьому": true,
@@ -167,13 +147,7 @@ var filler = map[string]bool{
 	"from": true, "have": true, "will": true, "when": true, "были": true,
 }
 
-// overdue reads the deadline the way a person wrote it. Most are relative —
-// "сьогодні", "next week", "до п'ятниці" — so the meeting's own date is the
-// clock they were said against.
-//
-// Only the unambiguous ones count. A deadline this cannot read is left alone
-// rather than guessed at, because a false "overdue" beside somebody's name is
-// worse than a missing one.
+// overdue reads a human-written deadline conservatively.
 func overdue(due string, said time.Time) bool {
 	d := strings.ToLower(strings.TrimSpace(due))
 	if d == "" {
