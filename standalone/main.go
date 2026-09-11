@@ -114,6 +114,11 @@ func run() error {
 	lib.Policy(store.When(cfg.Summarise))
 	lib.Owner(cfg.Me)
 	meetings := service.New(db, lib, dir, cfg)
+	go func() {
+		if err := service.RunMCP(ctx, meetings, os.Getenv("MT_MCP_ADDR")); err != nil {
+			slog.Error("MCP server stopped", "err", err)
+		}
+	}()
 
 	// Stale partial WAVs are not recoverable.
 	listen.Recover(home.Recordings(dir))
