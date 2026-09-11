@@ -47,6 +47,9 @@ func TestToolsExposeStoredInformation(t *testing.T) {
 			tool.Annotations.OpenWorldHint == nil || *tool.Annotations.OpenWorldHint {
 			t.Errorf("%s has unsafe annotations: %+v", tool.Name, tool.Annotations)
 		}
+		if tool.OutputSchema.Type == "" {
+			t.Errorf("%s has no output schema", tool.Name)
+		}
 	}
 
 	var recordings recordingsOutput
@@ -68,6 +71,18 @@ func TestToolsExposeStoredInformation(t *testing.T) {
 		t.Fatal("knowledge search did not find stored summary")
 	}
 
+	var transcript transcriptSearchOutput
+	decodeResult(t, call(t, client, "search_transcripts", map[string]any{"query": "launch"}), &transcript)
+	if len(transcript.Hits) == 0 {
+		t.Fatal("transcript search did not find stored turn")
+	}
+
+	var projects projectsOutput
+	decodeResult(t, call(t, client, "list_projects", map[string]any{}), &projects)
+	if len(projects.Projects) != 1 {
+		t.Fatalf("unexpected projects: %+v", projects)
+	}
+
 	var project projectOutput
 	decodeResult(t, call(t, client, "get_project", map[string]any{"id": projectID}), &project)
 	if project.Project.ID != projectID || len(project.Recordings) != 1 || len(project.Notes) != 1 {
@@ -80,6 +95,18 @@ func TestToolsExposeStoredInformation(t *testing.T) {
 		t.Fatalf("unexpected people: %+v", people.People)
 	}
 
+	var actions actionsOutput
+	decodeResult(t, call(t, client, "list_action_items", map[string]any{}), &actions)
+	if len(actions.Actions) != 1 {
+		t.Fatalf("unexpected actions: %+v", actions)
+	}
+
+	var briefing briefingOutput
+	decodeResult(t, call(t, client, "get_briefing", map[string]any{"days": 1}), &briefing)
+	if len(briefing.Briefing.Meetings) != 1 {
+		t.Fatalf("unexpected briefing: %+v", briefing)
+	}
+
 	if result := call(t, client, "get_project", map[string]any{"id": int64(999)}); !result.IsError {
 		t.Fatal("missing project should return a tool error")
 	}
@@ -87,6 +114,12 @@ func TestToolsExposeStoredInformation(t *testing.T) {
 		"project_id": projectID, "include_deleted": true,
 	}); !result.IsError {
 		t.Fatal("conflicting list filters should return a tool error")
+	}
+}
+
+func TestRunMCPRejectsNetworkAddress(t *testing.T) {
+	if err := RunMCP(t.Context(), nil, "0.0.0.0:8765"); err == nil {
+		t.Fatal("non-loopback MCP address should be rejected")
 	}
 }
 

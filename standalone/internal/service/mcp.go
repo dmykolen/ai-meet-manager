@@ -84,6 +84,10 @@ type briefingInput struct {
 	Days int `json:"days,omitempty" jsonschema:"Number of recent days to cover, from 1 to 365 (default 1)"`
 }
 
+type briefingOutput struct {
+	Briefing *store.Briefing `json:"briefing"`
+}
+
 type peopleOutput struct {
 	People []store.Person `json:"people"`
 }
@@ -157,7 +161,7 @@ func NewMCP(meetings *Meetings) *server.MCPServer {
 			return recordingOutput{Recording: recording, Analytics: analytics, Notes: notes}, nil
 		})
 
-	addTool(s, "search_transcripts", "Find relevant timestamped passages across meeting transcripts.",
+	addTool(s, "search_transcripts", "Find timestamped transcript passages containing every supplied keyword.",
 		func(ctx context.Context, _ mcp.CallToolRequest, in searchInput) (transcriptSearchOutput, error) {
 			if err := nonemptyQuery(ctx, in.Query); err != nil {
 				return transcriptSearchOutput{}, err
@@ -241,17 +245,18 @@ func NewMCP(meetings *Meetings) *server.MCPServer {
 		})
 
 	addTool(s, "get_briefing", "Get a recent cross-meeting briefing with decisions, open and overdue work, recurring questions, and participants.",
-		func(ctx context.Context, _ mcp.CallToolRequest, in briefingInput) (*store.Briefing, error) {
+		func(ctx context.Context, _ mcp.CallToolRequest, in briefingInput) (briefingOutput, error) {
 			if err := ctx.Err(); err != nil {
-				return nil, err
+				return briefingOutput{}, err
 			}
 			if in.Days <= 0 {
 				in.Days = 1
 			}
 			if in.Days > 365 {
-				return nil, errors.New("days cannot exceed 365")
+				return briefingOutput{}, errors.New("days cannot exceed 365")
 			}
-			return meetings.Brief(in.Days)
+			briefing, err := meetings.Brief(in.Days)
+			return briefingOutput{Briefing: briefing}, err
 		})
 
 	addTool(s, "list_people", "List recognised people and the recordings their saved voice samples came from. Voiceprint vectors are never exposed.",
