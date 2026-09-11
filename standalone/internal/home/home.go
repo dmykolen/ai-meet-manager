@@ -13,10 +13,8 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// Folder is the default app home directory name.
 const Folder = "MeetingTranscriber"
 
-// Dir returns the working folder, creating it if needed.
 func Dir() (string, error) {
 	if override := os.Getenv("MT_HOME"); override != "" {
 		return override, os.MkdirAll(override, 0o755)
@@ -28,12 +26,9 @@ func Dir() (string, error) {
 	return filepath.Join(base, Folder), os.MkdirAll(filepath.Join(base, Folder), 0o755)
 }
 
-// App subdirectories are created lazily.
 func Recordings(dir string) string { return sub(dir, "recordings") }
 func Models(dir string) string     { return sub(dir, "models") }
 func Logs(dir string) string       { return sub(dir, "logs") }
-
-// Cache holds derived files that can always be rebuilt.
 func Cache(dir string) string    { return sub(dir, "cache") }
 func Database(dir string) string { return filepath.Join(dir, "meetings.db") }
 
@@ -45,25 +40,13 @@ func sub(dir, name string) string {
 
 // Config is the app's persisted settings.
 type Config struct {
-	// Language of the meetings, or Auto to detect it per meeting.
 	Language string `toml:"language"`
-
-	// OpenAI is only used for summaries, questions, and semantic search.
 	OpenAIKey   string `toml:"openai_key"`
 	OpenAIModel string `toml:"openai_model"`
-
-	// Summarise says which recordings are worth a model call.
 	Summarise Choice `toml:"summarise"`
-
-	// Density of the transcript: "compact" or "comfortable".
 	Density string `toml:"density"`
-
-	// Transcriber is "whisper" or "parakeet".
 	Transcriber string `toml:"transcriber"`
-
-	// Me is the laptop owner's name.
 	Me string `toml:"me"`
-
 	Listen Listen `toml:"listen"`
 	Keep   Keep   `toml:"keep"`
 }
@@ -71,13 +54,8 @@ type Config struct {
 // Listen configures always-on capture.
 type Listen struct {
 	Enabled bool `toml:"enabled"`
-
-	// System captures the machine's own audio alongside the microphone.
 	System bool `toml:"system"`
-
-	// KeepNotes keeps auto-started notes that nobody else was in.
 	KeepNotes bool `toml:"keep_notes"`
-
 	StartSpeech Duration `toml:"start_speech"`
 	QuietEnds   Duration `toml:"quiet_ends"`
 	Preroll     Duration `toml:"preroll"`
